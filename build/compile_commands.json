@@ -1,0 +1,74 @@
+[
+{
+  "directory": "D:/QTquant/build",
+  "command": "D:\\code\\Qt6.5.3\\Tools\\mingw1120_64\\bin\\g++.exe -DMINGW_HAS_SECURE_API=1 -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NEEDS_QMAIN -DQT_NETWORK_LIB -DQT_WIDGETS_LIB -DUNICODE -DWIN32 -DWIN64 -D_ENABLE_EXTENDED_ALIGNED_STORAGE -D_UNICODE -D_WIN64 @CMakeFiles/QTQuant.dir/includes_CXX.rsp  -finput-charset=UTF-8 -fexec-charset=UTF-8 -g -std=gnu++17 -o CMakeFiles\\QTQuant.dir\\QTQuant_autogen\\mocs_compilation.cpp.obj -c D:\\QTquant\\build\\QTQuant_autogen\\mocs_compilation.cpp",
+  "file": "D:/QTquant/build/QTQuant_autogen/mocs_compilation.cpp",
+  "output": "CMakeFiles/QTQuant.dir/QTQuant_autogen/mocs_compilation.cpp.obj"
+},
+{
+  "directory": "D:/QTquant/build",
+  "command": "D:\\code\\Qt6.5.3\\Tools\\mingw1120_64\\bin\\g++.exe -DMINGW_HAS_SECURE_API=1 -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NEEDS_QMAIN -DQT_NETWORK_LIB -DQT_WIDGETS_LIB -DUNICODE -DWIN32 -DWIN64 -D_ENABLE_EXTENDED_ALIGNED_STORAGE -D_UNICODE -D_WIN64 @CMakeFiles/QTQuant.dir/includes_CXX.rsp  -finput-charset=UTF-8 -fexec-charset=UTF-8 -g -std=gnu++17 -o CMakeFiles\\QTQuant.dir\\src\\main.cpp.obj -c D:\\QTquant\\src\\main.cpp",
+  "file": "D:/QTquant/src/main.cpp",
+  "output": "CMakeFiles/QTQuant.dir/src/main.cpp.obj"
+},
+{
+  "directory": "D:/QTquant/build",
+  "command": "D:\\code\\Qt6.5.3\\Tools\\mingw1120_64\\bin\\g++.exe -DMINGW_HAS_SECURE_API=1 -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NEEDS_QMAIN -DQT_NETWORK_LIB -DQT_WIDGETS_LIB -DUNICODE -DWIN32 -DWIN64 -D_ENABLE_EXTENDED_ALIGNED_STORAGE -D_UNICODE -D_WIN64 @CMakeFiles/QTQuant.dir/includes_CXX.rsp  -finput-charset=UTF-8 -fexec-charset=UTF-8 -g -std=gnu++17 -o CMakeFiles\\QTQuant.dir\\src\\mainwindow.cpp.obj -c D:\\QTquant\\src\\mainwindow.cpp",
+  "file": "D:/QTquant/src/mainwindow.cpp",
+  "output": "CMakeFiles/QTQuant.dir/src/mainwindow.cpp.obj"
+},
+{
+  "directory": "D:/QTquant/build",
+  "command": "D:\\code\\Qt6.5.3\\Tools\\mingw1120_64\\bin\\g++.exe -DMINGW_HAS_SECURE_API=1 -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NEEDS_QMAIN -DQT_NETWORK_LIB -DQT_WIDGETS_LIB -DUNICODE -DWIN32 -DWIN64 -D_ENABLE_EXTENDED_ALIGNED_STORAGE -D_UNICODE -D_WIN64 @CMakeFiles/QTQuant.dir/includes_CXX.rsp  -finput-charset=UTF-8 -fexec-charset=UTF-8 -g -std=gnu++17 -o CMakeFiles\\QTQuant.dir\\src\\market\\marketdata.cpp.obj -c D:\\QTquant\\src\\market\\marketdata.cpp",
+  "file": "D:/QTquant/src/market/marketdata.cpp",
+  "output": "CMakeFiles/QTQuant.dir/src/market/marketdata.cpp.obj"
+},
+{
+  "directory": "D:/QTquant/build",
+  "command": "D:\\code\\Qt6.5.3\\Tools\\mingw1120_64\\bin\\g++.exe -DMINGW_HAS_SECURE_API=1 -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NEEDS_QMAIN -DQT_NETWORK_LIB -DQT_WIDGETS_LIB -DUNICODE -DWIN32 -DWIN64 -D_ENABLE_EXTENDED_ALIGNED_STORAGE -D_UNICODE -D_WIN64 @CMakeFiles/QTQuant.dir/includes_CXX.rsp  -finput-charset=UTF-8 -fexec-charset=UTF-8 -g -std=gnu++17 -o CMakeFiles\\QTQuant.dir\\src\\indicator\\indicators.cpp.obj -c D:\\QTquant\\src\\indicator\\indicators.cpp",
+  "file": "D:/QTquant/src/indicator/indicators.cpp",
+  "output": "CMakeFiles/QTQuant.dir/src/indicator/indicators.cpp.obj"
+},
+{
+  "directory": "D:/QTquant/build",
+  "command": "D:\\code\\Qt6.5.3\\Tools\\mingw1120_64\\bin\\g++.exe -DMINGW_HAS_SECURE_API=1 -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NEEDS_QMAIN -DQT_NETWORK_LIB -DQT_WIDGETS_LIB -DUNICODE -DWIN32 -DWIN64 -D_ENABLE_EXTENDED_ALIGNED_STORAGE -D_UNICODE -D_WIN64 @CMakeFiles/QTQuant.dir/includes_CXX.rsp  -finput-charset=UTF-8 -fexec-charset=UTF-8 -g -std=gnu++17 -o CMakeFiles\\QTQuant.dir\\src\\strategy\\strategybase.cpp.obj -c D:\\QTquant\\src\\strategy\\strategybase.cpp",
+  "file": "D:/QTquant/src/strategy/strategybase.cpp",
+  "output": "CMakeFiles/QTQuant.dir/src/strategy/strategybase.cpp.obj"
+},
+{
+  "directory": "D:/QTquant/build",
+  "command": "D:\\code\\Qt6.5.3\\Tools\\mingw1120_64\\bin\\g++.exe -DMINGW_HAS_SECURE_API=1 -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NEEDS_QMAIN -DQT_NETWORK_LIB -DQT_WIDGETS_LIB -DUNICODE -DWIN32 -DWIN64 -D_ENABLE_EXTENDED_ALIGNED_STORAGE -D_UNICODE -D_WIN64 @CMakeFiles/QTQuant.dir/includes_CXX.rsp  -finput-charset=UTF-8 -fexec-charset=UTF-8 -g -std=gnu++17 -o CMakeFiles\\QTQuant.dir\\src\\strategy\\movingaveragestrategy.cpp.obj -c D:\\QTquant\\src\\strategy\\movingaveragestrategy.cpp",
+  "file": "D:/QTquant/src/strategy/movingaveragestrategy.cpp",
+  "output": "CMakeFiles/QTQuant.dir/src/strategy/movingaveragestrategy.cpp.obj"
+},
+{
+  "directory": "D:/QTquant/build",
+  "command": "D:\\code\\Qt6.5.3\\Tools\\mingw1120_64\\bin\\g++.exe -DMINGW_HAS_SECURE_API=1 -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NEEDS_QMAIN -DQT_NETWORK_LIB -DQT_WIDGETS_LIB -DUNICODE -DWIN32 -DWIN64 -D_ENABLE_EXTENDED_ALIGNED_STORAGE -D_UNICODE -D_WIN64 @CMakeFiles/QTQuant.dir/includes_CXX.rsp  -finput-charset=UTF-8 -fexec-charset=UTF-8 -g -std=gnu++17 -o CMakeFiles\\QTQuant.dir\\src\\ui\\strategypanel.cpp.obj -c D:\\QTquant\\src\\ui\\strategypanel.cpp",
+  "file": "D:/QTquant/src/ui/strategypanel.cpp",
+  "output": "CMakeFiles/QTQuant.dir/src/ui/strategypanel.cpp.obj"
+},
+{
+  "directory": "D:/QTquant/build",
+  "command": "D:\\code\\Qt6.5.3\\Tools\\mingw1120_64\\bin\\g++.exe -DMINGW_HAS_SECURE_API=1 -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NEEDS_QMAIN -DQT_NETWORK_LIB -DQT_WIDGETS_LIB -DUNICODE -DWIN32 -DWIN64 -D_ENABLE_EXTENDED_ALIGNED_STORAGE -D_UNICODE -D_WIN64 @CMakeFiles/QTQuant.dir/includes_CXX.rsp  -finput-charset=UTF-8 -fexec-charset=UTF-8 -g -std=gnu++17 -o CMakeFiles\\QTQuant.dir\\src\\ui\\marketpanel.cpp.obj -c D:\\QTquant\\src\\ui\\marketpanel.cpp",
+  "file": "D:/QTquant/src/ui/marketpanel.cpp",
+  "output": "CMakeFiles/QTQuant.dir/src/ui/marketpanel.cpp.obj"
+},
+{
+  "directory": "D:/QTquant/build",
+  "command": "D:\\code\\Qt6.5.3\\Tools\\mingw1120_64\\bin\\g++.exe -DMINGW_HAS_SECURE_API=1 -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NEEDS_QMAIN -DQT_NETWORK_LIB -DQT_WIDGETS_LIB -DUNICODE -DWIN32 -DWIN64 -D_ENABLE_EXTENDED_ALIGNED_STORAGE -D_UNICODE -D_WIN64 @CMakeFiles/QTQuant.dir/includes_CXX.rsp  -finput-charset=UTF-8 -fexec-charset=UTF-8 -g -std=gnu++17 -o CMakeFiles\\QTQuant.dir\\src\\ui\\chartpanel.cpp.obj -c D:\\QTquant\\src\\ui\\chartpanel.cpp",
+  "file": "D:/QTquant/src/ui/chartpanel.cpp",
+  "output": "CMakeFiles/QTQuant.dir/src/ui/chartpanel.cpp.obj"
+},
+{
+  "directory": "D:/QTquant/build",
+  "command": "D:\\code\\Qt6.5.3\\Tools\\mingw1120_64\\bin\\g++.exe -DMINGW_HAS_SECURE_API=1 -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NEEDS_QMAIN -DQT_NETWORK_LIB -DQT_WIDGETS_LIB -DUNICODE -DWIN32 -DWIN64 -D_ENABLE_EXTENDED_ALIGNED_STORAGE -D_UNICODE -D_WIN64 @CMakeFiles/QTQuant.dir/includes_CXX.rsp  -finput-charset=UTF-8 -fexec-charset=UTF-8 -g -std=gnu++17 -o CMakeFiles\\QTQuant.dir\\src\\ui\\accountpanel.cpp.obj -c D:\\QTquant\\src\\ui\\accountpanel.cpp",
+  "file": "D:/QTquant/src/ui/accountpanel.cpp",
+  "output": "CMakeFiles/QTQuant.dir/src/ui/accountpanel.cpp.obj"
+},
+{
+  "directory": "D:/QTquant/build",
+  "command": "D:\\code\\Qt6.5.3\\Tools\\mingw1120_64\\bin\\g++.exe -DMINGW_HAS_SECURE_API=1 -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NEEDS_QMAIN -DQT_NETWORK_LIB -DQT_WIDGETS_LIB -DUNICODE -DWIN32 -DWIN64 -D_ENABLE_EXTENDED_ALIGNED_STORAGE -D_UNICODE -D_WIN64 @CMakeFiles/QTQuant.dir/includes_CXX.rsp  -finput-charset=UTF-8 -fexec-charset=UTF-8 -g -std=gnu++17 -o CMakeFiles\\QTQuant.dir\\src\\ui\\candlestickwidget.cpp.obj -c D:\\QTquant\\src\\ui\\candlestickwidget.cpp",
+  "file": "D:/QTquant/src/ui/candlestickwidget.cpp",
+  "output": "CMakeFiles/QTQuant.dir/src/ui/candlestickwidget.cpp.obj"
+}
+]

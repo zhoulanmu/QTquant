@@ -1,0 +1,5 @@
+D:/QTquant/build/CMakeFiles/QTQuant.dir
+D:/QTquant/build/CMakeFiles/edit_cache.dir
+D:/QTquant/build/CMakeFiles/rebuild_cache.dir
+D:/QTquant/build/CMakeFiles/QTQuant_autogen_timestamp_deps.dir
+D:/QTquant/build/CMakeFiles/QTQuant_autogen.dir

@@ -1,0 +1,3 @@
+# Hashes of file build rules.
+59554edc339a49290b20b239b21ebd3e CMakeFiles/QTQuant_autogen
+077fca34d089247657363d84642e1a2f QTQuant_autogen/timestamp

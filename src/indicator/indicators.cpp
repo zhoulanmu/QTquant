@@ -1,0 +1,123 @@
+#include "indicators.h"
+#include <numeric>
+#include <cmath>
+
+double TechnicalIndicators::calculateSMA(const std::vector<double>& prices, int period)
+{
+    if (prices.size() < period) return 0.0;
+
+    double sum = 0.0;
+    for (int i = prices.size() - period; i < prices.size(); ++i) {
+        sum += prices[i];
+    }
+    return sum / period;
+}
+
+double TechnicalIndicators::calculateEMA(const std::vector<double>& prices, int period)
+{
+    if (prices.size() < period) return 0.0;
+
+    double alpha = 2.0 / (period + 1);
+    double ema = prices[prices.size() - period];
+
+    for (int i = prices.size() - period + 1; i < prices.size(); ++i) {
+        ema = alpha * prices[i] + (1 - alpha) * ema;
+    }
+    return ema;
+}
+
+std::pair<double, double> TechnicalIndicators::calculateMACD(const std::vector<double>& prices, int shortPeriod, int longPeriod, int signalPeriod)
+{
+    double shortEMA = calculateEMA(prices, shortPeriod);
+    double longEMA = calculateEMA(prices, longPeriod);
+    double macd = shortEMA - longEMA;
+
+    return {macd, 0.0};
+}
+
+double TechnicalIndicators::calculateRSI(const std::vector<double>& prices, int period)
+{
+    if (prices.size() < period + 1) return 50.0;
+
+    double avgGain = 0.0;
+    double avgLoss = 0.0;
+
+    for (int i = prices.size() - period; i < prices.size(); ++i) {
+        double change = prices[i] - prices[i - 1];
+        if (change > 0) {
+            avgGain += change;
+        } else {
+            avgLoss += std::abs(change);
+        }
+    }
+
+    avgGain /= period;
+    avgLoss /= period;
+
+    if (avgLoss == 0) return 100.0;
+
+    double rs = avgGain / avgLoss;
+    return 100.0 - (100.0 / (1.0 + rs));
+}
+
+std::pair<double, double> TechnicalIndicators::calculateBollingerBands(const std::vector<double>& prices, int period, double stdDev)
+{
+    if (prices.size() < period) return {0.0, 0.0};
+
+    double sma = calculateSMA(prices, period);
+
+    double variance = 0.0;
+    for (int i = prices.size() - period; i < prices.size(); ++i) {
+        variance += std::pow(prices[i] - sma, 2);
+    }
+    variance /= period;
+    double std = std::sqrt(variance);
+
+    return {sma - stdDev * std, sma + stdDev * std};
+}
+
+double TechnicalIndicators::calculateATR(const std::vector<double>& highs, const std::vector<double>& lows, const std::vector<double>& closes, int period)
+{
+    if (highs.size() < period || lows.size() < period || closes.size() < period + 1) return 0.0;
+
+    std::vector<double> trueRanges;
+    for (int i = closes.size() - period; i < closes.size(); ++i) {
+        double tr = std::max(highs[i] - lows[i],
+                             std::max(std::abs(highs[i] - closes[i - 1]),
+                                      std::abs(lows[i] - closes[i - 1])));
+        trueRanges.push_back(tr);
+    }
+
+    double sum = std::accumulate(trueRanges.begin(), trueRanges.end(), 0.0);
+    return sum / period;
+}
+
+double TechnicalIndicators::calculateOBV(const std::vector<double>& closes, const std::vector<double>& volumes)
+{
+    if (closes.size() < 2 || volumes.size() < 2) return 0.0;
+
+    double obv = 0.0;
+    for (size_t i = 1; i < closes.size(); ++i) {
+        if (closes[i] > closes[i - 1]) {
+            obv += volumes[i];
+        } else if (closes[i] < closes[i - 1]) {
+            obv -= volumes[i];
+        }
+    }
+    return obv;
+}
+
+double TechnicalIndicators::calculateVolumeWeightedMA(const std::vector<double>& prices, const std::vector<double>& volumes, int period)
+{
+    if (prices.size() < period || volumes.size() < period) return 0.0;
+
+    double sumPriceVolume = 0.0;
+    double sumVolume = 0.0;
+
+    for (int i = prices.size() - period; i < prices.size(); ++i) {
+        sumPriceVolume += prices[i] * volumes[i];
+        sumVolume += volumes[i];
+    }
+
+    return sumVolume > 0 ? sumPriceVolume / sumVolume : 0.0;
+}
