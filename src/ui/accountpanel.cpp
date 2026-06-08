@@ -21,6 +21,40 @@ AccountPanel::AccountPanel(QWidget *parent) :
     ui->tradesTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
     ui->tradesTable->setSelectionMode(QAbstractItemView::SingleSelection);
     ui->tradesTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+
+    initMockData();
+}
+
+void AccountPanel::initMockData()
+{
+    QMap<QString, PositionInfo> mockPositions;
+
+    PositionInfo pos1;
+    pos1.symbol = "000001.SH";
+    pos1.quantity = 500;
+    pos1.avgCost = 10.50;
+    pos1.currentPrice = 10.78;
+    pos1.marketValue = pos1.quantity * pos1.currentPrice;
+    pos1.profit = (pos1.currentPrice - pos1.avgCost) * pos1.quantity;
+    pos1.profitPercent = (pos1.currentPrice / pos1.avgCost - 1) * 100;
+    mockPositions["000001.SH"] = pos1;
+
+    PositionInfo pos2;
+    pos2.symbol = "600519.SH";
+    pos2.quantity = 100;
+    pos2.avgCost = 1850.00;
+    pos2.currentPrice = 1920.50;
+    pos2.marketValue = pos2.quantity * pos2.currentPrice;
+    pos2.profit = (pos2.currentPrice - pos2.avgCost) * pos2.quantity;
+    pos2.profitPercent = (pos2.currentPrice / pos2.avgCost - 1) * 100;
+    mockPositions["600519.SH"] = pos2;
+
+    updatePositions(mockPositions);
+
+    addTradeRecord("000001.SH", "买入", 10.50, 500, 5250.00, "10:30:15");
+    addTradeRecord("600519.SH", "买入", 1850.00, 100, 185000.00, "11:15:22");
+    addTradeRecord("000001.SH", "卖出", 10.65, 200, 2130.00, "14:20:33");
+    addTradeRecord("000001.SH", "买入", 10.48, 300, 3144.00, "14:45:18");
 }
 
 AccountPanel::~AccountPanel()
@@ -30,11 +64,11 @@ AccountPanel::~AccountPanel()
 
 void AccountPanel::updateAccount(double totalAssets, double availableCash, double marketValue, double totalProfit, double profitPercent)
 {
-    ui->totalAssetsLabel->setText(QString("%.2f").arg(totalAssets));
-    ui->availableCashLabel->setText(QString("%.2f").arg(availableCash));
-    ui->marketValueLabel->setText(QString("%.2f").arg(marketValue));
-    ui->totalProfitLabel->setText(QString("%.2f").arg(totalProfit));
-    ui->profitPercentLabel->setText(QString("%.2f%%").arg(profitPercent));
+    ui->totalAssetsLabel->setText(QString::number(totalAssets, 'f', 2));
+    ui->availableCashLabel->setText(QString::number(availableCash, 'f', 2));
+    ui->marketValueLabel->setText(QString::number(marketValue, 'f', 2));
+    ui->totalProfitLabel->setText(QString::number(totalProfit, 'f', 2));
+    ui->profitPercentLabel->setText(QString::number(profitPercent, 'f', 2) + "%");
 
     if (totalProfit >= 0) {
         ui->totalProfitLabel->setStyleSheet("color: red;");
@@ -55,12 +89,12 @@ void AccountPanel::updatePositions(const QMap<QString, PositionInfo> &positions)
         ui->positionsTable->insertRow(row);
 
         ui->positionsTable->setItem(row, 0, new QTableWidgetItem(pos.symbol));
-        ui->positionsTable->setItem(row, 1, new QTableWidgetItem(QString("%.0f").arg(pos.quantity)));
-        ui->positionsTable->setItem(row, 2, new QTableWidgetItem(QString("%.2f").arg(pos.avgCost)));
-        ui->positionsTable->setItem(row, 3, new QTableWidgetItem(QString("%.2f").arg(pos.currentPrice)));
-        ui->positionsTable->setItem(row, 4, new QTableWidgetItem(QString("%.2f").arg(pos.marketValue)));
+        ui->positionsTable->setItem(row, 1, new QTableWidgetItem(QString::number(pos.quantity, 'f', 0)));
+        ui->positionsTable->setItem(row, 2, new QTableWidgetItem(QString::number(pos.avgCost, 'f', 2)));
+        ui->positionsTable->setItem(row, 3, new QTableWidgetItem(QString::number(pos.currentPrice, 'f', 2)));
+        ui->positionsTable->setItem(row, 4, new QTableWidgetItem(QString::number(pos.marketValue, 'f', 2)));
 
-        auto profitItem = new QTableWidgetItem(QString("%.2f").arg(pos.profitPercent));
+        auto profitItem = new QTableWidgetItem(QString::number(pos.profitPercent, 'f', 2));
         if (pos.profitPercent >= 0) {
             profitItem->setForeground(QBrush(Qt::red));
         } else {

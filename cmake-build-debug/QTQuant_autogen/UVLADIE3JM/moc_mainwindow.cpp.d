@@ -4,6 +4,8 @@ D:/QTquant/cmake-build-debug/QTQuant_autogen/UVLADIE3JM/moc_mainwindow.cpp: D:/Q
   D:/QTquant/src/strategy/movingaveragestrategy.h \
   D:/QTquant/src/strategy/strategybase.h \
   D:/QTquant/src/ui/accountpanel.h \
+  D:/QTquant/src/ui/signalsignalpanel.h \
+  D:/QTquant/src/ui/statisticspanel.h \
   D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/QDateTime \
   D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/QMap \
   D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/QObject \
@@ -11,6 +13,7 @@ D:/QTquant/cmake-build-debug/QTQuant_autogen/UVLADIE3JM/moc_mainwindow.cpp: D:/Q
   D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/QTimer \
   D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/q20memory.h \
   D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/q20type_traits.h \
+  D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qabstractitemmodel.h \
   D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qalgorithms.h \
   D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qanystringview.h \
   D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qarraydata.h \
@@ -51,7 +54,9 @@ D:/QTquant/cmake-build-debug/QTQuant_autogen/UVLADIE3JM/moc_mainwindow.cpp: D:/Q
   D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qglobalstatic.h \
   D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qhash.h \
   D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qhashfunctions.h \
+  D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qiodevice.h \
   D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qiodevicebase.h \
+  D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qitemselectionmodel.h \
   D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qiterable.h \
   D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qiterator.h \
   D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qline.h \
@@ -77,6 +82,7 @@ D:/QTquant/cmake-build-debug/QTQuant_autogen/UVLADIE3JM/moc_mainwindow.cpp: D:/Q
   D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qprocessordetection.h \
   D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qrect.h \
   D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qrefcount.h \
+  D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qregularexpression.h \
   D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qscopedpointer.h \
   D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qscopeguard.h \
   D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qset.h \
@@ -117,6 +123,7 @@ D:/QTquant/cmake-build-debug/QTQuant_autogen/UVLADIE3JM/moc_mainwindow.cpp: D:/Q
   D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qtversionchecks.h \
   D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qtypeinfo.h \
   D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qtypes.h \
+  D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qurl.h \
   D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qutf8stringview.h \
   D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qvariant.h \
   D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qvarlengtharray.h \
@@ -135,22 +142,49 @@ D:/QTquant/cmake-build-debug/QTQuant_autogen/UVLADIE3JM/moc_mainwindow.cpp: D:/Q
   D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtGui/qkeysequence.h \
   D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtGui/qpaintdevice.h \
   D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtGui/qpalette.h \
+  D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtGui/qpicture.h \
   D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtGui/qpixelformat.h \
   D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtGui/qpixmap.h \
   D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtGui/qpolygon.h \
   D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtGui/qregion.h \
   D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtGui/qrgb.h \
   D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtGui/qrgba64.h \
+  D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtGui/qtextdocument.h \
   D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtGui/qtgui-config.h \
   D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtGui/qtguiexports.h \
   D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtGui/qtguiglobal.h \
   D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtGui/qtransform.h \
+  D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtGui/qvalidator.h \
   D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtGui/qwindowdefs.h \
   D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtGui/qwindowdefs_win.h \
+  D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/QGridLayout \
+  D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/QGroupBox \
+  D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/QLabel \
   D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/QMainWindow \
+  D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/QTableWidget \
+  D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/QVBoxLayout \
   D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/QWidget \
+  D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/qabstractitemdelegate.h \
+  D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/qabstractitemview.h \
+  D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/qabstractscrollarea.h \
+  D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/qabstractslider.h \
+  D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/qabstractspinbox.h \
+  D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/qboxlayout.h \
+  D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/qframe.h \
+  D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/qgridlayout.h \
+  D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/qgroupbox.h \
+  D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/qlabel.h \
+  D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/qlayout.h \
+  D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/qlayoutitem.h \
   D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/qmainwindow.h \
+  D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/qrubberband.h \
   D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/qsizepolicy.h \
+  D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/qslider.h \
+  D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/qstyle.h \
+  D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/qstyleoption.h \
+  D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/qtabbar.h \
+  D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/qtableview.h \
+  D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/qtablewidget.h \
   D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/qtabwidget.h \
   D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/qtwidgets-config.h \
   D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/qtwidgetsexports.h \

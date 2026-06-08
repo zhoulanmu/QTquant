@@ -18,7 +18,10 @@ set(CMAKE_DEPENDS_DEPENDENCY_FILES
   "D:/QTquant/src/ui/accountpanel.cpp" "CMakeFiles/QTQuant.dir/src/ui/accountpanel.cpp.obj" "gcc" "CMakeFiles/QTQuant.dir/src/ui/accountpanel.cpp.obj.d"
   "D:/QTquant/src/ui/candlestickwidget.cpp" "CMakeFiles/QTQuant.dir/src/ui/candlestickwidget.cpp.obj" "gcc" "CMakeFiles/QTQuant.dir/src/ui/candlestickwidget.cpp.obj.d"
   "D:/QTquant/src/ui/chartpanel.cpp" "CMakeFiles/QTQuant.dir/src/ui/chartpanel.cpp.obj" "gcc" "CMakeFiles/QTQuant.dir/src/ui/chartpanel.cpp.obj.d"
+  "D:/QTquant/src/ui/logindialog.cpp" "CMakeFiles/QTQuant.dir/src/ui/logindialog.cpp.obj" "gcc" "CMakeFiles/QTQuant.dir/src/ui/logindialog.cpp.obj.d"
   "D:/QTquant/src/ui/marketpanel.cpp" "CMakeFiles/QTQuant.dir/src/ui/marketpanel.cpp.obj" "gcc" "CMakeFiles/QTQuant.dir/src/ui/marketpanel.cpp.obj.d"
+  "D:/QTquant/src/ui/signalsignalpanel.cpp" "CMakeFiles/QTQuant.dir/src/ui/signalsignalpanel.cpp.obj" "gcc" "CMakeFiles/QTQuant.dir/src/ui/signalsignalpanel.cpp.obj.d"
+  "D:/QTquant/src/ui/statisticspanel.cpp" "CMakeFiles/QTQuant.dir/src/ui/statisticspanel.cpp.obj" "gcc" "CMakeFiles/QTQuant.dir/src/ui/statisticspanel.cpp.obj.d"
   "D:/QTquant/src/ui/strategypanel.cpp" "CMakeFiles/QTQuant.dir/src/ui/strategypanel.cpp.obj" "gcc" "CMakeFiles/QTQuant.dir/src/ui/strategypanel.cpp.obj.d"
   )
 

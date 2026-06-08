@@ -6,6 +6,8 @@
 #include "strategy/strategybase.h"
 #include "strategy/movingaveragestrategy.h"
 #include "ui/accountpanel.h"
+#include "ui/statisticspanel.h"
+#include "ui/signalsignalpanel.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -35,6 +37,8 @@ private:
     MarketDataSimulator* m_marketData;
     MovingAverageStrategy* m_strategy;
     AccountPanel* m_accountPanel;
+    StatisticsPanel* m_statisticsPanel;
+    SignalPanel* m_signalPanel;
     bool m_isRunning;
 
     double m_initialCapital;

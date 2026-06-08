@@ -2,6 +2,7 @@ file(REMOVE_RECURSE
   "CMakeFiles/QTQuant_autogen"
   "QTQuant_autogen/include/src/ui/ui_accountpanel.h"
   "QTQuant_autogen/include/src/ui/ui_chartpanel.h"
+  "QTQuant_autogen/include/src/ui/ui_logindialog.h"
   "QTQuant_autogen/include/src/ui/ui_marketpanel.h"
   "QTQuant_autogen/include/src/ui/ui_strategypanel.h"
   "QTQuant_autogen/include/src/ui_mainwindow.h"

@@ -29,4 +29,5 @@ private:
     CandlestickWidget* m_candlestickWidget;
 
     void updatePriceRange();
+    void initMockData();
 };

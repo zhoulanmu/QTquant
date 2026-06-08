@@ -336,9 +336,27 @@
 			null
 		],
 		[
+			"D:/QTquant/src/ui/logindialog.h",
+			"MU",
+			"YPKJ5OE7LN/moc_logindialog.cpp",
+			null
+		],
+		[
 			"D:/QTquant/src/ui/marketpanel.h",
 			"MU",
 			"YPKJ5OE7LN/moc_marketpanel.cpp",
+			null
+		],
+		[
+			"D:/QTquant/src/ui/signalsignalpanel.h",
+			"MU",
+			"YPKJ5OE7LN/moc_signalsignalpanel.cpp",
+			null
+		],
+		[
+			"D:/QTquant/src/ui/statisticspanel.h",
+			"MU",
+			"YPKJ5OE7LN/moc_statisticspanel.cpp",
 			null
 		],
 		[
@@ -434,7 +452,10 @@
 		[ "D:/QTquant/src/ui/accountpanel.cpp", "MU", null ],
 		[ "D:/QTquant/src/ui/candlestickwidget.cpp", "MU", null ],
 		[ "D:/QTquant/src/ui/chartpanel.cpp", "MU", null ],
+		[ "D:/QTquant/src/ui/logindialog.cpp", "MU", null ],
 		[ "D:/QTquant/src/ui/marketpanel.cpp", "MU", null ],
+		[ "D:/QTquant/src/ui/signalsignalpanel.cpp", "MU", null ],
+		[ "D:/QTquant/src/ui/statisticspanel.cpp", "MU", null ],
 		[ "D:/QTquant/src/ui/strategypanel.cpp", "MU", null ]
 	],
 	"UIC_OPTIONS" : [],

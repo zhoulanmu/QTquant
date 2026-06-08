@@ -16,14 +16,17 @@ public:
 
 protected:
     void paintEvent(QPaintEvent *event) override;
+    void wheelEvent(QWheelEvent *event) override;
 
 private:
     std::deque<MarketData> m_priceHistory;
     double m_minPrice;
     double m_maxPrice;
+    double m_zoomFactor;
     const int MAX_POINTS = 50;
 
     void drawCandlesticks(QPainter& painter);
     void drawGrid(QPainter& painter);
     void drawPriceLabels(QPainter& painter);
+    void drawTimeLabels(QPainter& painter, int chartWidth, int chartHeight, int padding);
 };

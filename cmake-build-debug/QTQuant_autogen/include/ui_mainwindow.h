@@ -27,13 +27,17 @@ class Ui_MainWindow
 {
 public:
     QWidget *centralwidget;
-    QVBoxLayout *verticalLayout_2;
     QHBoxLayout *horizontalLayout;
     QFrame *frame;
     QVBoxLayout *verticalLayout_3;
     StrategyPanel *strategyPanel;
     MarketPanel *marketPanel;
+    QWidget *accountPanel;
+    QVBoxLayout *verticalLayout_4;
     ChartPanel *chartPanel;
+    QHBoxLayout *horizontalLayout_2;
+    QWidget *statisticsPanel;
+    QWidget *signalPanel;
     QStatusBar *statusbar;
 
     void setupUi(QMainWindow *MainWindow)
@@ -43,9 +47,7 @@ public:
         MainWindow->resize(1200, 800);
         centralwidget = new QWidget(MainWindow);
         centralwidget->setObjectName("centralwidget");
-        verticalLayout_2 = new QVBoxLayout(centralwidget);
-        verticalLayout_2->setObjectName("verticalLayout_2");
-        horizontalLayout = new QHBoxLayout();
+        horizontalLayout = new QHBoxLayout(centralwidget);
         horizontalLayout->setObjectName("horizontalLayout");
         frame = new QFrame(centralwidget);
         frame->setObjectName("frame");
@@ -68,21 +70,52 @@ public:
 
         verticalLayout_3->addWidget(marketPanel);
 
-
-        horizontalLayout->addWidget(frame);
-
-        chartPanel = new ChartPanel(centralwidget);
-        chartPanel->setObjectName("chartPanel");
+        accountPanel = new QWidget(frame);
+        accountPanel->setObjectName("accountPanel");
         QSizePolicy sizePolicy1(QSizePolicy::Expanding, QSizePolicy::Expanding);
         sizePolicy1.setHorizontalStretch(0);
         sizePolicy1.setVerticalStretch(0);
+        sizePolicy1.setHeightForWidth(accountPanel->sizePolicy().hasHeightForWidth());
+        accountPanel->setSizePolicy(sizePolicy1);
+
+        verticalLayout_3->addWidget(accountPanel);
+
+
+        horizontalLayout->addWidget(frame);
+
+        verticalLayout_4 = new QVBoxLayout();
+        verticalLayout_4->setObjectName("verticalLayout_4");
+        chartPanel = new ChartPanel(centralwidget);
+        chartPanel->setObjectName("chartPanel");
         sizePolicy1.setHeightForWidth(chartPanel->sizePolicy().hasHeightForWidth());
         chartPanel->setSizePolicy(sizePolicy1);
 
-        horizontalLayout->addWidget(chartPanel);
+        verticalLayout_4->addWidget(chartPanel);
+
+        horizontalLayout_2 = new QHBoxLayout();
+        horizontalLayout_2->setObjectName("horizontalLayout_2");
+        statisticsPanel = new QWidget(centralwidget);
+        statisticsPanel->setObjectName("statisticsPanel");
+        QSizePolicy sizePolicy2(QSizePolicy::Expanding, QSizePolicy::Preferred);
+        sizePolicy2.setHorizontalStretch(0);
+        sizePolicy2.setVerticalStretch(0);
+        sizePolicy2.setHeightForWidth(statisticsPanel->sizePolicy().hasHeightForWidth());
+        statisticsPanel->setSizePolicy(sizePolicy2);
+
+        horizontalLayout_2->addWidget(statisticsPanel);
+
+        signalPanel = new QWidget(centralwidget);
+        signalPanel->setObjectName("signalPanel");
+        sizePolicy2.setHeightForWidth(signalPanel->sizePolicy().hasHeightForWidth());
+        signalPanel->setSizePolicy(sizePolicy2);
+
+        horizontalLayout_2->addWidget(signalPanel);
 
 
-        verticalLayout_2->addLayout(horizontalLayout);
+        verticalLayout_4->addLayout(horizontalLayout_2);
+
+
+        horizontalLayout->addLayout(verticalLayout_4);
 
         MainWindow->setCentralWidget(centralwidget);
         statusbar = new QStatusBar(MainWindow);

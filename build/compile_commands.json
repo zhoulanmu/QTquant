@@ -70,5 +70,23 @@
   "command": "D:\\code\\Qt6.5.3\\Tools\\mingw1120_64\\bin\\g++.exe -DMINGW_HAS_SECURE_API=1 -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NEEDS_QMAIN -DQT_NETWORK_LIB -DQT_WIDGETS_LIB -DUNICODE -DWIN32 -DWIN64 -D_ENABLE_EXTENDED_ALIGNED_STORAGE -D_UNICODE -D_WIN64 @CMakeFiles/QTQuant.dir/includes_CXX.rsp  -finput-charset=UTF-8 -fexec-charset=UTF-8 -g -std=gnu++17 -o CMakeFiles\\QTQuant.dir\\src\\ui\\candlestickwidget.cpp.obj -c D:\\QTquant\\src\\ui\\candlestickwidget.cpp",
   "file": "D:/QTquant/src/ui/candlestickwidget.cpp",
   "output": "CMakeFiles/QTQuant.dir/src/ui/candlestickwidget.cpp.obj"
+},
+{
+  "directory": "D:/QTquant/build",
+  "command": "D:\\code\\Qt6.5.3\\Tools\\mingw1120_64\\bin\\g++.exe -DMINGW_HAS_SECURE_API=1 -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NEEDS_QMAIN -DQT_NETWORK_LIB -DQT_WIDGETS_LIB -DUNICODE -DWIN32 -DWIN64 -D_ENABLE_EXTENDED_ALIGNED_STORAGE -D_UNICODE -D_WIN64 @CMakeFiles/QTQuant.dir/includes_CXX.rsp  -finput-charset=UTF-8 -fexec-charset=UTF-8 -g -std=gnu++17 -o CMakeFiles\\QTQuant.dir\\src\\ui\\statisticspanel.cpp.obj -c D:\\QTquant\\src\\ui\\statisticspanel.cpp",
+  "file": "D:/QTquant/src/ui/statisticspanel.cpp",
+  "output": "CMakeFiles/QTQuant.dir/src/ui/statisticspanel.cpp.obj"
+},
+{
+  "directory": "D:/QTquant/build",
+  "command": "D:\\code\\Qt6.5.3\\Tools\\mingw1120_64\\bin\\g++.exe -DMINGW_HAS_SECURE_API=1 -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NEEDS_QMAIN -DQT_NETWORK_LIB -DQT_WIDGETS_LIB -DUNICODE -DWIN32 -DWIN64 -D_ENABLE_EXTENDED_ALIGNED_STORAGE -D_UNICODE -D_WIN64 @CMakeFiles/QTQuant.dir/includes_CXX.rsp  -finput-charset=UTF-8 -fexec-charset=UTF-8 -g -std=gnu++17 -o CMakeFiles\\QTQuant.dir\\src\\ui\\signalsignalpanel.cpp.obj -c D:\\QTquant\\src\\ui\\signalsignalpanel.cpp",
+  "file": "D:/QTquant/src/ui/signalsignalpanel.cpp",
+  "output": "CMakeFiles/QTQuant.dir/src/ui/signalsignalpanel.cpp.obj"
+},
+{
+  "directory": "D:/QTquant/build",
+  "command": "D:\\code\\Qt6.5.3\\Tools\\mingw1120_64\\bin\\g++.exe -DMINGW_HAS_SECURE_API=1 -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NEEDS_QMAIN -DQT_NETWORK_LIB -DQT_WIDGETS_LIB -DUNICODE -DWIN32 -DWIN64 -D_ENABLE_EXTENDED_ALIGNED_STORAGE -D_UNICODE -D_WIN64 @CMakeFiles/QTQuant.dir/includes_CXX.rsp  -finput-charset=UTF-8 -fexec-charset=UTF-8 -g -std=gnu++17 -o CMakeFiles\\QTQuant.dir\\src\\ui\\logindialog.cpp.obj -c D:\\QTquant\\src\\ui\\logindialog.cpp",
+  "file": "D:/QTquant/src/ui/logindialog.cpp",
+  "output": "CMakeFiles/QTQuant.dir/src/ui/logindialog.cpp.obj"
 }
 ]

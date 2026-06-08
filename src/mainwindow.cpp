@@ -9,11 +9,11 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow)
     , m_isRunning(false)
     , m_initialCapital(100000.0)
-    , m_currentCash(100000.0)
-    , m_currentPrice(0.0)
+    , m_currentCash(76806.0)
+    , m_currentPrice(10.78)
 {
     ui->setupUi(this);
-    setWindowTitle(QStringLiteral("QTQuant - 量化交易辅助程序"));
+    setWindowTitle(QStringLiteral("QTQuant - 量化交易辅助程序 · 海上升明月，天涯共此时 · 作者：Daniel Zhou · 版本：v0.1"));
 
     m_marketData = new MarketDataSimulator(this);
     m_strategy = new MovingAverageStrategy(this);
@@ -25,7 +25,33 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->strategyPanel, &StrategyPanel::parametersChanged, this, &MainWindow::onUpdateParameters);
 
     m_accountPanel = new AccountPanel(this);
-    ui->verticalLayout_3->addWidget(m_accountPanel);
+    ui->verticalLayout_3->replaceWidget(ui->accountPanel, m_accountPanel);
+    delete ui->accountPanel;
+    ui->accountPanel = m_accountPanel;
+
+    m_statisticsPanel = new StatisticsPanel(this);
+    ui->horizontalLayout_2->replaceWidget(ui->statisticsPanel, m_statisticsPanel);
+    delete ui->statisticsPanel;
+    ui->statisticsPanel = m_statisticsPanel;
+
+    m_signalPanel = new SignalPanel(this);
+    ui->horizontalLayout_2->replaceWidget(ui->signalPanel, m_signalPanel);
+    delete ui->signalPanel;
+    ui->signalPanel = m_signalPanel;
+
+    PositionInfo pos1;
+    pos1.symbol = "000001.SH";
+    pos1.quantity = 500;
+    pos1.avgCost = 10.50;
+    pos1.currentPrice = 10.78;
+    m_positions["000001.SH"] = pos1;
+
+    PositionInfo pos2;
+    pos2.symbol = "600519.SH";
+    pos2.quantity = 100;
+    pos2.avgCost = 1850.00;
+    pos2.currentPrice = 1920.50;
+    m_positions["600519.SH"] = pos2;
 
     onUpdateParameters();
     updateAccountInfo();

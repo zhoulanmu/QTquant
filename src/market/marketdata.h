@@ -7,6 +7,18 @@
 #include <random>
 
 struct MarketData {
+    MarketData()
+        : symbol("")
+        , timestamp(QDateTime())
+        , open(0.0)
+        , high(0.0)
+        , low(0.0)
+        , close(0.0)
+        , volume(0.0)
+        , turnover(0.0)
+        , tradeCount(0)
+    {}
+
     QString symbol;
     QDateTime timestamp;
     double open;

@@ -251,6 +251,51 @@ CMakeFiles/QTQuant.dir/src/ui/candlestickwidget.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/QTQuant.dir/src/ui/candlestickwidget.cpp.s"
 	D:\code\Qt6.5.3\Tools\mingw1120_64\bin\g++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S D:\QTquant\src\ui\candlestickwidget.cpp -o CMakeFiles\QTQuant.dir\src\ui\candlestickwidget.cpp.s
 
+CMakeFiles/QTQuant.dir/src/ui/statisticspanel.cpp.obj: CMakeFiles/QTQuant.dir/flags.make
+CMakeFiles/QTQuant.dir/src/ui/statisticspanel.cpp.obj: CMakeFiles/QTQuant.dir/includes_CXX.rsp
+CMakeFiles/QTQuant.dir/src/ui/statisticspanel.cpp.obj: D:/QTquant/src/ui/statisticspanel.cpp
+CMakeFiles/QTQuant.dir/src/ui/statisticspanel.cpp.obj: CMakeFiles/QTQuant.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=D:\QTquant\build\CMakeFiles --progress-num=$(CMAKE_PROGRESS_13) "Building CXX object CMakeFiles/QTQuant.dir/src/ui/statisticspanel.cpp.obj"
+	D:\code\Qt6.5.3\Tools\mingw1120_64\bin\g++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/QTQuant.dir/src/ui/statisticspanel.cpp.obj -MF CMakeFiles\QTQuant.dir\src\ui\statisticspanel.cpp.obj.d -o CMakeFiles\QTQuant.dir\src\ui\statisticspanel.cpp.obj -c D:\QTquant\src\ui\statisticspanel.cpp
+
+CMakeFiles/QTQuant.dir/src/ui/statisticspanel.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/QTQuant.dir/src/ui/statisticspanel.cpp.i"
+	D:\code\Qt6.5.3\Tools\mingw1120_64\bin\g++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E D:\QTquant\src\ui\statisticspanel.cpp > CMakeFiles\QTQuant.dir\src\ui\statisticspanel.cpp.i
+
+CMakeFiles/QTQuant.dir/src/ui/statisticspanel.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/QTQuant.dir/src/ui/statisticspanel.cpp.s"
+	D:\code\Qt6.5.3\Tools\mingw1120_64\bin\g++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S D:\QTquant\src\ui\statisticspanel.cpp -o CMakeFiles\QTQuant.dir\src\ui\statisticspanel.cpp.s
+
+CMakeFiles/QTQuant.dir/src/ui/signalsignalpanel.cpp.obj: CMakeFiles/QTQuant.dir/flags.make
+CMakeFiles/QTQuant.dir/src/ui/signalsignalpanel.cpp.obj: CMakeFiles/QTQuant.dir/includes_CXX.rsp
+CMakeFiles/QTQuant.dir/src/ui/signalsignalpanel.cpp.obj: D:/QTquant/src/ui/signalsignalpanel.cpp
+CMakeFiles/QTQuant.dir/src/ui/signalsignalpanel.cpp.obj: CMakeFiles/QTQuant.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=D:\QTquant\build\CMakeFiles --progress-num=$(CMAKE_PROGRESS_14) "Building CXX object CMakeFiles/QTQuant.dir/src/ui/signalsignalpanel.cpp.obj"
+	D:\code\Qt6.5.3\Tools\mingw1120_64\bin\g++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/QTQuant.dir/src/ui/signalsignalpanel.cpp.obj -MF CMakeFiles\QTQuant.dir\src\ui\signalsignalpanel.cpp.obj.d -o CMakeFiles\QTQuant.dir\src\ui\signalsignalpanel.cpp.obj -c D:\QTquant\src\ui\signalsignalpanel.cpp
+
+CMakeFiles/QTQuant.dir/src/ui/signalsignalpanel.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/QTQuant.dir/src/ui/signalsignalpanel.cpp.i"
+	D:\code\Qt6.5.3\Tools\mingw1120_64\bin\g++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E D:\QTquant\src\ui\signalsignalpanel.cpp > CMakeFiles\QTQuant.dir\src\ui\signalsignalpanel.cpp.i
+
+CMakeFiles/QTQuant.dir/src/ui/signalsignalpanel.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/QTQuant.dir/src/ui/signalsignalpanel.cpp.s"
+	D:\code\Qt6.5.3\Tools\mingw1120_64\bin\g++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S D:\QTquant\src\ui\signalsignalpanel.cpp -o CMakeFiles\QTQuant.dir\src\ui\signalsignalpanel.cpp.s
+
+CMakeFiles/QTQuant.dir/src/ui/logindialog.cpp.obj: CMakeFiles/QTQuant.dir/flags.make
+CMakeFiles/QTQuant.dir/src/ui/logindialog.cpp.obj: CMakeFiles/QTQuant.dir/includes_CXX.rsp
+CMakeFiles/QTQuant.dir/src/ui/logindialog.cpp.obj: D:/QTquant/src/ui/logindialog.cpp
+CMakeFiles/QTQuant.dir/src/ui/logindialog.cpp.obj: CMakeFiles/QTQuant.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=D:\QTquant\build\CMakeFiles --progress-num=$(CMAKE_PROGRESS_15) "Building CXX object CMakeFiles/QTQuant.dir/src/ui/logindialog.cpp.obj"
+	D:\code\Qt6.5.3\Tools\mingw1120_64\bin\g++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/QTQuant.dir/src/ui/logindialog.cpp.obj -MF CMakeFiles\QTQuant.dir\src\ui\logindialog.cpp.obj.d -o CMakeFiles\QTQuant.dir\src\ui\logindialog.cpp.obj -c D:\QTquant\src\ui\logindialog.cpp
+
+CMakeFiles/QTQuant.dir/src/ui/logindialog.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/QTQuant.dir/src/ui/logindialog.cpp.i"
+	D:\code\Qt6.5.3\Tools\mingw1120_64\bin\g++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E D:\QTquant\src\ui\logindialog.cpp > CMakeFiles\QTQuant.dir\src\ui\logindialog.cpp.i
+
+CMakeFiles/QTQuant.dir/src/ui/logindialog.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/QTQuant.dir/src/ui/logindialog.cpp.s"
+	D:\code\Qt6.5.3\Tools\mingw1120_64\bin\g++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S D:\QTquant\src\ui\logindialog.cpp -o CMakeFiles\QTQuant.dir\src\ui\logindialog.cpp.s
+
 # Object files for target QTQuant
 QTQuant_OBJECTS = \
 "CMakeFiles/QTQuant.dir/QTQuant_autogen/mocs_compilation.cpp.obj" \
@@ -264,7 +309,10 @@ QTQuant_OBJECTS = \
 "CMakeFiles/QTQuant.dir/src/ui/marketpanel.cpp.obj" \
 "CMakeFiles/QTQuant.dir/src/ui/chartpanel.cpp.obj" \
 "CMakeFiles/QTQuant.dir/src/ui/accountpanel.cpp.obj" \
-"CMakeFiles/QTQuant.dir/src/ui/candlestickwidget.cpp.obj"
+"CMakeFiles/QTQuant.dir/src/ui/candlestickwidget.cpp.obj" \
+"CMakeFiles/QTQuant.dir/src/ui/statisticspanel.cpp.obj" \
+"CMakeFiles/QTQuant.dir/src/ui/signalsignalpanel.cpp.obj" \
+"CMakeFiles/QTQuant.dir/src/ui/logindialog.cpp.obj"
 
 # External object files for target QTQuant
 QTQuant_EXTERNAL_OBJECTS =
@@ -281,6 +329,9 @@ QTQuant.exe: CMakeFiles/QTQuant.dir/src/ui/marketpanel.cpp.obj
 QTQuant.exe: CMakeFiles/QTQuant.dir/src/ui/chartpanel.cpp.obj
 QTQuant.exe: CMakeFiles/QTQuant.dir/src/ui/accountpanel.cpp.obj
 QTQuant.exe: CMakeFiles/QTQuant.dir/src/ui/candlestickwidget.cpp.obj
+QTQuant.exe: CMakeFiles/QTQuant.dir/src/ui/statisticspanel.cpp.obj
+QTQuant.exe: CMakeFiles/QTQuant.dir/src/ui/signalsignalpanel.cpp.obj
+QTQuant.exe: CMakeFiles/QTQuant.dir/src/ui/logindialog.cpp.obj
 QTQuant.exe: CMakeFiles/QTQuant.dir/build.make
 QTQuant.exe: D:/code/Qt6.5.3/6.5.3/mingw_64/lib/libQt6Widgets.a
 QTQuant.exe: D:/code/Qt6.5.3/6.5.3/mingw_64/lib/libQt6Network.a
@@ -290,7 +341,7 @@ QTQuant.exe: D:/code/Qt6.5.3/6.5.3/mingw_64/lib/libQt6EntryPoint.a
 QTQuant.exe: CMakeFiles/QTQuant.dir/linkLibs.rsp
 QTQuant.exe: CMakeFiles/QTQuant.dir/objects1.rsp
 QTQuant.exe: CMakeFiles/QTQuant.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=D:\QTquant\build\CMakeFiles --progress-num=$(CMAKE_PROGRESS_13) "Linking CXX executable QTQuant.exe"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=D:\QTquant\build\CMakeFiles --progress-num=$(CMAKE_PROGRESS_16) "Linking CXX executable QTQuant.exe"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles\QTQuant.dir\link.txt --verbose=$(VERBOSE)
 	"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -E make_directory D:/QTquant/build/plugins/platforms/
 	"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -E copy D:\code\Qt6.5.3\6.5.3\mingw_64\lib\cmake/../../plugins/platforms/qwindows.dll D:/QTquant/build/plugins/platforms/

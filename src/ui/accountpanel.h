@@ -31,4 +31,6 @@ public:
 
 private:
     Ui::AccountPanel *ui;
+
+    void initMockData();
 };

@@ -55,6 +55,13 @@ add_executable(QTQuant WIN32
     src/ui/accountpanel.ui
     src/ui/candlestickwidget.cpp
     src/ui/candlestickwidget.h
+    src/ui/statisticspanel.cpp
+    src/ui/statisticspanel.h
+    src/ui/signalsignalpanel.cpp
+    src/ui/signalsignalpanel.h
+    src/ui/logindialog.cpp
+    src/ui/logindialog.h
+    src/ui/logindialog.ui
 )
 
 target_link_libraries(QTQuant PRIVATE ${REQUIRED_LIBS_QUALIFIED})

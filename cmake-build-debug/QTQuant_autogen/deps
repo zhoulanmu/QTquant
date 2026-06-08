@@ -21,35 +21,103 @@ QTQuant_autogen/timestamp: \
 	D:/QTquant/src/ui/candlestickwidget.h \
 	D:/QTquant/src/ui/chartpanel.cpp \
 	D:/QTquant/src/ui/chartpanel.h \
+	D:/QTquant/src/ui/logindialog.cpp \
+	D:/QTquant/src/ui/logindialog.h \
 	D:/QTquant/src/ui/marketpanel.cpp \
 	D:/QTquant/src/ui/marketpanel.h \
+	D:/QTquant/src/ui/signalsignalpanel.cpp \
+	D:/QTquant/src/ui/signalsignalpanel.h \
+	D:/QTquant/src/ui/statisticspanel.cpp \
+	D:/QTquant/src/ui/statisticspanel.h \
 	D:/QTquant/src/ui/strategypanel.cpp \
 	D:/QTquant/src/ui/strategypanel.h \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeCXXCompiler.cmake.in \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeCXXCompilerABI.cpp \
 	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeCXXInformation.cmake \
 	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeCheckCompilerFlagCommonPatterns.cmake \
 	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeCommonLanguageInclude.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeCompilerIdDetection.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeDetermineCXXCompiler.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeDetermineCompileFeatures.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeDetermineCompiler.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeDetermineCompilerABI.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeDetermineCompilerId.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeDetermineRCCompiler.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeDetermineSystem.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeFindBinUtils.cmake \
 	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeFindDependencyMacro.cmake \
 	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeGenericSystem.cmake \
 	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeInitializeConfigs.cmake \
 	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeLanguageInformation.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeParseImplicitIncludeInfo.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeParseImplicitLinkInfo.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeParseLibraryArchitecture.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeRCCompiler.cmake.in \
 	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeRCInformation.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeSystem.cmake.in \
 	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeSystemSpecificInformation.cmake \
 	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeSystemSpecificInitialize.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeTestCXXCompiler.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeTestCompilerCommon.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeTestRCCompiler.cmake \
 	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CheckCXXCompilerFlag.cmake \
 	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CheckCXXSourceCompiles.cmake \
 	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CheckIncludeFileCXX.cmake \
 	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CheckLibraryExists.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/ADSP-DetermineCompiler.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/ARMCC-DetermineCompiler.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/ARMClang-DetermineCompiler.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/AppleClang-DetermineCompiler.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/Borland-DetermineCompiler.cmake \
 	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/CMakeCommonCompilerMacros.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/Clang-DetermineCompiler.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/Clang-DetermineCompilerInternal.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/Compaq-CXX-DetermineCompiler.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/Cray-DetermineCompiler.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/CrayClang-DetermineCompiler.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/Embarcadero-DetermineCompiler.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/Fujitsu-DetermineCompiler.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/FujitsuClang-DetermineCompiler.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/GHS-DetermineCompiler.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/GNU-CXX-DetermineCompiler.cmake \
 	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/GNU-CXX.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/GNU-FindBinUtils.cmake \
 	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/GNU.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/HP-CXX-DetermineCompiler.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/IAR-DetermineCompiler.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/IBMCPP-CXX-DetermineVersionInternal.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/IBMClang-CXX-DetermineCompiler.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/Intel-DetermineCompiler.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/IntelLLVM-DetermineCompiler.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/LCC-CXX-DetermineCompiler.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/MSVC-DetermineCompiler.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/NVHPC-DetermineCompiler.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/NVIDIA-DetermineCompiler.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/OpenWatcom-DetermineCompiler.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/OrangeC-DetermineCompiler.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/PGI-DetermineCompiler.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/PathScale-DetermineCompiler.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/SCO-DetermineCompiler.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/SunPro-CXX-DetermineCompiler.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/TI-DetermineCompiler.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/TIClang-DetermineCompiler.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/Tasking-DetermineCompiler.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/VisualAge-CXX-DetermineCompiler.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/Watcom-DetermineCompiler.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/XL-CXX-DetermineCompiler.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/XLClang-CXX-DetermineCompiler.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/zOS-CXX-DetermineCompiler.cmake \
 	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/FindPackageHandleStandardArgs.cmake \
 	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/FindPackageMessage.cmake \
 	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/FindThreads.cmake \
 	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/FindVulkan.cmake \
 	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/GNUInstallDirs.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Internal/CMakeDetermineLinkerId.cmake \
 	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Internal/CheckCompilerFlag.cmake \
 	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Internal/CheckFlagCommonConfig.cmake \
 	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Internal/CheckSourceCompiles.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Internal/FeatureTesting.cmake \
+	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Platform/Windows-Determine-CXX.cmake \
 	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Platform/Windows-GNU-CXX-ABI.cmake \
 	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Platform/Windows-GNU-CXX.cmake \
 	D:/code/CLion\ 2024.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Platform/Windows-GNU.cmake \
@@ -64,6 +132,7 @@ QTQuant_autogen/timestamp: \
 	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/QTimer \
 	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/q20memory.h \
 	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/q20type_traits.h \
+	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qabstractitemmodel.h \
 	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qalgorithms.h \
 	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qanystringview.h \
 	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qarraydata.h \
@@ -104,7 +173,9 @@ QTQuant_autogen/timestamp: \
 	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qglobalstatic.h \
 	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qhash.h \
 	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qhashfunctions.h \
+	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qiodevice.h \
 	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qiodevicebase.h \
+	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qitemselectionmodel.h \
 	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qiterable.h \
 	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qiterator.h \
 	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qline.h \
@@ -130,6 +201,7 @@ QTQuant_autogen/timestamp: \
 	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qprocessordetection.h \
 	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qrect.h \
 	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qrefcount.h \
+	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qregularexpression.h \
 	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qscopedpointer.h \
 	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qscopeguard.h \
 	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qset.h \
@@ -170,6 +242,7 @@ QTQuant_autogen/timestamp: \
 	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qtversionchecks.h \
 	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qtypeinfo.h \
 	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qtypes.h \
+	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qurl.h \
 	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qutf8stringview.h \
 	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qvariant.h \
 	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtCore/qvarlengtharray.h \
@@ -191,23 +264,52 @@ QTQuant_autogen/timestamp: \
 	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtGui/qpainter.h \
 	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtGui/qpalette.h \
 	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtGui/qpen.h \
+	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtGui/qpicture.h \
 	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtGui/qpixelformat.h \
 	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtGui/qpixmap.h \
 	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtGui/qpolygon.h \
 	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtGui/qregion.h \
 	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtGui/qrgb.h \
 	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtGui/qrgba64.h \
+	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtGui/qtextdocument.h \
 	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtGui/qtextoption.h \
 	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtGui/qtgui-config.h \
 	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtGui/qtguiexports.h \
 	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtGui/qtguiglobal.h \
 	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtGui/qtransform.h \
+	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtGui/qvalidator.h \
 	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtGui/qwindowdefs.h \
 	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtGui/qwindowdefs_win.h \
+	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/QDialog \
+	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/QGridLayout \
+	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/QGroupBox \
+	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/QLabel \
 	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/QMainWindow \
+	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/QTableWidget \
+	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/QVBoxLayout \
 	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/QWidget \
+	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/qabstractitemdelegate.h \
+	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/qabstractitemview.h \
+	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/qabstractscrollarea.h \
+	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/qabstractslider.h \
+	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/qabstractspinbox.h \
+	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/qboxlayout.h \
+	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/qdialog.h \
+	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/qframe.h \
+	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/qgridlayout.h \
+	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/qgroupbox.h \
+	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/qlabel.h \
+	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/qlayout.h \
+	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/qlayoutitem.h \
 	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/qmainwindow.h \
+	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/qrubberband.h \
 	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/qsizepolicy.h \
+	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/qslider.h \
+	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/qstyle.h \
+	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/qstyleoption.h \
+	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/qtabbar.h \
+	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/qtableview.h \
+	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/qtablewidget.h \
 	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/qtabwidget.h \
 	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/qtwidgets-config.h \
 	D:/code/Qt6.5.3/6.5.3/mingw_64/include/QtWidgets/qtwidgetsexports.h \
@@ -609,6 +711,7 @@ QTQuant_autogen/timestamp: \
 	D:/QTquant/src/mainwindow.ui \
 	D:/QTquant/src/ui/accountpanel.ui \
 	D:/QTquant/src/ui/chartpanel.ui \
+	D:/QTquant/src/ui/logindialog.ui \
 	D:/QTquant/src/ui/marketpanel.ui \
 	D:/QTquant/src/ui/strategypanel.ui \
 	D:/code/CLion\ 2024.2/bin/cmake/win/x64/bin/cmake.exe

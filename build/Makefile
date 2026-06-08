@@ -394,6 +394,30 @@ src/ui/chartpanel.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/src/ui/chartpanel.cpp.s
 .PHONY : src/ui/chartpanel.cpp.s
 
+src/ui/logindialog.obj: src/ui/logindialog.cpp.obj
+.PHONY : src/ui/logindialog.obj
+
+# target to build an object file
+src/ui/logindialog.cpp.obj:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/src/ui/logindialog.cpp.obj
+.PHONY : src/ui/logindialog.cpp.obj
+
+src/ui/logindialog.i: src/ui/logindialog.cpp.i
+.PHONY : src/ui/logindialog.i
+
+# target to preprocess a source file
+src/ui/logindialog.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/src/ui/logindialog.cpp.i
+.PHONY : src/ui/logindialog.cpp.i
+
+src/ui/logindialog.s: src/ui/logindialog.cpp.s
+.PHONY : src/ui/logindialog.s
+
+# target to generate assembly for a file
+src/ui/logindialog.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/src/ui/logindialog.cpp.s
+.PHONY : src/ui/logindialog.cpp.s
+
 src/ui/marketpanel.obj: src/ui/marketpanel.cpp.obj
 .PHONY : src/ui/marketpanel.obj
 
@@ -417,6 +441,54 @@ src/ui/marketpanel.s: src/ui/marketpanel.cpp.s
 src/ui/marketpanel.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/src/ui/marketpanel.cpp.s
 .PHONY : src/ui/marketpanel.cpp.s
+
+src/ui/signalsignalpanel.obj: src/ui/signalsignalpanel.cpp.obj
+.PHONY : src/ui/signalsignalpanel.obj
+
+# target to build an object file
+src/ui/signalsignalpanel.cpp.obj:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/src/ui/signalsignalpanel.cpp.obj
+.PHONY : src/ui/signalsignalpanel.cpp.obj
+
+src/ui/signalsignalpanel.i: src/ui/signalsignalpanel.cpp.i
+.PHONY : src/ui/signalsignalpanel.i
+
+# target to preprocess a source file
+src/ui/signalsignalpanel.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/src/ui/signalsignalpanel.cpp.i
+.PHONY : src/ui/signalsignalpanel.cpp.i
+
+src/ui/signalsignalpanel.s: src/ui/signalsignalpanel.cpp.s
+.PHONY : src/ui/signalsignalpanel.s
+
+# target to generate assembly for a file
+src/ui/signalsignalpanel.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/src/ui/signalsignalpanel.cpp.s
+.PHONY : src/ui/signalsignalpanel.cpp.s
+
+src/ui/statisticspanel.obj: src/ui/statisticspanel.cpp.obj
+.PHONY : src/ui/statisticspanel.obj
+
+# target to build an object file
+src/ui/statisticspanel.cpp.obj:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/src/ui/statisticspanel.cpp.obj
+.PHONY : src/ui/statisticspanel.cpp.obj
+
+src/ui/statisticspanel.i: src/ui/statisticspanel.cpp.i
+.PHONY : src/ui/statisticspanel.i
+
+# target to preprocess a source file
+src/ui/statisticspanel.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/src/ui/statisticspanel.cpp.i
+.PHONY : src/ui/statisticspanel.cpp.i
+
+src/ui/statisticspanel.s: src/ui/statisticspanel.cpp.s
+.PHONY : src/ui/statisticspanel.s
+
+# target to generate assembly for a file
+src/ui/statisticspanel.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/src/ui/statisticspanel.cpp.s
+.PHONY : src/ui/statisticspanel.cpp.s
 
 src/ui/strategypanel.obj: src/ui/strategypanel.cpp.obj
 .PHONY : src/ui/strategypanel.obj
@@ -483,9 +555,18 @@ help:
 	@echo ... src/ui/chartpanel.obj
 	@echo ... src/ui/chartpanel.i
 	@echo ... src/ui/chartpanel.s
+	@echo ... src/ui/logindialog.obj
+	@echo ... src/ui/logindialog.i
+	@echo ... src/ui/logindialog.s
 	@echo ... src/ui/marketpanel.obj
 	@echo ... src/ui/marketpanel.i
 	@echo ... src/ui/marketpanel.s
+	@echo ... src/ui/signalsignalpanel.obj
+	@echo ... src/ui/signalsignalpanel.i
+	@echo ... src/ui/signalsignalpanel.s
+	@echo ... src/ui/statisticspanel.obj
+	@echo ... src/ui/statisticspanel.i
+	@echo ... src/ui/statisticspanel.s
 	@echo ... src/ui/strategypanel.obj
 	@echo ... src/ui/strategypanel.i
 	@echo ... src/ui/strategypanel.s

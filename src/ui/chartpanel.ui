@@ -11,25 +11,21 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Form</string>
+   <string>K线图</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
-   <item>
-    <widget class="QLabel" name="label">
-     <property name="text">
-      <string>价格走势图</string>
-     </property>
-     <property name="alignment">
-      <set>Qt::AlignCenter</set>
-     </property>
-    </widget>
-   </item>
+   <property name="spacing">
+    <number>0</number>
+   </property>
+   <property name="margin">
+    <number>0</number>
+   </property>
    <item>
     <widget class="QWidget" name="chartWidget" native="true">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
+       <horstretch>1</horstretch>
+       <verstretch>1</verstretch>
       </sizepolicy>
      </property>
     </widget>

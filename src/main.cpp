@@ -1,4 +1,5 @@
 #include "mainwindow.h"
+#include "ui/logindialog.h"
 #include <QApplication>
 #include <QLocale>
 #include <QTranslator>
@@ -17,6 +18,11 @@ int main(int argc, char *argv[])
             a.installTranslator(&translator);
             break;
         }
+    }
+
+    LoginDialog loginDialog;
+    if (loginDialog.exec() != QDialog::Accepted) {
+        return 0;
     }
 
     MainWindow w;

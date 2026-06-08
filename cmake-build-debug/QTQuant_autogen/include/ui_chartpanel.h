@@ -11,7 +11,6 @@
 
 #include <QtCore/QVariant>
 #include <QtWidgets/QApplication>
-#include <QtWidgets/QLabel>
 #include <QtWidgets/QVBoxLayout>
 #include <QtWidgets/QWidget>
 
@@ -21,7 +20,6 @@ class Ui_ChartPanel
 {
 public:
     QVBoxLayout *verticalLayout;
-    QLabel *label;
     QWidget *chartWidget;
 
     void setupUi(QWidget *ChartPanel)
@@ -30,18 +28,14 @@ public:
             ChartPanel->setObjectName("ChartPanel");
         ChartPanel->resize(600, 400);
         verticalLayout = new QVBoxLayout(ChartPanel);
+        verticalLayout->setSpacing(0);
+        verticalLayout->setContentsMargins(0, 0, 0, 0);
         verticalLayout->setObjectName("verticalLayout");
-        label = new QLabel(ChartPanel);
-        label->setObjectName("label");
-        label->setAlignment(Qt::AlignCenter);
-
-        verticalLayout->addWidget(label);
-
         chartWidget = new QWidget(ChartPanel);
         chartWidget->setObjectName("chartWidget");
         QSizePolicy sizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-        sizePolicy.setHorizontalStretch(0);
-        sizePolicy.setVerticalStretch(0);
+        sizePolicy.setHorizontalStretch(1);
+        sizePolicy.setVerticalStretch(1);
         sizePolicy.setHeightForWidth(chartWidget->sizePolicy().hasHeightForWidth());
         chartWidget->setSizePolicy(sizePolicy);
 
@@ -55,8 +49,7 @@ public:
 
     void retranslateUi(QWidget *ChartPanel)
     {
-        ChartPanel->setWindowTitle(QCoreApplication::translate("ChartPanel", "Form", nullptr));
-        label->setText(QCoreApplication::translate("ChartPanel", "\344\273\267\346\240\274\350\265\260\345\212\277\345\233\276", nullptr));
+        ChartPanel->setWindowTitle(QCoreApplication::translate("ChartPanel", "K\347\272\277\345\233\276", nullptr));
     } // retranslateUi
 
 };

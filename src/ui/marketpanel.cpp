@@ -29,6 +29,8 @@ void MarketPanel::updateMarketData(const MarketData &data)
     ui->highLabel->setText(QString("%1").arg(data.high, 0, 'f', 2));
     ui->lowLabel->setText(QString("%1").arg(data.low, 0, 'f', 2));
     ui->closeLabel->setText(QString("%1").arg(data.close, 0, 'f', 2));
-    ui->volumeLabel->setText(QString("%1").arg(data.volume, 0, 'f', 0));
-    ui->turnoverLabel->setText(QString("%1").arg(data.turnover / 10000, 0, 'f', 2));
+    ui->volumeLabel->setText(data.volume > 0.0 ? QString("%1").arg(data.volume, 0, 'f', 0) : QStringLiteral("--"));
+    ui->turnoverLabel->setText(data.turnover > 0.0
+        ? QString("%1").arg(data.turnover / 10000.0, 0, 'f', 2)
+        : QStringLiteral("--"));
 }

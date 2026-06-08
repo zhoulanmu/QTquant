@@ -11,14 +11,45 @@ ChartPanel::ChartPanel(QWidget *parent) :
     m_maxPrice(1.0)
 {
     ui->setupUi(this);
-    setStyleSheet("background-color: black;");
-    ui->label->setStyleSheet("color: white; font-size: 14px;");
+    setStyleSheet("background-color: #1a1a2e; border: 2px solid #4a5568; border-radius: 12px; padding: 8px;");
 
     m_candlestickWidget = new CandlestickWidget(this);
+    m_candlestickWidget->setStyleSheet("background-color: #1a1a2e; border: none; border-radius: 8px;");
     ui->verticalLayout->removeWidget(ui->chartWidget);
     delete ui->chartWidget;
     ui->chartWidget = m_candlestickWidget;
     ui->verticalLayout->addWidget(m_candlestickWidget);
+    ui->verticalLayout->setContentsMargins(0, 0, 0, 0);
+
+    initMockData();
+}
+
+void ChartPanel::initMockData()
+{
+    double basePrice = 10.50;
+    QDateTime now = QDateTime::currentDateTime();
+
+    for (int i = 20; i >= 0; --i) {
+        MarketData data;
+        data.symbol = "000001.SH";
+        data.timestamp = now.addSecs(-i * 60);
+        
+        double change = (std::rand() % 100 - 50) * 0.01;
+        data.open = basePrice + change;
+        data.high = data.open + std::rand() % 50 * 0.01;
+        data.low = data.open - std::rand() % 50 * 0.01;
+        data.close = data.open + (std::rand() % 60 - 30) * 0.01;
+        data.volume = 1000 + std::rand() % 5000;
+        data.turnover = data.close * data.volume;
+
+        m_priceHistory.push_back(data);
+        basePrice = data.close;
+    }
+
+    updatePriceRange();
+    m_candlestickWidget->updateData(m_priceHistory, m_minPrice, m_maxPrice);
+    m_candlestickWidget->update();
+    this->update();
 }
 
 ChartPanel::~ChartPanel()

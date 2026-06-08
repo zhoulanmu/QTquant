@@ -16,6 +16,8 @@ StrategyPanel::StrategyPanel(QWidget *parent) :
     ui->label_5->setBuddy(nullptr);
     ui->label_6->setBuddy(nullptr);
 
+    ui->logTextEdit->append(QStringLiteral("请稍等，等待自动交易...\n"));
+
     connect(ui->symbolEdit, &QLineEdit::textChanged, this, &StrategyPanel::on_paramChanged);
     connect(ui->fastMASpin, QOverload<int>::of(&QSpinBox::valueChanged), this, &StrategyPanel::on_paramChanged);
     connect(ui->slowMASpin, QOverload<int>::of(&QSpinBox::valueChanged), this, &StrategyPanel::on_paramChanged);

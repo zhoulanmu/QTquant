@@ -6,5 +6,8 @@
 #include "YPKJ5OE7LN/moc_accountpanel.cpp"
 #include "YPKJ5OE7LN/moc_candlestickwidget.cpp"
 #include "YPKJ5OE7LN/moc_chartpanel.cpp"
+#include "YPKJ5OE7LN/moc_logindialog.cpp"
 #include "YPKJ5OE7LN/moc_marketpanel.cpp"
+#include "YPKJ5OE7LN/moc_signalsignalpanel.cpp"
+#include "YPKJ5OE7LN/moc_statisticspanel.cpp"
 #include "YPKJ5OE7LN/moc_strategypanel.cpp"

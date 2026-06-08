@@ -6,31 +6,25 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>300</width>
-    <height>180</height>
+    <width>280</width>
+    <height>140</height>
    </rect>
-  </property>
-  <property name="minimumSize">
-   <size>
-    <width>0</width>
-    <height>150</height>
-   </size>
   </property>
   <property name="windowTitle">
    <string>Form</string>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout_2">
+  <layout class="QVBoxLayout" name="verticalLayout">
    <item>
     <widget class="QGroupBox" name="groupBox">
      <property name="title">
       <string>实时行情</string>
      </property>
-     <layout class="QFormLayout" name="formLayout">
-      <property name="rowWrapPolicy">
-       <enum>QFormLayout::DontWrapRows</enum>
+     <layout class="QGridLayout" name="gridLayout">
+      <property name="horizontalSpacing">
+       <number>12</number>
       </property>
-      <property name="fieldGrowthPolicy">
-       <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
+      <property name="verticalSpacing">
+       <number>8</number>
       </property>
       <item row="0" column="0">
        <widget class="QLabel" name="label">
@@ -43,6 +37,12 @@
        <widget class="QLabel" name="symbolLabel">
         <property name="text">
          <string>--</string>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
         </property>
        </widget>
       </item>
@@ -133,7 +133,7 @@
       <item row="3" column="2">
        <widget class="QLabel" name="label_8">
         <property name="text">
-         <string>成交额(万):</string>
+         <string>成交额:</string>
         </property>
        </widget>
       </item>
