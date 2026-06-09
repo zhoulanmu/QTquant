@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>LoginDialog</class>
+ <widget class="QDialog" name="LoginDialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>380</width>
+    <height>320</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>用户登录 - QTQuant</string>
+  </property>
+  <property name="styleSheet">
+   <string notr="true">QDialog { background-color: #253b6e; }</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <property name="spacing">
+    <number>25</number>
+   </property>
+   <property name="margin">
+    <number>35</number>
+   </property>
+   <item>
+    <widget class="QLabel" name="titleLabel">
+     <property name="text">
+      <string>量化交易辅助程序</string>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignCenter</set>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">font-size: 20px; font-weight: bold; color: #63b3ed;</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <layout class="QVBoxLayout" name="inputLayout">
+     <property name="spacing">
+      <number>20</number>
+     </property>
+     <item>
+      <widget class="QLineEdit" name="usernameEdit">
+       <property name="placeholderText">
+        <string>用户名</string>
+       </property>
+       <property name="styleSheet">
+        <string notr="true">background-color: #4a5568; color: white; border: 1px solid #718096; border-radius: 6px; padding: 10px 14px; font-size: 14px; min-height: 40px;</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLineEdit" name="passwordEdit">
+       <property name="echoMode">
+        <enum>QLineEdit::Password</enum>
+       </property>
+       <property name="placeholderText">
+        <string>密码</string>
+       </property>
+       <property name="styleSheet">
+        <string notr="true">background-color: #4a5568; color: white; border: 1px solid #718096; border-radius: 6px; padding: 10px 14px; font-size: 14px; min-height: 40px;</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="horizontalLayout">
+     <property name="spacing">
+      <number>20</number>
+     </property>
+     <item>
+      <widget class="QPushButton" name="loginBtn">
+       <property name="text">
+        <string>登录</string>
+       </property>
+       <property name="styleSheet">
+        <string notr="true">background-color: #2196f3; color: white; border: none; border-radius: 6px; padding: 12px 24px; font-size: 14px; min-height: 42px;</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="cancelBtn">
+       <property name="text">
+        <string>取消</string>
+       </property>
+       <property name="styleSheet">
+        <string notr="true">background-color: #718096; color: white; border: none; border-radius: 6px; padding: 12px 24px; font-size: 14px; min-height: 42px;</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QLabel" name="tipLabel">
+     <property name="text">
+      <string>admin/123456 或 user/654321</string>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignCenter</set>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">font-size: 12px; color: #a0aec0;</string>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>loginBtn</sender>
+   <signal>clicked()</signal>
+   <receiver>LoginDialog</receiver>
+   <slot>accept()</slot>
+  </connection>
+  <connection>
+   <sender>cancelBtn</sender>
+   <signal>clicked()</signal>
+   <receiver>LoginDialog</receiver>
+   <slot>reject()</slot>
+  </connection>
+ </connections>
+</ui>

@@ -1,0 +1,89 @@
+# Qt auto-generated files
+ui_*.h
+moc_*.cpp
+moc_*.h
+qrc_*.cpp
+rcc_*.cpp
+
+# CMake build directories
+build/
+build-*/
+cmake-build-*/
+out/
+bin/
+.directory
+
+# CMake generated files
+Makefile
+*.cmake
+CMakeCache.txt
+CMakeFiles/
+CPackConfig.cmake
+CPackSourceConfig.cmake
+install_manifest.txt
+compile_commands.json
+
+# Ninja build files
+.ninja_deps
+.ninja_log
+*.ninja
+
+# Executables and libraries
+*.exe
+*.dll
+*.so
+*.so.*
+*.dylib
+*.lib
+*.a
+
+# Debug symbols
+*.pdb
+*.obj
+*.o
+
+# Qt Creator
+*.creator
+*.creator.user
+*.files
+*.includes
+*.qbs.user
+
+# Qt QML cache
+qmldir
+.qmlcache/
+*.qmlc
+*.jsc
+
+# Log files
+*.log
+*.txt
+*.out
+
+# IDE configuration
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.cproject
+.settings/
+.vs/
+
+# Temporary files
+.DS_Store
+Thumbs.db
+*.bak
+*.backup
+*.tmp
+*.temp
+
+# MinGW specific
+*.manifest
+*.rc
+win32/
+win64/
+
+# Code model files (CLion)
+cmake-build-debug/cmake/api/
