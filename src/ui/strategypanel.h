@@ -129,6 +129,7 @@ private:
     QLineEdit* m_activeSearchEdit;
     QComboBox* m_strategyPresetCombo;
     QLabel* m_strategyPresetDescLabel;
+    QPushButton* m_strategyDetailButton;
     QPushButton* m_applyStrategyPresetBtn;
     QGroupBox* m_strategyConfigGroup;
     QLabel* m_strategyConfigHintLabel;

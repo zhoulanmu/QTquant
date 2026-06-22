@@ -1,5 +1,6 @@
 <RCC>
     <qresource prefix="/icons">
         <file alias="starquant_stars.png">icons/starquant_stars.png</file>
+        <file alias="checkbox_check.png">icons/checkbox_check.png</file>
     </qresource>
 </RCC>

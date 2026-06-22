@@ -121,6 +121,33 @@ void collectSearchObjects(const QJsonValue& value, QVector<QJsonObject>* objects
         collectSearchObjects(it.value(), objects);
     }
 }
+
+QString strategyDetailTooltip(StrategyKind kind)
+{
+    if (kind == StrategyKind::ProsperityGrowth) {
+        return QStringLiteral("<qt><b>景气成长分批低吸策略说明</b><br>"
+            "<br><b>实际买入条件</b><br>"
+            "1. 至少勾选一个适配主线；全不勾选时不会开仓。<br>"
+            "2. 三个人工确认项都必须勾选；任意一个不勾选，策略视为条件未通过，不会开仓。<br>"
+            "3. 连续回调天数必须落在配置窗口内，例如 3 至 5 天。当前用策略标的连续下跌近似判断。<br>"
+            "4. 勾选 60 日均线持续向上时，买入必须满足 60 日均线不低于上一周期；不勾选则放宽这条过滤。<br>"
+            "5. 勾选缩量回踩 20/60 日线时，买入必须同时接近 20 或 60 日线并缩量；不勾选则放宽这条过滤。<br>"
+            "<br><b>实际卖出条件</b><br>"
+            "1. 达到短期暴涨止盈线会触发止盈；勾选分批减仓时卖出一半，不勾选时一次性清仓。<br>"
+            "2. 勾选放量跌破 60 日线时，跌破 60 日线且放量会离场；不勾选则不执行这条破位止损。<br>"
+            "3. 基本交易参数里的通用止损仍会生效。<br>"
+            "<br><b>当前尚未自动执行</b><br>"
+            "单赛道上限、分散主线数量目前进入配置模型，但还没有真正限制模拟账户仓位；所属赛道、财报、公告也暂时由人工确认代替。</qt>");
+    }
+
+    return QStringLiteral("<qt><b>双均线策略说明</b><br>"
+        "<br><b>实际买入条件</b><br>"
+        "快速 MA 从下方向上穿过慢速 MA，并且 RSI 小于 70 时，触发模拟买入。<br>"
+        "<br><b>实际卖出条件</b><br>"
+        "快速 MA 下穿慢速 MA 时卖出；价格达到止损或止盈线时，也会触发模拟离场。<br>"
+        "<br><b>参数影响</b><br>"
+        "快速 MA、慢速 MA、止损、止盈、持仓数量都会进入双均线策略。策略按当前策略标的的实时行情逐笔处理，主页股票只用于看盘。</qt>");
+}
 }
 
 StrategyPanel::StrategyPanel(QWidget *parent) :
@@ -137,6 +164,7 @@ StrategyPanel::StrategyPanel(QWidget *parent) :
     m_activeSearchEdit(nullptr),
     m_strategyPresetCombo(nullptr),
     m_strategyPresetDescLabel(nullptr),
+    m_strategyDetailButton(nullptr),
     m_applyStrategyPresetBtn(nullptr),
     m_strategyConfigGroup(nullptr),
     m_strategyConfigHintLabel(nullptr),
@@ -488,10 +516,20 @@ void StrategyPanel::setupCommonStrategyUi()
     m_strategyPresetDescLabel->setWordWrap(true);
     m_strategyPresetDescLabel->setMinimumHeight(42);
 
+    m_strategyDetailButton = new QPushButton(QStringLiteral("策略详细说明"), presetGroup);
+    m_strategyDetailButton->setMinimumWidth(140);
+    m_strategyDetailButton->setToolTipDuration(60000);
+
     m_applyStrategyPresetBtn = new QPushButton(QStringLiteral("应用当前策略配置"), presetGroup);
 
+    auto* descLayout = new QHBoxLayout();
+    descLayout->setContentsMargins(0, 0, 0, 0);
+    descLayout->setSpacing(8);
+    descLayout->addWidget(m_strategyPresetDescLabel, 1);
+    descLayout->addWidget(m_strategyDetailButton);
+
     presetLayout->addWidget(m_strategyPresetCombo);
-    presetLayout->addWidget(m_strategyPresetDescLabel);
+    presetLayout->addLayout(descLayout);
     presetLayout->addWidget(m_applyStrategyPresetBtn);
     presetGroup->setMinimumHeight(190);
     presetGroup->setMaximumHeight(260);
@@ -1393,6 +1431,9 @@ void StrategyPanel::onStrategyPresetChanged(int index)
             .arg(preset.slowMA)
             .arg(preset.stopLoss, 0, 'f', 1)
             .arg(preset.takeProfit, 0, 'f', 1));
+    if (m_strategyDetailButton) {
+        m_strategyDetailButton->setToolTip(strategyDetailTooltip(preset.kind));
+    }
 
     updateCurrentStrategyConfigUi();
     saveCurrentStrategyType();
