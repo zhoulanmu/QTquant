@@ -1,7 +1,7 @@
 #include "candlestickwidget.h"
 #include <QPainter>
 #include <QWheelEvent>
-#include <limits>
+#include <cmath>
 
 CandlestickWidget::CandlestickWidget(QWidget *parent) :
     QWidget(parent),
@@ -36,129 +36,148 @@ void CandlestickWidget::paintEvent(QPaintEvent *event)
 {
     Q_UNUSED(event);
 
-    if (m_priceHistory.empty()) {
-        QPainter painter(this);
-        painter.setPen(Qt::white);
-        painter.drawText(rect(), Qt::AlignCenter, "等待行情数据...");
-        return;
-    }
-
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
+
+    if (m_priceHistory.empty()) {
+        painter.setPen(Qt::white);
+        painter.drawText(rect(), Qt::AlignCenter, QStringLiteral("等待行情数据..."));
+        return;
+    }
 
     drawGrid(painter);
     drawPriceLabels(painter);
     drawCandlesticks(painter);
 }
 
-void CandlestickWidget::drawGrid(QPainter &painter)
+QRectF CandlestickWidget::chartArea() const
 {
-    int padding = 60;
-    int chartWidth = width() - padding;
-    int chartHeight = height() - 20;
+    constexpr qreal left = 64.0;
+    constexpr qreal top = 16.0;
+    constexpr qreal right = 12.0;
+    constexpr qreal bottom = 30.0;
 
-    painter.setPen(QColor(40, 40, 40));
+    return QRectF(left,
+                  top,
+                  qMax<qreal>(1.0, width() - left - right),
+                  qMax<qreal>(1.0, height() - top - bottom));
+}
 
-    for (int i = 0; i <= 5; ++i) {
-        int y = padding + (chartHeight / 5) * i;
-        painter.drawLine(padding, y, width(), y);
+int CandlestickWidget::priceToY(double price, const QRectF &area) const
+{
+    if (m_maxPrice <= m_minPrice) {
+        return qRound(area.center().y());
     }
 
-    int step = qMax(1, (int)m_priceHistory.size() / 10);
-    for (size_t i = 0; i < m_priceHistory.size(); i += step) {
-        int x = padding + (chartWidth / qMax(1, (int)m_priceHistory.size() - 1)) * i;
-        painter.drawLine(x, padding, x, height() - 20);
+    const qreal ratio = (price - m_minPrice) / (m_maxPrice - m_minPrice);
+    const qreal y = area.bottom() - ratio * area.height();
+    return qRound(qBound(area.top(), y, area.bottom()));
+}
+
+void CandlestickWidget::drawGrid(QPainter &painter)
+{
+    const QRectF area = chartArea();
+    painter.setPen(QColor(45, 45, 55));
+
+    for (int i = 0; i <= 5; ++i) {
+        const qreal y = area.top() + area.height() / 5.0 * i;
+        painter.drawLine(QPointF(area.left(), y), QPointF(area.right(), y));
+    }
+
+    for (int i = 0; i <= 8; ++i) {
+        const qreal x = area.left() + area.width() / 8.0 * i;
+        painter.drawLine(QPointF(x, area.top()), QPointF(x, area.bottom()));
     }
 }
 
 void CandlestickWidget::drawPriceLabels(QPainter &painter)
 {
-    int padding = 60;
-    int chartHeight = height() - 20;
-    int chartWidth = width() - padding;
+    const QRectF area = chartArea();
 
     painter.setPen(QColor(255, 215, 0));
     painter.setFont(QFont("Arial", 9));
 
     for (int i = 0; i <= 5; ++i) {
-        double price = m_maxPrice - ((m_maxPrice - m_minPrice) / 5) * i;
-        int y = padding + (chartHeight / 5) * i;
-        painter.drawText(5, y + 4, QString("%1").arg(price, 0, 'f', 2));
+        const double price = m_maxPrice - ((m_maxPrice - m_minPrice) / 5.0) * i;
+        const qreal y = area.top() + area.height() / 5.0 * i;
+        painter.drawText(QRectF(2, y - 8, area.left() - 6, 16),
+                         Qt::AlignRight | Qt::AlignVCenter,
+                         QString("%1").arg(price, 0, 'f', 2));
     }
 
-    drawTimeLabels(painter, chartWidth, chartHeight, padding);
+    const int dataCount = static_cast<int>(m_priceHistory.size());
+    const int visibleCount = qMax(1, qMin(static_cast<int>(dataCount / m_zoomFactor), dataCount));
+    const int startIdx = qMax(0, dataCount - visibleCount);
+    drawTimeLabels(painter, area, startIdx, visibleCount);
 }
 
-void CandlestickWidget::drawTimeLabels(QPainter &painter, int chartWidth, int chartHeight, int padding)
+void CandlestickWidget::drawTimeLabels(QPainter &painter, const QRectF &area, int startIdx, int visibleCount)
 {
-    if (m_priceHistory.empty()) return;
+    if (m_priceHistory.empty() || visibleCount <= 0) {
+        return;
+    }
 
     painter.setPen(QColor(255, 215, 0));
     painter.setFont(QFont("Arial", 8));
 
-    int step = qMax(1, (int)m_priceHistory.size() / 8);
-    for (size_t i = 0; i < m_priceHistory.size(); i += step) {
-        const MarketData& data = m_priceHistory[i];
-        int x = padding + (chartWidth / qMax(1, (int)m_priceHistory.size() - 1)) * i;
-        
-        QString timeStr = data.timestamp.toString("HH:mm:ss");
-        painter.drawText(x - 15, height() - 5, timeStr);
+    const int labelCount = qMin(6, visibleCount);
+    for (int i = 0; i < labelCount; ++i) {
+        const int relativeIdx = labelCount == 1
+            ? 0
+            : qRound(static_cast<double>(i) * (visibleCount - 1) / (labelCount - 1));
+        const int dataIdx = qMin(startIdx + relativeIdx, static_cast<int>(m_priceHistory.size()) - 1);
+        const qreal x = visibleCount == 1
+            ? area.center().x()
+            : area.left() + area.width() * relativeIdx / (visibleCount - 1);
+
+        const QString timeStr = m_priceHistory[dataIdx].timestamp.toString("HH:mm:ss");
+        painter.drawText(QRectF(x - 34, area.bottom() + 4, 68, 18), Qt::AlignCenter, timeStr);
     }
 }
 
 void CandlestickWidget::drawCandlesticks(QPainter &painter)
 {
-    int leftPadding = 60;
-    int bottomPadding = 25;
-    int chartWidth = width() - leftPadding - 10;
-    int chartHeight = height() - bottomPadding;
+    const QRectF area = chartArea();
+    const int dataCount = static_cast<int>(m_priceHistory.size());
+    if (dataCount <= 0 || m_maxPrice <= m_minPrice) {
+        return;
+    }
 
-    if (chartWidth < 0 || chartHeight < 0) return;
-    if (m_priceHistory.size() < 2) return;
+    const int visibleCount = qMax(1, qMin(static_cast<int>(dataCount / m_zoomFactor), dataCount));
+    const int startIdx = qMax(0, dataCount - visibleCount);
 
-    double scaleY = chartHeight / (m_maxPrice - m_minPrice);
-    int dataCount = static_cast<int>(m_priceHistory.size());
-    int visibleCount = static_cast<int>(dataCount / m_zoomFactor);
-    visibleCount = qMax(5, qMin(visibleCount, dataCount));
-    
-    int startIdx = dataCount - visibleCount;
-    if (startIdx < 0) startIdx = 0;
+    if (visibleCount == 1) {
+        const MarketData& data = m_priceHistory.back();
+        const int y = priceToY(data.close, area);
+        const QColor color = data.close >= data.open ? Qt::red : Qt::green;
+        painter.setPen(QPen(color, 2));
+        painter.drawLine(QPointF(area.left(), y), QPointF(area.right(), y));
+        painter.setBrush(color);
+        painter.drawEllipse(QPointF(area.center().x(), y), 3.5, 3.5);
+        return;
+    }
 
-    int step = visibleCount - 1;
-    if (step < 1) step = 1;
-    
-    int candleWidth = qMax(3, static_cast<int>((chartWidth / step) * m_zoomFactor) - 2);
-    if (candleWidth < 1) candleWidth = 1;
+    const qreal stepX = area.width() / (visibleCount - 1);
+    const int candleWidth = qBound(3, static_cast<int>(stepX * 0.55), 12);
 
     for (int i = startIdx; i < dataCount; ++i) {
         const MarketData& data = m_priceHistory[i];
-        int relativeIdx = i - startIdx;
-        int x = leftPadding + (chartWidth / step) * relativeIdx;
-        if (x > width() - 5) continue;
+        const int relativeIdx = i - startIdx;
+        const qreal x = area.left() + stepX * relativeIdx;
 
-        int openY = bottomPadding + chartHeight - static_cast<int>((data.open - m_minPrice) * scaleY);
-        int closeY = bottomPadding + chartHeight - static_cast<int>((data.close - m_minPrice) * scaleY);
-        int highY = bottomPadding + chartHeight - static_cast<int>((data.high - m_minPrice) * scaleY);
-        int lowY = bottomPadding + chartHeight - static_cast<int>((data.low - m_minPrice) * scaleY);
+        const int openY = priceToY(data.open, area);
+        const int closeY = priceToY(data.close, area);
+        const int highY = priceToY(data.high, area);
+        const int lowY = priceToY(data.low, area);
 
-        openY = qMax(1, qMin(openY, height() - bottomPadding - 1));
-        closeY = qMax(1, qMin(closeY, height() - bottomPadding - 1));
-        highY = qMax(1, qMin(highY, height() - bottomPadding - 1));
-        lowY = qMax(1, qMin(lowY, height() - bottomPadding - 1));
-
-        QColor color = (data.close >= data.open) ? Qt::red : Qt::green;
-        painter.setPen(color);
+        const QColor color = data.close >= data.open ? Qt::red : Qt::green;
+        painter.setPen(QPen(color, 1));
         painter.setBrush(color);
 
-        painter.drawLine(x, highY, x, lowY);
+        painter.drawLine(QPointF(x, highY), QPointF(x, lowY));
 
-        int bodyTop = qMin(openY, closeY);
-        int bodyBottom = qMax(openY, closeY);
-        int bodyHeight = bodyBottom - bodyTop;
-        if (bodyHeight < 1) bodyHeight = 1;
-
-        int rectX = x - candleWidth / 2;
-        if (rectX < leftPadding) rectX = leftPadding;
-        painter.drawRect(rectX, bodyTop, candleWidth, bodyHeight);
+        const int bodyTop = qMin(openY, closeY);
+        const int bodyHeight = qMax(1, qAbs(closeY - openY));
+        painter.drawRect(QRectF(x - candleWidth / 2.0, bodyTop, candleWidth, bodyHeight));
     }
 }

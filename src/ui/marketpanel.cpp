@@ -23,7 +23,11 @@ MarketPanel::~MarketPanel()
 
 void MarketPanel::updateMarketData(const MarketData &data)
 {
-    ui->symbolLabel->setText(data.symbol);
+    const QString displaySymbol = data.name.isEmpty()
+        ? data.symbol
+        : QStringLiteral("%1 %2").arg(data.symbol, data.name);
+
+    ui->symbolLabel->setText(displaySymbol);
     ui->timeLabel->setText(data.timestamp.toString("HH:mm:ss"));
     ui->openLabel->setText(QString("%1").arg(data.open, 0, 'f', 2));
     ui->highLabel->setText(QString("%1").arg(data.high, 0, 'f', 2));

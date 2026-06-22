@@ -1,7 +1,5 @@
 #include "chartpanel.h"
 #include "ui_chartpanel.h"
-#include <QPainter>
-#include <QDebug>
 #include <limits>
 
 ChartPanel::ChartPanel(QWidget *parent) :
@@ -20,36 +18,6 @@ ChartPanel::ChartPanel(QWidget *parent) :
     ui->chartWidget = m_candlestickWidget;
     ui->verticalLayout->addWidget(m_candlestickWidget);
     ui->verticalLayout->setContentsMargins(0, 0, 0, 0);
-
-    initMockData();
-}
-
-void ChartPanel::initMockData()
-{
-    double basePrice = 10.50;
-    QDateTime now = QDateTime::currentDateTime();
-
-    for (int i = 20; i >= 0; --i) {
-        MarketData data;
-        data.symbol = "000001.SH";
-        data.timestamp = now.addSecs(-i * 60);
-        
-        double change = (std::rand() % 100 - 50) * 0.01;
-        data.open = basePrice + change;
-        data.high = data.open + std::rand() % 50 * 0.01;
-        data.low = data.open - std::rand() % 50 * 0.01;
-        data.close = data.open + (std::rand() % 60 - 30) * 0.01;
-        data.volume = 1000 + std::rand() % 5000;
-        data.turnover = data.close * data.volume;
-
-        m_priceHistory.push_back(data);
-        basePrice = data.close;
-    }
-
-    updatePriceRange();
-    m_candlestickWidget->updateData(m_priceHistory, m_minPrice, m_maxPrice);
-    m_candlestickWidget->update();
-    this->update();
 }
 
 ChartPanel::~ChartPanel()
@@ -59,9 +27,17 @@ ChartPanel::~ChartPanel()
 
 void ChartPanel::updateChartData(const MarketData &data)
 {
+    if (data.close <= 0.0 || !data.timestamp.isValid()) {
+        return;
+    }
+
+    if (!m_priceHistory.empty() && m_priceHistory.back().symbol != data.symbol) {
+        m_priceHistory.clear();
+    }
+
     m_priceHistory.push_back(data);
 
-    if (m_priceHistory.size() > MAX_POINTS) {
+    while (m_priceHistory.size() > MAX_POINTS) {
         m_priceHistory.pop_front();
     }
 
@@ -71,22 +47,45 @@ void ChartPanel::updateChartData(const MarketData &data)
 
 void ChartPanel::updatePriceRange()
 {
-    if (m_priceHistory.empty()) return;
+    if (m_priceHistory.empty()) {
+        m_minPrice = 0.0;
+        m_maxPrice = 1.0;
+        return;
+    }
 
     m_minPrice = std::numeric_limits<double>::max();
-    m_maxPrice = std::numeric_limits<double>::min();
+    m_maxPrice = std::numeric_limits<double>::lowest();
 
     for (const auto& data : m_priceHistory) {
-        m_minPrice = qMin(m_minPrice, data.low);
-        m_maxPrice = qMax(m_maxPrice, data.high);
+        if (data.open > 0.0) {
+            m_minPrice = qMin(m_minPrice, data.open);
+            m_maxPrice = qMax(m_maxPrice, data.open);
+        }
+        if (data.high > 0.0) {
+            m_minPrice = qMin(m_minPrice, data.high);
+            m_maxPrice = qMax(m_maxPrice, data.high);
+        }
+        if (data.low > 0.0) {
+            m_minPrice = qMin(m_minPrice, data.low);
+            m_maxPrice = qMax(m_maxPrice, data.low);
+        }
+        if (data.close > 0.0) {
+            m_minPrice = qMin(m_minPrice, data.close);
+            m_maxPrice = qMax(m_maxPrice, data.close);
+        }
     }
 
-    double range = m_maxPrice - m_minPrice;
-    if (range < 0.001) {
-        m_minPrice -= 0.01;
-        m_maxPrice += 0.01;
-    } else {
-        m_minPrice -= range * 0.1;
-        m_maxPrice += range * 0.1;
+    if (m_minPrice == std::numeric_limits<double>::max() || m_maxPrice == std::numeric_limits<double>::lowest()) {
+        m_minPrice = 0.0;
+        m_maxPrice = 1.0;
+        return;
     }
+
+    const double range = m_maxPrice - m_minPrice;
+    const double padding = range < 0.001
+        ? qMax(0.01, m_maxPrice * 0.001)
+        : range * 0.12;
+
+    m_minPrice = qMax(0.0, m_minPrice - padding);
+    m_maxPrice += padding;
 }

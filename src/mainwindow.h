@@ -2,6 +2,7 @@
 
 #include <QMainWindow>
 #include <QMap>
+#include <QString>
 #include "market/marketdata.h"
 #include "strategy/strategybase.h"
 #include "strategy/movingaveragestrategy.h"
@@ -18,11 +19,12 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 
 public:
-    MainWindow(QWidget *parent = nullptr);
+    explicit MainWindow(const QString& eastMoneyCookie = QString(), QWidget *parent = nullptr);
     ~MainWindow();
 
 private slots:
     void onMarketDataUpdated(const MarketData& data);
+    void onMarketDataError(const QString& message);
     void onStrategySignal(const StrategySignal& signal);
     void onStartStrategy();
     void onStopStrategy();
@@ -45,4 +47,7 @@ private:
     double m_currentCash;
     QMap<QString, PositionInfo> m_positions;
     double m_currentPrice;
+    MarketData m_lastMarketData;
+    bool m_hasLastMarketData;
+    QString m_eastMoneyCookie;
 };

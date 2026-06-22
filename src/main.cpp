@@ -25,7 +25,7 @@ int main(int argc, char *argv[])
         return 0;
     }
 
-    MainWindow w;
+    MainWindow w(loginDialog.sessionCookie());
     w.show();
     return a.exec();
 }

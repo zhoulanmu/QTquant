@@ -2,13 +2,18 @@
 
 #include <QObject>
 #include <QDateTime>
+#include <QJsonValue>
+#include <QString>
 #include <QTimer>
-#include <deque>
-#include <random>
+#include <QUrl>
+
+class QNetworkAccessManager;
+class QNetworkReply;
 
 struct MarketData {
     MarketData()
         : symbol("")
+        , name("")
         , timestamp(QDateTime())
         , open(0.0)
         , high(0.0)
@@ -20,6 +25,7 @@ struct MarketData {
     {}
 
     QString symbol;
+    QString name;
     QDateTime timestamp;
     double open;
     double high;
@@ -36,6 +42,7 @@ class MarketDataSimulator : public QObject
 
 signals:
     void dataUpdated(const MarketData& data);
+    void errorOccurred(const QString& message);
 
 public:
     explicit MarketDataSimulator(QObject *parent = nullptr);
@@ -45,19 +52,25 @@ public:
     void stopSimulation();
     void setSymbol(const QString& symbol);
     const QString& getSymbol() const { return m_symbol; }
+    static QString normalizeSymbol(const QString& symbol);
 
 private slots:
     void generateNewData();
+    void onQuoteReplyFinished();
+
+private:
+    void fetchLatestQuote();
+    QUrl buildQuoteUrl() const;
+    bool parseQuoteResponse(const QByteArray& payload, MarketData* data, QString* errorMessage) const;
+    static QString secIdForSymbol(const QString& symbol);
+    static double valueToDouble(const QJsonValue& value);
 
 private:
     QTimer* m_timer;
     QString m_symbol;
-    double m_basePrice;
+    QString m_secid;
     double m_lastPrice;
-    std::mt19937 m_randomGenerator;
-    std::uniform_real_distribution<double> m_priceDistribution;
-    std::uniform_int_distribution<int> m_volumeDistribution;
+    QNetworkAccessManager* m_network;
+    QNetworkReply* m_activeReply;
     bool m_isRunning;
-    int m_dayCount;
-    int m_minuteCount;
 };

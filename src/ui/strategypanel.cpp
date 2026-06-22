@@ -1,6 +1,7 @@
 #include "strategypanel.h"
 #include "ui_strategypanel.h"
 #include <QScrollBar>
+#include <QTime>
 
 StrategyPanel::StrategyPanel(QWidget *parent) :
     QWidget(parent),
@@ -16,8 +17,10 @@ StrategyPanel::StrategyPanel(QWidget *parent) :
     ui->label_5->setBuddy(nullptr);
     ui->label_6->setBuddy(nullptr);
 
-    ui->logTextEdit->append(QStringLiteral("请稍等，等待自动交易...\n"));
+    addSystemLog(QStringLiteral("行情连接中，等待策略启动。"));
 
+    connect(ui->startBtn, &QPushButton::clicked, this, &StrategyPanel::startClicked);
+    connect(ui->stopBtn, &QPushButton::clicked, this, &StrategyPanel::stopClicked);
     connect(ui->symbolEdit, &QLineEdit::textChanged, this, &StrategyPanel::on_paramChanged);
     connect(ui->fastMASpin, QOverload<int>::of(&QSpinBox::valueChanged), this, &StrategyPanel::on_paramChanged);
     connect(ui->slowMASpin, QOverload<int>::of(&QSpinBox::valueChanged), this, &StrategyPanel::on_paramChanged);
@@ -73,6 +76,17 @@ void StrategyPanel::setRunningState(bool running)
     ui->lotSizeSpin->setEnabled(!running);
 }
 
+void StrategyPanel::addSystemLog(const QString &message)
+{
+    const QString logLine = QStringLiteral("%1 [系统] %2")
+            .arg(QTime::currentTime().toString(QStringLiteral("HH:mm:ss")), message);
+
+    ui->logTextEdit->append(logLine);
+
+    QScrollBar *scrollBar = ui->logTextEdit->verticalScrollBar();
+    scrollBar->setValue(scrollBar->maximum());
+}
+
 void StrategyPanel::addSignalLog(const StrategySignal &signal)
 {
     QString timeStr = signal.timestamp.toString("HH:mm:ss");
@@ -108,15 +122,6 @@ void StrategyPanel::addSignalLog(const StrategySignal &signal)
     scrollBar->setValue(scrollBar->maximum());
 }
 
-void StrategyPanel::on_startBtn_clicked()
-{
-    emit startClicked();
-}
-
-void StrategyPanel::on_stopBtn_clicked()
-{
-    emit stopClicked();
-}
 
 void StrategyPanel::on_paramChanged()
 {

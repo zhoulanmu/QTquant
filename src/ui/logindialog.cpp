@@ -1,82 +1,112 @@
 #include "logindialog.h"
 #include "ui_logindialog.h"
+
+#include <QDesktopServices>
+#include <QLineEdit>
 #include <QMessageBox>
-#include <QApplication>
-#include <QVBoxLayout>
-#include <QHBoxLayout>
+#include <QPlainTextEdit>
+#include <QPushButton>
+#include <QUrl>
+
+namespace {
+const QUrl EastMoneyLoginUrl(QStringLiteral("https://passport2.eastmoney.com/pub/login?backurl=https%3A%2F%2Fwww.eastmoney.com%2F"));
+}
 
 LoginDialog::LoginDialog(QWidget *parent)
-    : QDialog(parent), ui(new Ui::LoginDialog)
+    : QDialog(parent)
+    , ui(new Ui::LoginDialog)
+    , m_cookieEdit(nullptr)
+    , m_openLoginButton(nullptr)
+    , m_guestButton(nullptr)
+    , m_authenticated(false)
+    , m_guestMode(true)
 {
     ui->setupUi(this);
 
-    // 窗口基础设置
-    setMinimumSize(420, 380); // 稍微加高一点，给布局留出空间
-    setWindowTitle("用户登录 - QTQuant");
+    setMinimumSize(480, 520);
+    setWindowTitle(QStringLiteral("QTQuant - 东财账号"));
 
-    // ========== 1. 先给所有布局设置间距（用 ui 指针直接访问，避免 findChild 失败） ==========
-    // 主布局
-    ui->verticalLayout->setSpacing(25);           // 控件之间的垂直间距
-    ui->verticalLayout->setContentsMargins(35, 35, 35, 35); // 窗口四周的边距
-    // 输入框布局
-    ui->inputLayout->setSpacing(18);              // 用户名和密码之间的间距
-    // 按钮布局
-    ui->horizontalLayout->setSpacing(20);          // 登录和取消按钮之间的间距
+    ui->verticalLayout->setSpacing(18);
+    ui->verticalLayout->setContentsMargins(35, 35, 35, 35);
+    ui->inputLayout->setSpacing(12);
+    ui->horizontalLayout->setSpacing(12);
 
-    // ========== 2. 统一样式表，避免挤压布局 ==========
+    ui->titleLabel->setText(QStringLiteral("QTQuant 看盘"));
+    ui->usernameEdit->setPlaceholderText(QStringLiteral("东财账号备注（可选）"));
+    ui->passwordEdit->hide();
+    ui->loginBtn->setText(QStringLiteral("接入东财会话"));
+    ui->cancelBtn->setText(QStringLiteral("取消"));
+    ui->tipLabel->setText(QStringLiteral("免费实时行情无需登录；东财 Cookie 只保存在本次程序内存中。"));
+    ui->tipLabel->setWordWrap(true);
+
+    m_cookieEdit = new QPlainTextEdit(this);
+    m_cookieEdit->setObjectName(QStringLiteral("cookieEdit"));
+    m_cookieEdit->setMaximumHeight(96);
+    m_cookieEdit->setPlaceholderText(QStringLiteral("粘贴东财网页登录后的 Cookie（可选）"));
+    ui->inputLayout->addWidget(m_cookieEdit);
+
+    m_openLoginButton = new QPushButton(QStringLiteral("打开东财官方登录页"), this);
+    m_openLoginButton->setObjectName(QStringLiteral("openEastMoneyBtn"));
+    ui->inputLayout->addWidget(m_openLoginButton);
+
+    m_guestButton = new QPushButton(QStringLiteral("游客看盘"), this);
+    m_guestButton->setObjectName(QStringLiteral("guestBtn"));
+    ui->horizontalLayout->insertWidget(1, m_guestButton);
+
+    connect(m_openLoginButton, &QPushButton::clicked, this, &LoginDialog::openEastMoneyLogin);
+    connect(m_guestButton, &QPushButton::clicked, this, &LoginDialog::acceptGuest);
+
     this->setStyleSheet(R"(
         QDialog {
             background-color: #253b6e;
             border-radius: 8px;
         }
-        QLineEdit {
+        QLineEdit, QPlainTextEdit {
             background-color: #4a5568;
             color: white;
             border: 1px solid #718096;
             border-radius: 6px;
-            padding: 12px 14px;
+            padding: 10px 12px;
             font-size: 14px;
-            min-height: 42px; /* 不要设太大，避免挤掉间距 */
+            selection-background-color: #4299e1;
         }
-        QLineEdit:focus {
+        QLineEdit:focus, QPlainTextEdit:focus {
             border-color: #63b3ed;
         }
         QPushButton {
             border: none;
             border-radius: 6px;
-            padding: 12px 32px;
+            padding: 10px 18px;
             font-size: 14px;
-            min-height: 44px;
-        }
-        QPushButton#loginBtn {
-            background-color: #2196f3;
-            color: white;
-        }
-        QPushButton#loginBtn:hover {
-            background-color: #1976d2;
-        }
-        QPushButton#cancelBtn {
+            min-height: 38px;
             background-color: #718096;
             color: white;
         }
-        QPushButton#cancelBtn:hover {
+        QPushButton:hover {
             background-color: #5a6678;
+        }
+        QPushButton#loginBtn, QPushButton#openEastMoneyBtn {
+            background-color: #2196f3;
+        }
+        QPushButton#loginBtn:hover, QPushButton#openEastMoneyBtn:hover {
+            background-color: #1976d2;
+        }
+        QPushButton#guestBtn {
+            background-color: #2f855a;
+        }
+        QPushButton#guestBtn:hover {
+            background-color: #276749;
         }
         QLabel#titleLabel {
             font-size: 20px;
             font-weight: bold;
             color: #63b3ed;
-            margin-bottom: 5px; /* 标题和输入框之间额外加一点间距 */
         }
         QLabel#tipLabel {
             font-size: 12px;
             color: #a0aec0;
-            margin-top: 5px; /* 提示文字和按钮之间额外加一点间距 */
         }
     )");
-
-    // 密码框安全设置（双重保险）
-    ui->passwordEdit->setEchoMode(QLineEdit::Password);
 }
 
 LoginDialog::~LoginDialog()
@@ -89,28 +119,66 @@ bool LoginDialog::isAuthenticated() const
     return m_authenticated;
 }
 
+bool LoginDialog::isGuestMode() const
+{
+    return m_guestMode;
+}
+
+QString LoginDialog::accountHint() const
+{
+    return m_accountHint;
+}
+
+QString LoginDialog::sessionCookie() const
+{
+    return m_sessionCookie;
+}
+
 void LoginDialog::accept()
 {
-    QString user = ui->usernameEdit->text().trimmed();
-    QString pwd = ui->passwordEdit->text();
-    
-    if (user.isEmpty() || pwd.isEmpty()) {
-        QMessageBox::warning(this, "提示", "请输入用户名和密码");
+    m_accountHint = ui->usernameEdit->text().trimmed();
+    const QString cookie = m_cookieEdit ? m_cookieEdit->toPlainText().trimmed() : QString();
+
+    if (cookie.isEmpty()) {
+        acceptGuest();
         return;
     }
-    
-    if ((user == "admin" && pwd == "123456") || 
-        (user == "user" && pwd == "654321")) {
-        m_authenticated = true;
-        QDialog::accept();
-    } else {
-        QMessageBox::critical(this, "错误", "用户名或密码错误");
-        ui->passwordEdit->clear();
-        ui->passwordEdit->setFocus();
+
+    if (!looksLikeCookie(cookie)) {
+        QMessageBox::warning(this, QStringLiteral("提示"),
+                             QStringLiteral("Cookie 格式看起来不完整，至少需要包含 name=value。"));
+        return;
     }
+
+    m_sessionCookie = cookie;
+    m_authenticated = true;
+    m_guestMode = false;
+    QDialog::accept();
 }
 
 void LoginDialog::reject()
 {
     QDialog::reject();
+}
+
+void LoginDialog::openEastMoneyLogin()
+{
+    if (!QDesktopServices::openUrl(EastMoneyLoginUrl)) {
+        QMessageBox::warning(this, QStringLiteral("提示"),
+                             QStringLiteral("无法打开浏览器，请手动访问 passport2.eastmoney.com。"));
+    }
+}
+
+void LoginDialog::acceptGuest()
+{
+    m_accountHint.clear();
+    m_sessionCookie.clear();
+    m_authenticated = true;
+    m_guestMode = true;
+    QDialog::accept();
+}
+
+bool LoginDialog::looksLikeCookie(const QString& cookie) const
+{
+    return cookie.contains(QLatin1Char('='));
 }

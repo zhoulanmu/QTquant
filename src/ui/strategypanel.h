@@ -28,11 +28,10 @@ public:
     double getLotSize() const;
 
     void setRunningState(bool running);
+    void addSystemLog(const QString& message);
     void addSignalLog(const StrategySignal& signal);
 
 private slots:
-    void on_startBtn_clicked();
-    void on_stopBtn_clicked();
     void on_paramChanged();
 
 private:

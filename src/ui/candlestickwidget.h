@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QWidget>
+#include <QRectF>
 #include <deque>
 #include "../market/marketdata.h"
 
@@ -25,8 +26,10 @@ private:
     double m_zoomFactor;
     const int MAX_POINTS = 50;
 
+    QRectF chartArea() const;
+    int priceToY(double price, const QRectF& area) const;
     void drawCandlesticks(QPainter& painter);
     void drawGrid(QPainter& painter);
     void drawPriceLabels(QPainter& painter);
-    void drawTimeLabels(QPainter& painter, int chartWidth, int chartHeight, int padding);
+    void drawTimeLabels(QPainter& painter, const QRectF& area, int startIdx, int visibleCount);
 };
