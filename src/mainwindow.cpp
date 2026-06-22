@@ -75,6 +75,7 @@ MainWindow::MainWindow(bool guestMode, const QString& accountName, QWidget *pare
     m_strategy = new MovingAverageStrategy(this);
 
     connect(m_marketData, &MarketDataSimulator::dataUpdated, this, &MainWindow::onMarketDataUpdated);
+    connect(m_marketData, &MarketDataSimulator::intradayDataUpdated, this, &MainWindow::onIntradayDataUpdated);
     connect(m_marketData, &MarketDataSimulator::errorOccurred, this, &MainWindow::onMarketDataError);
     connect(m_strategy, &StrategyBase::signalGenerated, this, &MainWindow::onStrategySignal);
     connect(ui->strategyPanel, &StrategyPanel::startClicked, this, &MainWindow::onStartStrategy);
@@ -286,6 +287,11 @@ void MainWindow::onMarketDataUpdated(const MarketData &data)
     if (m_isRunning) {
         m_strategy->processMarketData(data);
     }
+}
+
+void MainWindow::onIntradayDataUpdated(const QVector<MarketData>& data)
+{
+    ui->chartPanel->updateIntradayData(data);
 }
 
 void MainWindow::onMarketDataError(const QString &message)

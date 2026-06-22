@@ -1,6 +1,7 @@
 #include "mainwindow.h"
 #include "ui/logindialog.h"
 #include <QApplication>
+#include <QIcon>
 #include <QLocale>
 #include <QTranslator>
 
@@ -9,6 +10,7 @@ int main(int argc, char *argv[])
     QApplication a(argc, argv);
     QApplication::setApplicationName(QStringLiteral("星策 StarQuant"));
     QApplication::setOrganizationName(QStringLiteral("StarQuant"));
+    QApplication::setWindowIcon(QIcon(QStringLiteral(":/icons/starquant_stars.png")));
 
     QLocale::setDefault(QLocale(QLocale::Chinese, QLocale::China));
 

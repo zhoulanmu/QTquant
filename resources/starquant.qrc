@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/icons">
+        <file alias="starquant_stars.png">icons/starquant_stars.png</file>
+    </qresource>
+</RCC>

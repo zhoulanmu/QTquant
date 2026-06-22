@@ -49,7 +49,31 @@ void ChartPanel::updateChartData(const MarketData &data)
         m_priceHistory.clear();
     }
 
-    m_priceHistory.push_back(data);
+    if (!m_priceHistory.empty()
+        && m_priceHistory.back().timestamp.date() == data.timestamp.date()
+        && m_priceHistory.back().timestamp.time().hour() == data.timestamp.time().hour()
+        && m_priceHistory.back().timestamp.time().minute() == data.timestamp.time().minute()) {
+        m_priceHistory.back() = data;
+    } else {
+        m_priceHistory.push_back(data);
+    }
+
+    while (m_priceHistory.size() > MAX_POINTS) {
+        m_priceHistory.pop_front();
+    }
+
+    updatePriceRange();
+    m_candlestickWidget->updateData(m_priceHistory, m_minPrice, m_maxPrice);
+}
+
+void ChartPanel::updateIntradayData(const QVector<MarketData>& data)
+{
+    m_priceHistory.clear();
+    for (const MarketData& point : data) {
+        if (point.close > 0.0 && point.timestamp.isValid()) {
+            m_priceHistory.push_back(point);
+        }
+    }
 
     while (m_priceHistory.size() > MAX_POINTS) {
         m_priceHistory.pop_front();
@@ -70,11 +94,27 @@ void ChartPanel::updatePriceRange()
     m_minPrice = std::numeric_limits<double>::max();
     m_maxPrice = std::numeric_limits<double>::lowest();
 
+    double previousClose = 0.0;
     for (const auto& data : m_priceHistory) {
+        if (data.previousClose > 0.0) {
+            previousClose = data.previousClose;
+        }
         if (data.close > 0.0) {
             m_minPrice = qMin(m_minPrice, data.close);
             m_maxPrice = qMax(m_maxPrice, data.close);
         }
+        if (data.averagePrice > 0.0) {
+            m_minPrice = qMin(m_minPrice, data.averagePrice);
+            m_maxPrice = qMax(m_maxPrice, data.averagePrice);
+        }
+    }
+
+    if (previousClose > 0.0) {
+        const double upperDistance = qAbs(m_maxPrice - previousClose);
+        const double lowerDistance = qAbs(previousClose - m_minPrice);
+        const double distance = qMax(qMax(upperDistance, lowerDistance), previousClose * 0.003);
+        m_minPrice = qMax(0.0, previousClose - distance);
+        m_maxPrice = previousClose + distance;
     }
 
     if (m_minPrice == std::numeric_limits<double>::max() || m_maxPrice == std::numeric_limits<double>::lowest()) {

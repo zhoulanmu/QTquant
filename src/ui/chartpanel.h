@@ -19,6 +19,7 @@ public:
     ~ChartPanel();
 
     void updateChartData(const MarketData& data);
+    void updateIntradayData(const QVector<MarketData>& data);
 
 protected:
     void paintEvent(QPaintEvent* event) override;
@@ -28,7 +29,7 @@ private:
     std::deque<MarketData> m_priceHistory;
     double m_minPrice;
     double m_maxPrice;
-    const int MAX_POINTS = 50;
+    const int MAX_POINTS = 300;
     CandlestickWidget* m_candlestickWidget;
 
     void updatePriceRange();

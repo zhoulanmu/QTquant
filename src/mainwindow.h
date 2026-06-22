@@ -27,6 +27,7 @@ public:
 
 private slots:
     void onMarketDataUpdated(const MarketData& data);
+    void onIntradayDataUpdated(const QVector<MarketData>& data);
     void onMarketDataError(const QString& message);
     void onStrategySignal(const StrategySignal& signal);
     void onStartStrategy();

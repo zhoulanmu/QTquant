@@ -6,6 +6,7 @@
 #include <QString>
 #include <QTimer>
 #include <QUrl>
+#include <QVector>
 
 class QNetworkAccessManager;
 class QNetworkReply;
@@ -21,6 +22,8 @@ struct MarketData {
         , close(0.0)
         , volume(0.0)
         , turnover(0.0)
+        , previousClose(0.0)
+        , averagePrice(0.0)
         , tradeCount(0)
     {}
 
@@ -33,6 +36,8 @@ struct MarketData {
     double close;
     double volume;
     double turnover;
+    double previousClose;
+    double averagePrice;
     int tradeCount;
 };
 
@@ -42,6 +47,7 @@ class MarketDataSimulator : public QObject
 
 signals:
     void dataUpdated(const MarketData& data);
+    void intradayDataUpdated(const QVector<MarketData>& data);
     void errorOccurred(const QString& message);
 
 public:
@@ -57,11 +63,15 @@ public:
 private slots:
     void generateNewData();
     void onQuoteReplyFinished();
+    void onTrendReplyFinished();
 
 private:
     void fetchLatestQuote();
+    void fetchIntradayTrend();
     QUrl buildQuoteUrl() const;
+    QUrl buildTrendUrl() const;
     bool parseQuoteResponse(const QByteArray& payload, MarketData* data, QString* errorMessage) const;
+    bool parseTrendResponse(const QByteArray& payload, QVector<MarketData>* points, QString* errorMessage) const;
     static QString secIdForSymbol(const QString& symbol);
     static double valueToDouble(const QJsonValue& value);
 
@@ -72,5 +82,6 @@ private:
     double m_lastPrice;
     QNetworkAccessManager* m_network;
     QNetworkReply* m_activeReply;
+    QNetworkReply* m_trendReply;
     bool m_isRunning;
 };
