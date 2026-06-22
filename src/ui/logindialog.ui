@@ -7,11 +7,11 @@
     <x>0</x>
     <y>0</y>
     <width>480</width>
-    <height>420</height>
+    <height>360</height>
    </rect>
   </property>
   <property name="windowTitle">
-   <string>QTQuant - 东财账号</string>
+   <string>星策 StarQuant - 登录</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <property name="spacing">
@@ -32,7 +32,7 @@
    <item>
     <widget class="QLabel" name="titleLabel">
      <property name="text">
-      <string>QTQuant 看盘</string>
+      <string>星策 StarQuant</string>
      </property>
      <property name="alignment">
       <set>Qt::AlignCenter</set>
@@ -47,7 +47,7 @@
      <item>
       <widget class="QLineEdit" name="usernameEdit">
        <property name="placeholderText">
-        <string>东财账号备注（可选）</string>
+        <string>客户端用户名</string>
        </property>
       </widget>
      </item>
@@ -57,7 +57,7 @@
         <enum>QLineEdit::Password</enum>
        </property>
        <property name="placeholderText">
-        <string>密码</string>
+        <string>客户端密码</string>
        </property>
       </widget>
      </item>
@@ -71,7 +71,7 @@
      <item>
       <widget class="QPushButton" name="loginBtn">
        <property name="text">
-        <string>接入东财会话</string>
+        <string>客户端登录</string>
        </property>
       </widget>
      </item>
@@ -87,7 +87,7 @@
    <item>
     <widget class="QLabel" name="tipLabel">
      <property name="text">
-      <string>免费实时行情无需登录；东财 Cookie 只保存在本次程序内存中。</string>
+      <string>请输入客户端用户名和密码，或使用游客看盘直接进入。</string>
      </property>
      <property name="alignment">
       <set>Qt::AlignCenter</set>

@@ -536,7 +536,7 @@ void StrategyPanel::setupStockSearchUi()
 
 void StrategyPanel::loadWatchlist()
 {
-    QSettings settings(QStringLiteral("QTQuant"), QStringLiteral("QTQuant"));
+    QSettings settings(QStringLiteral("StarQuant"), QStringLiteral("StarQuant"));
     const QStringList entries = settings.value(QStringLiteral("watchlist/items")).toStringList();
 
     m_favorites.clear();
@@ -564,7 +564,7 @@ void StrategyPanel::saveWatchlist() const
         entries.append(symbol + QLatin1Char('|') + m_stockNames.value(symbol));
     }
 
-    QSettings settings(QStringLiteral("QTQuant"), QStringLiteral("QTQuant"));
+    QSettings settings(QStringLiteral("StarQuant"), QStringLiteral("StarQuant"));
     settings.setValue(QStringLiteral("watchlist/items"), entries);
 }
 
@@ -960,7 +960,7 @@ void StrategyPanel::onSearchTimerTimeout()
 
     QNetworkRequest request(url);
     request.setHeader(QNetworkRequest::UserAgentHeader,
-                      QStringLiteral("Mozilla/5.0 QTQuant/0.1 EastMoneySearch"));
+                      QStringLiteral("Mozilla/5.0 StarQuant/0.1 MarketSearch"));
     request.setRawHeader("Referer", "https://quote.eastmoney.com/");
     request.setTransferTimeout(SearchTimeoutMs);
 

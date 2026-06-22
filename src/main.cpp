@@ -7,13 +7,15 @@
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
+    QApplication::setApplicationName(QStringLiteral("星策 StarQuant"));
+    QApplication::setOrganizationName(QStringLiteral("StarQuant"));
 
     QLocale::setDefault(QLocale(QLocale::Chinese, QLocale::China));
 
     QTranslator translator;
     const QStringList uiLanguages = QLocale::system().uiLanguages();
     for (const QString &locale : uiLanguages) {
-        const QString baseName = "QTQuant_" + QLocale(locale).name();
+        const QString baseName = "StarQuant_" + QLocale(locale).name();
         if (translator.load(":/i18n/" + baseName)) {
             a.installTranslator(&translator);
             break;
@@ -25,7 +27,7 @@ int main(int argc, char *argv[])
         return 0;
     }
 
-    MainWindow w(loginDialog.sessionCookie());
+    MainWindow w(loginDialog.isGuestMode(), loginDialog.accountHint());
     w.show();
     return a.exec();
 }

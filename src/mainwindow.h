@@ -22,7 +22,7 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 
 public:
-    explicit MainWindow(const QString& eastMoneyCookie = QString(), QWidget *parent = nullptr);
+    explicit MainWindow(bool guestMode = true, const QString& accountName = QString(), QWidget *parent = nullptr);
     ~MainWindow();
 
 private slots:
@@ -58,5 +58,6 @@ private:
     double m_currentPrice;
     MarketData m_lastMarketData;
     bool m_hasLastMarketData;
-    QString m_eastMoneyCookie;
+    bool m_guestMode;
+    QString m_accountName;
 };

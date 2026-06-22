@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.24)
 
-project(QTQuant LANGUAGES CXX)
+project(StarQuant LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -28,7 +28,7 @@ find_package(Qt${QT_VERSION} COMPONENTS ${REQUIRED_LIBS} REQUIRED)
 
 qt_standard_project_setup()
 
-add_executable(QTQuant WIN32
+add_executable(StarQuant WIN32
     src/main.cpp
     src/mainwindow.cpp
     src/mainwindow.h
@@ -64,9 +64,9 @@ add_executable(QTQuant WIN32
     src/ui/logindialog.ui
 )
 
-target_link_libraries(QTQuant PRIVATE ${REQUIRED_LIBS_QUALIFIED})
+target_link_libraries(StarQuant PRIVATE ${REQUIRED_LIBS_QUALIFIED})
 
-target_include_directories(QTQuant PRIVATE
+target_include_directories(StarQuant PRIVATE
     ${PROJECT_SOURCE_DIR}/src
     ${PROJECT_SOURCE_DIR}/src/market
     ${PROJECT_SOURCE_DIR}/src/indicator
@@ -87,18 +87,18 @@ if (WIN32)
         endif ()
     endif ()
     if (EXISTS "${QT_INSTALL_PATH}/plugins/platforms/qwindows${DEBUG_SUFFIX}.dll")
-        add_custom_command(TARGET QTQuant POST_BUILD
+        add_custom_command(TARGET StarQuant POST_BUILD
                 COMMAND ${CMAKE_COMMAND} -E make_directory
-                "$<TARGET_FILE_DIR:QTQuant>/plugins/platforms/")
-        add_custom_command(TARGET QTQuant POST_BUILD
+                "$<TARGET_FILE_DIR:StarQuant>/plugins/platforms/")
+        add_custom_command(TARGET StarQuant POST_BUILD
                 COMMAND ${CMAKE_COMMAND} -E copy
                 "${QT_INSTALL_PATH}/plugins/platforms/qwindows${DEBUG_SUFFIX}.dll"
-                "$<TARGET_FILE_DIR:QTQuant>/plugins/platforms/")
+                "$<TARGET_FILE_DIR:StarQuant>/plugins/platforms/")
     endif ()
     foreach (QT_LIB Core Widgets Network)
-        add_custom_command(TARGET QTQuant POST_BUILD
+        add_custom_command(TARGET StarQuant POST_BUILD
                 COMMAND ${CMAKE_COMMAND} -E copy
                 "${QT_INSTALL_PATH}/bin/Qt6${QT_LIB}${DEBUG_SUFFIX}.dll"
-                "$<TARGET_FILE_DIR:QTQuant>")
+                "$<TARGET_FILE_DIR:StarQuant>")
     endforeach (QT_LIB)
 endif ()

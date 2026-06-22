@@ -14,7 +14,7 @@
 #include <QTextEdit>
 #include <QVBoxLayout>
 
-MainWindow::MainWindow(const QString& eastMoneyCookie, QWidget *parent)
+MainWindow::MainWindow(bool guestMode, const QString& accountName, QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
     , m_marketData(nullptr)
@@ -28,10 +28,11 @@ MainWindow::MainWindow(const QString& eastMoneyCookie, QWidget *parent)
     , m_currentCash(100000.0)
     , m_currentPrice(10.78)
     , m_hasLastMarketData(false)
-    , m_eastMoneyCookie(eastMoneyCookie)
+    , m_guestMode(guestMode)
+    , m_accountName(accountName)
 {
     ui->setupUi(this);
-    setWindowTitle(QStringLiteral("QTQuant - 真实行情看盘"));
+    setWindowTitle(QStringLiteral("星策 StarQuant - 真实行情看盘"));
 
     const QString darkTheme =
         "QMainWindow { background-color: #253b6e; }"
@@ -88,9 +89,9 @@ MainWindow::MainWindow(const QString& eastMoneyCookie, QWidget *parent)
     updateAccountInfo();
 
     m_marketData->startSimulation();
-    ui->statusbar->showMessage(m_eastMoneyCookie.isEmpty()
-        ? QStringLiteral("游客模式：已接入东财免费实时行情")
-        : QStringLiteral("东财会话已接入：已启动实时行情"), 4000);
+    ui->statusbar->showMessage(m_guestMode
+        ? QStringLiteral("游客看盘：实时行情已启动")
+        : QStringLiteral("客户端已登录：%1，实时行情已启动").arg(m_accountName), 4000);
 }
 
 MainWindow::~MainWindow()

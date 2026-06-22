@@ -174,7 +174,7 @@ void MarketDataSimulator::fetchLatestQuote()
 
     QNetworkRequest request(buildQuoteUrl());
     request.setHeader(QNetworkRequest::UserAgentHeader,
-                      QStringLiteral("Mozilla/5.0 QTQuant/0.1 EastMoneyQuote"));
+                      QStringLiteral("Mozilla/5.0 StarQuant/0.1 MarketQuote"));
     request.setRawHeader("Referer", "https://quote.eastmoney.com/");
     request.setTransferTimeout(QuoteTimeoutMs);
 
