@@ -6,12 +6,18 @@
 #include <QWidget>
 #include "../strategy/strategybase.h"
 
+class QCheckBox;
+class QComboBox;
 class QCompleter;
+class QDoubleSpinBox;
+class QGroupBox;
+class QLabel;
 class QListWidget;
 class QListWidgetItem;
 class QNetworkAccessManager;
 class QNetworkReply;
 class QPushButton;
+class QSpinBox;
 class QStringListModel;
 class QTimer;
 
@@ -44,6 +50,8 @@ public:
     double getStopLossPercent() const;
     double getTakeProfitPercent() const;
     double getLotSize() const;
+    QString currentStrategyName() const;
+    QString currentStrategyConfigurationSummary() const;
 
     void setRunningState(bool running);
     void rememberStockName(const QString& symbol, const QString& name);
@@ -57,6 +65,9 @@ private slots:
     void onSearchTimerTimeout();
     void onSearchReplyFinished();
     void onCompleterActivated(const QString& text);
+    void onStrategyPresetChanged(int index);
+    void onApplyStrategyPresetClicked();
+    void onStrategyConfigChanged();
     void onAddFavoriteClicked();
     void onRemoveFavoriteClicked();
     void onFavoriteActivated(QListWidgetItem* item);
@@ -64,6 +75,11 @@ private slots:
 
 private:
     void setupStockSearchUi();
+    void setupCommonStrategyUi();
+    void setupCurrentStrategyConfigUi();
+    void updateCurrentStrategyConfigUi();
+    void setGrowthConfigEnabled(bool enabled);
+    QString selectedGrowthTracks() const;
     void loadWatchlist();
     void saveWatchlist() const;
     void refreshWatchlist();
@@ -89,6 +105,25 @@ private:
     QTimer* m_searchTimer;
     QNetworkAccessManager* m_searchNetwork;
     QNetworkReply* m_searchReply;
+    QComboBox* m_strategyPresetCombo;
+    QLabel* m_strategyPresetDescLabel;
+    QPushButton* m_applyStrategyPresetBtn;
+    QGroupBox* m_strategyConfigGroup;
+    QLabel* m_strategyConfigHintLabel;
+    QVector<QWidget*> m_growthConfigWidgets;
+    QVector<QCheckBox*> m_growthTrackChecks;
+    QCheckBox* m_ma60UpCheck;
+    QCheckBox* m_profitGrowthCheck;
+    QCheckBox* m_orderLandingCheck;
+    QCheckBox* m_noPureConceptCheck;
+    QCheckBox* m_volumePullbackCheck;
+    QSpinBox* m_pullbackMinSpin;
+    QSpinBox* m_pullbackMaxSpin;
+    QDoubleSpinBox* m_sectorCapSpin;
+    QSpinBox* m_diversifyMainlineSpin;
+    QDoubleSpinBox* m_surgeTakeProfitSpin;
+    QCheckBox* m_partialTakeProfitCheck;
+    QCheckBox* m_breakMA60VolumeStopCheck;
     QListWidget* m_watchlistWidget;
     QPushButton* m_addFavoriteBtn;
     QPushButton* m_removeFavoriteBtn;

@@ -10,6 +10,9 @@
 #include "ui/statisticspanel.h"
 #include "ui/signalsignalpanel.h"
 
+class QTabWidget;
+class QWidget;
+
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
@@ -33,6 +36,11 @@ private slots:
 private:
     void updateAccountInfo();
     void executeOrder(const StrategySignal& signal);
+    void buildTabbedLayout();
+    QWidget* createMainTab();
+    QWidget* createStrategyTab();
+    QWidget* createPersonalTab();
+    QWidget* createNewsTab();
 
 private:
     Ui::MainWindow *ui;
@@ -41,6 +49,7 @@ private:
     AccountPanel* m_accountPanel;
     StatisticsPanel* m_statisticsPanel;
     SignalPanel* m_signalPanel;
+    QTabWidget* m_mainTabs;
     bool m_isRunning;
 
     double m_initialCapital;

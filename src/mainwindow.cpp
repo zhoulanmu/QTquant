@@ -1,7 +1,17 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 
+#include <QAbstractItemView>
 #include <QDateTime>
+#include <QGridLayout>
+#include <QGroupBox>
+#include <QHBoxLayout>
+#include <QHeaderView>
+#include <QLabel>
+#include <QTableWidget>
+#include <QTableWidgetItem>
+#include <QTabWidget>
+#include <QTextEdit>
 #include <QVBoxLayout>
 
 MainWindow::MainWindow(const QString& eastMoneyCookie, QWidget *parent)
@@ -12,6 +22,7 @@ MainWindow::MainWindow(const QString& eastMoneyCookie, QWidget *parent)
     , m_accountPanel(nullptr)
     , m_statisticsPanel(nullptr)
     , m_signalPanel(nullptr)
+    , m_mainTabs(nullptr)
     , m_isRunning(false)
     , m_initialCapital(100000.0)
     , m_currentCash(100000.0)
@@ -70,6 +81,7 @@ MainWindow::MainWindow(const QString& eastMoneyCookie, QWidget *parent)
     delete ui->signalPanel;
     ui->signalPanel = m_signalPanel;
 
+    buildTabbedLayout();
 
     ui->strategyPanel->setRunningState(false);
     onUpdateParameters();
@@ -87,6 +99,128 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
+void MainWindow::buildTabbedLayout()
+{
+    ui->verticalLayout_3->removeWidget(ui->strategyPanel);
+    ui->verticalLayout_3->removeWidget(ui->marketPanel);
+    ui->verticalLayout_3->removeWidget(m_accountPanel);
+    ui->verticalLayout_4->removeWidget(ui->chartPanel);
+    ui->horizontalLayout_2->removeWidget(m_statisticsPanel);
+    ui->horizontalLayout_2->removeWidget(m_signalPanel);
+
+    ui->strategyPanel->setParent(nullptr);
+    ui->marketPanel->setParent(nullptr);
+    m_accountPanel->setParent(nullptr);
+    ui->chartPanel->setParent(nullptr);
+    m_statisticsPanel->setParent(nullptr);
+    m_signalPanel->setParent(nullptr);
+
+    while (QLayoutItem* item = ui->horizontalLayout->takeAt(0)) {
+        if (QWidget* widget = item->widget()) {
+            widget->hide();
+        }
+        delete item;
+    }
+
+    m_mainTabs = new QTabWidget(ui->centralwidget);
+    m_mainTabs->setObjectName(QStringLiteral("mainTabs"));
+    m_mainTabs->setDocumentMode(true);
+    m_mainTabs->addTab(createMainTab(), QStringLiteral("主"));
+    m_mainTabs->addTab(createStrategyTab(), QStringLiteral("策略"));
+    m_mainTabs->addTab(createPersonalTab(), QStringLiteral("个人"));
+    m_mainTabs->addTab(createNewsTab(), QStringLiteral("新闻"));
+
+    ui->horizontalLayout->setContentsMargins(8, 8, 8, 8);
+    ui->horizontalLayout->addWidget(m_mainTabs);
+}
+
+QWidget* MainWindow::createMainTab()
+{
+    auto* tab = new QWidget(m_mainTabs);
+    auto* rootLayout = new QHBoxLayout(tab);
+    rootLayout->setContentsMargins(10, 10, 10, 10);
+    rootLayout->setSpacing(12);
+
+    auto* leftLayout = new QVBoxLayout();
+    leftLayout->setContentsMargins(0, 0, 0, 0);
+    leftLayout->setSpacing(12);
+    ui->marketPanel->setMinimumHeight(150);
+    m_statisticsPanel->setMinimumHeight(180);
+    leftLayout->addWidget(ui->marketPanel);
+    leftLayout->addWidget(m_statisticsPanel);
+    leftLayout->addStretch(1);
+
+    rootLayout->addLayout(leftLayout, 1);
+    rootLayout->addWidget(ui->chartPanel, 3);
+    return tab;
+}
+
+QWidget* MainWindow::createStrategyTab()
+{
+    auto* tab = new QWidget(m_mainTabs);
+    auto* rootLayout = new QHBoxLayout(tab);
+    rootLayout->setContentsMargins(10, 10, 10, 10);
+    rootLayout->setSpacing(12);
+
+    ui->strategyPanel->setMinimumWidth(420);
+    m_signalPanel->setMinimumWidth(360);
+    rootLayout->addWidget(ui->strategyPanel, 2);
+    rootLayout->addWidget(m_signalPanel, 1);
+    return tab;
+}
+
+QWidget* MainWindow::createPersonalTab()
+{
+    auto* tab = new QWidget(m_mainTabs);
+    auto* rootLayout = new QVBoxLayout(tab);
+    rootLayout->setContentsMargins(10, 10, 10, 10);
+    rootLayout->setSpacing(12);
+    rootLayout->addWidget(m_accountPanel);
+    return tab;
+}
+
+QWidget* MainWindow::createNewsTab()
+{
+    auto* tab = new QWidget(m_mainTabs);
+    auto* rootLayout = new QVBoxLayout(tab);
+    rootLayout->setContentsMargins(10, 10, 10, 10);
+    rootLayout->setSpacing(12);
+
+    auto* newsGroup = new QGroupBox(QStringLiteral("市场快讯"), tab);
+    auto* newsLayout = new QVBoxLayout(newsGroup);
+    auto* newsTable = new QTableWidget(newsGroup);
+    newsTable->setColumnCount(4);
+    newsTable->setHorizontalHeaderLabels({QStringLiteral("时间"), QStringLiteral("来源"), QStringLiteral("标题"), QStringLiteral("相关")});
+    newsTable->horizontalHeader()->setStretchLastSection(true);
+    newsTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
+    newsTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    newsTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+    newsTable->setSelectionMode(QAbstractItemView::SingleSelection);
+    newsTable->setRowCount(3);
+
+    const QList<QStringList> rows = {
+        {QStringLiteral("--:--"), QStringLiteral("系统"), QStringLiteral("市场快讯源等待接入"), QStringLiteral("全市场")},
+        {QStringLiteral("--:--"), QStringLiteral("自选"), QStringLiteral("自选股公告等待接入"), QStringLiteral("自选股")},
+        {QStringLiteral("--:--"), QStringLiteral("日历"), QStringLiteral("宏观事件与财报日历等待接入"), QStringLiteral("日历")}
+    };
+    for (int row = 0; row < rows.size(); ++row) {
+        for (int col = 0; col < rows[row].size(); ++col) {
+            newsTable->setItem(row, col, new QTableWidgetItem(rows[row][col]));
+        }
+    }
+    newsLayout->addWidget(newsTable);
+
+    auto* detailGroup = new QGroupBox(QStringLiteral("新闻详情"), tab);
+    auto* detailLayout = new QVBoxLayout(detailGroup);
+    auto* detailText = new QTextEdit(detailGroup);
+    detailText->setReadOnly(true);
+    detailText->setText(QStringLiteral("新闻 tab 已预留市场快讯、自选股新闻、公告和宏观日历位置。"));
+    detailLayout->addWidget(detailText);
+
+    rootLayout->addWidget(newsGroup, 2);
+    rootLayout->addWidget(detailGroup, 1);
+    return tab;
+}
 void MainWindow::onMarketDataUpdated(const MarketData &data)
 {
     m_currentPrice = data.close;
@@ -248,6 +382,9 @@ void MainWindow::onStartStrategy()
         QStringLiteral("策略已启动：%1，等待至少 %2 条行情计算慢速 MA。")
             .arg(m_marketData->getSymbol())
             .arg(ui->strategyPanel->getSlowMA()));
+    ui->strategyPanel->addSystemLog(
+        QStringLiteral("当前策略：%1").arg(ui->strategyPanel->currentStrategyName()));
+    ui->strategyPanel->addSystemLog(ui->strategyPanel->currentStrategyConfigurationSummary());
 
     if (m_hasLastMarketData && m_lastMarketData.symbol == m_marketData->getSymbol()) {
         m_strategy->processMarketData(m_lastMarketData);
