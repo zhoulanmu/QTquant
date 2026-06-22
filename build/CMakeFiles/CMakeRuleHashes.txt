@@ -1,3 +1,4 @@
 # Hashes of file build rules.
-59554edc339a49290b20b239b21ebd3e CMakeFiles/QTQuant_autogen
-077fca34d089247657363d84642e1a2f QTQuant_autogen/timestamp
+59554edc339a49290b20b239b21ebd3e CMakeFiles/StarQuant_autogen
+f0c2eac4346dc5fd0b99109aee228894 StarQuant_autogen/3YJK5W5UP7/qrc_starquant.cpp
+d5a23510fdda2c0a41698921b6094f32 StarQuant_autogen/timestamp

@@ -49,6 +49,7 @@ set(CMAKE_MAKEFILE_DEPENDS
   "CMakeFiles/3.31.6-msvc6/CMakeCXXCompiler.cmake"
   "CMakeFiles/3.31.6-msvc6/CMakeRCCompiler.cmake"
   "CMakeFiles/3.31.6-msvc6/CMakeSystem.cmake"
+  "D:/QTquant/resources/starquant.qrc"
   "D:/code/Qt6.5.3/6.5.3/mingw_64/lib/cmake/Qt6/FindWrapAtomic.cmake"
   "D:/code/Qt6.5.3/6.5.3/mingw_64/lib/cmake/Qt6/FindWrapVulkanHeaders.cmake"
   "D:/code/Qt6.5.3/6.5.3/mingw_64/lib/cmake/Qt6/Qt6Config.cmake"
@@ -242,14 +243,15 @@ set(CMAKE_MAKEFILE_OUTPUTS
 
 # Byproducts of CMake generate step:
 set(CMAKE_MAKEFILE_PRODUCTS
-  "CMakeFiles/QTQuant_autogen.dir/AutogenInfo.json"
+  "CMakeFiles/StarQuant_autogen.dir/AutogenInfo.json"
+  "CMakeFiles/StarQuant_autogen.dir/AutoRcc_starquant_3YJK5W5UP7_Info.json"
   ".qt/QtDeploySupport.cmake"
   "CMakeFiles/CMakeDirectoryInformation.cmake"
   )
 
 # Dependency information for all targets:
 set(CMAKE_DEPEND_INFO_FILES
-  "CMakeFiles/QTQuant.dir/DependInfo.cmake"
-  "CMakeFiles/QTQuant_autogen_timestamp_deps.dir/DependInfo.cmake"
-  "CMakeFiles/QTQuant_autogen.dir/DependInfo.cmake"
+  "CMakeFiles/StarQuant.dir/DependInfo.cmake"
+  "CMakeFiles/StarQuant_autogen_timestamp_deps.dir/DependInfo.cmake"
+  "CMakeFiles/StarQuant_autogen.dir/DependInfo.cmake"
   )

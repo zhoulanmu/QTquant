@@ -116,74 +116,98 @@ depend:
 .PHONY : depend
 
 #=============================================================================
-# Target rules for targets named QTQuant
+# Target rules for targets named StarQuant
 
 # Build rule for target.
-QTQuant: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\Makefile2 QTQuant
-.PHONY : QTQuant
+StarQuant: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\Makefile2 StarQuant
+.PHONY : StarQuant
 
 # fast build rule for target.
-QTQuant/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/build
-.PHONY : QTQuant/fast
+StarQuant/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/build
+.PHONY : StarQuant/fast
 
 #=============================================================================
-# Target rules for targets named QTQuant_autogen_timestamp_deps
+# Target rules for targets named StarQuant_autogen_timestamp_deps
 
 # Build rule for target.
-QTQuant_autogen_timestamp_deps: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\Makefile2 QTQuant_autogen_timestamp_deps
-.PHONY : QTQuant_autogen_timestamp_deps
+StarQuant_autogen_timestamp_deps: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\Makefile2 StarQuant_autogen_timestamp_deps
+.PHONY : StarQuant_autogen_timestamp_deps
 
 # fast build rule for target.
-QTQuant_autogen_timestamp_deps/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant_autogen_timestamp_deps.dir\build.make CMakeFiles/QTQuant_autogen_timestamp_deps.dir/build
-.PHONY : QTQuant_autogen_timestamp_deps/fast
+StarQuant_autogen_timestamp_deps/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant_autogen_timestamp_deps.dir\build.make CMakeFiles/StarQuant_autogen_timestamp_deps.dir/build
+.PHONY : StarQuant_autogen_timestamp_deps/fast
 
 #=============================================================================
-# Target rules for targets named QTQuant_autogen
+# Target rules for targets named StarQuant_autogen
 
 # Build rule for target.
-QTQuant_autogen: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\Makefile2 QTQuant_autogen
-.PHONY : QTQuant_autogen
+StarQuant_autogen: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\Makefile2 StarQuant_autogen
+.PHONY : StarQuant_autogen
 
 # fast build rule for target.
-QTQuant_autogen/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant_autogen.dir\build.make CMakeFiles/QTQuant_autogen.dir/build
-.PHONY : QTQuant_autogen/fast
+StarQuant_autogen/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant_autogen.dir\build.make CMakeFiles/StarQuant_autogen.dir/build
+.PHONY : StarQuant_autogen/fast
 
-QTQuant_autogen/mocs_compilation.obj: QTQuant_autogen/mocs_compilation.cpp.obj
-.PHONY : QTQuant_autogen/mocs_compilation.obj
+StarQuant_autogen/3YJK5W5UP7/qrc_starquant.obj: StarQuant_autogen/3YJK5W5UP7/qrc_starquant.cpp.obj
+.PHONY : StarQuant_autogen/3YJK5W5UP7/qrc_starquant.obj
 
 # target to build an object file
-QTQuant_autogen/mocs_compilation.cpp.obj:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/QTQuant_autogen/mocs_compilation.cpp.obj
-.PHONY : QTQuant_autogen/mocs_compilation.cpp.obj
+StarQuant_autogen/3YJK5W5UP7/qrc_starquant.cpp.obj:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/StarQuant_autogen/3YJK5W5UP7/qrc_starquant.cpp.obj
+.PHONY : StarQuant_autogen/3YJK5W5UP7/qrc_starquant.cpp.obj
 
-QTQuant_autogen/mocs_compilation.i: QTQuant_autogen/mocs_compilation.cpp.i
-.PHONY : QTQuant_autogen/mocs_compilation.i
+StarQuant_autogen/3YJK5W5UP7/qrc_starquant.i: StarQuant_autogen/3YJK5W5UP7/qrc_starquant.cpp.i
+.PHONY : StarQuant_autogen/3YJK5W5UP7/qrc_starquant.i
 
 # target to preprocess a source file
-QTQuant_autogen/mocs_compilation.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/QTQuant_autogen/mocs_compilation.cpp.i
-.PHONY : QTQuant_autogen/mocs_compilation.cpp.i
+StarQuant_autogen/3YJK5W5UP7/qrc_starquant.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/StarQuant_autogen/3YJK5W5UP7/qrc_starquant.cpp.i
+.PHONY : StarQuant_autogen/3YJK5W5UP7/qrc_starquant.cpp.i
 
-QTQuant_autogen/mocs_compilation.s: QTQuant_autogen/mocs_compilation.cpp.s
-.PHONY : QTQuant_autogen/mocs_compilation.s
+StarQuant_autogen/3YJK5W5UP7/qrc_starquant.s: StarQuant_autogen/3YJK5W5UP7/qrc_starquant.cpp.s
+.PHONY : StarQuant_autogen/3YJK5W5UP7/qrc_starquant.s
 
 # target to generate assembly for a file
-QTQuant_autogen/mocs_compilation.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/QTQuant_autogen/mocs_compilation.cpp.s
-.PHONY : QTQuant_autogen/mocs_compilation.cpp.s
+StarQuant_autogen/3YJK5W5UP7/qrc_starquant.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/StarQuant_autogen/3YJK5W5UP7/qrc_starquant.cpp.s
+.PHONY : StarQuant_autogen/3YJK5W5UP7/qrc_starquant.cpp.s
+
+StarQuant_autogen/mocs_compilation.obj: StarQuant_autogen/mocs_compilation.cpp.obj
+.PHONY : StarQuant_autogen/mocs_compilation.obj
+
+# target to build an object file
+StarQuant_autogen/mocs_compilation.cpp.obj:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/StarQuant_autogen/mocs_compilation.cpp.obj
+.PHONY : StarQuant_autogen/mocs_compilation.cpp.obj
+
+StarQuant_autogen/mocs_compilation.i: StarQuant_autogen/mocs_compilation.cpp.i
+.PHONY : StarQuant_autogen/mocs_compilation.i
+
+# target to preprocess a source file
+StarQuant_autogen/mocs_compilation.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/StarQuant_autogen/mocs_compilation.cpp.i
+.PHONY : StarQuant_autogen/mocs_compilation.cpp.i
+
+StarQuant_autogen/mocs_compilation.s: StarQuant_autogen/mocs_compilation.cpp.s
+.PHONY : StarQuant_autogen/mocs_compilation.s
+
+# target to generate assembly for a file
+StarQuant_autogen/mocs_compilation.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/StarQuant_autogen/mocs_compilation.cpp.s
+.PHONY : StarQuant_autogen/mocs_compilation.cpp.s
 
 src/indicator/indicators.obj: src/indicator/indicators.cpp.obj
 .PHONY : src/indicator/indicators.obj
 
 # target to build an object file
 src/indicator/indicators.cpp.obj:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/src/indicator/indicators.cpp.obj
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/src/indicator/indicators.cpp.obj
 .PHONY : src/indicator/indicators.cpp.obj
 
 src/indicator/indicators.i: src/indicator/indicators.cpp.i
@@ -191,7 +215,7 @@ src/indicator/indicators.i: src/indicator/indicators.cpp.i
 
 # target to preprocess a source file
 src/indicator/indicators.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/src/indicator/indicators.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/src/indicator/indicators.cpp.i
 .PHONY : src/indicator/indicators.cpp.i
 
 src/indicator/indicators.s: src/indicator/indicators.cpp.s
@@ -199,7 +223,7 @@ src/indicator/indicators.s: src/indicator/indicators.cpp.s
 
 # target to generate assembly for a file
 src/indicator/indicators.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/src/indicator/indicators.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/src/indicator/indicators.cpp.s
 .PHONY : src/indicator/indicators.cpp.s
 
 src/main.obj: src/main.cpp.obj
@@ -207,7 +231,7 @@ src/main.obj: src/main.cpp.obj
 
 # target to build an object file
 src/main.cpp.obj:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/src/main.cpp.obj
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/src/main.cpp.obj
 .PHONY : src/main.cpp.obj
 
 src/main.i: src/main.cpp.i
@@ -215,7 +239,7 @@ src/main.i: src/main.cpp.i
 
 # target to preprocess a source file
 src/main.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/src/main.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/src/main.cpp.i
 .PHONY : src/main.cpp.i
 
 src/main.s: src/main.cpp.s
@@ -223,7 +247,7 @@ src/main.s: src/main.cpp.s
 
 # target to generate assembly for a file
 src/main.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/src/main.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/src/main.cpp.s
 .PHONY : src/main.cpp.s
 
 src/mainwindow.obj: src/mainwindow.cpp.obj
@@ -231,7 +255,7 @@ src/mainwindow.obj: src/mainwindow.cpp.obj
 
 # target to build an object file
 src/mainwindow.cpp.obj:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/src/mainwindow.cpp.obj
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/src/mainwindow.cpp.obj
 .PHONY : src/mainwindow.cpp.obj
 
 src/mainwindow.i: src/mainwindow.cpp.i
@@ -239,7 +263,7 @@ src/mainwindow.i: src/mainwindow.cpp.i
 
 # target to preprocess a source file
 src/mainwindow.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/src/mainwindow.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/src/mainwindow.cpp.i
 .PHONY : src/mainwindow.cpp.i
 
 src/mainwindow.s: src/mainwindow.cpp.s
@@ -247,7 +271,7 @@ src/mainwindow.s: src/mainwindow.cpp.s
 
 # target to generate assembly for a file
 src/mainwindow.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/src/mainwindow.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/src/mainwindow.cpp.s
 .PHONY : src/mainwindow.cpp.s
 
 src/market/marketdata.obj: src/market/marketdata.cpp.obj
@@ -255,7 +279,7 @@ src/market/marketdata.obj: src/market/marketdata.cpp.obj
 
 # target to build an object file
 src/market/marketdata.cpp.obj:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/src/market/marketdata.cpp.obj
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/src/market/marketdata.cpp.obj
 .PHONY : src/market/marketdata.cpp.obj
 
 src/market/marketdata.i: src/market/marketdata.cpp.i
@@ -263,7 +287,7 @@ src/market/marketdata.i: src/market/marketdata.cpp.i
 
 # target to preprocess a source file
 src/market/marketdata.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/src/market/marketdata.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/src/market/marketdata.cpp.i
 .PHONY : src/market/marketdata.cpp.i
 
 src/market/marketdata.s: src/market/marketdata.cpp.s
@@ -271,7 +295,7 @@ src/market/marketdata.s: src/market/marketdata.cpp.s
 
 # target to generate assembly for a file
 src/market/marketdata.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/src/market/marketdata.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/src/market/marketdata.cpp.s
 .PHONY : src/market/marketdata.cpp.s
 
 src/strategy/movingaveragestrategy.obj: src/strategy/movingaveragestrategy.cpp.obj
@@ -279,7 +303,7 @@ src/strategy/movingaveragestrategy.obj: src/strategy/movingaveragestrategy.cpp.o
 
 # target to build an object file
 src/strategy/movingaveragestrategy.cpp.obj:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/src/strategy/movingaveragestrategy.cpp.obj
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/src/strategy/movingaveragestrategy.cpp.obj
 .PHONY : src/strategy/movingaveragestrategy.cpp.obj
 
 src/strategy/movingaveragestrategy.i: src/strategy/movingaveragestrategy.cpp.i
@@ -287,7 +311,7 @@ src/strategy/movingaveragestrategy.i: src/strategy/movingaveragestrategy.cpp.i
 
 # target to preprocess a source file
 src/strategy/movingaveragestrategy.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/src/strategy/movingaveragestrategy.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/src/strategy/movingaveragestrategy.cpp.i
 .PHONY : src/strategy/movingaveragestrategy.cpp.i
 
 src/strategy/movingaveragestrategy.s: src/strategy/movingaveragestrategy.cpp.s
@@ -295,15 +319,39 @@ src/strategy/movingaveragestrategy.s: src/strategy/movingaveragestrategy.cpp.s
 
 # target to generate assembly for a file
 src/strategy/movingaveragestrategy.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/src/strategy/movingaveragestrategy.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/src/strategy/movingaveragestrategy.cpp.s
 .PHONY : src/strategy/movingaveragestrategy.cpp.s
+
+src/strategy/prosperitygrowthstrategy.obj: src/strategy/prosperitygrowthstrategy.cpp.obj
+.PHONY : src/strategy/prosperitygrowthstrategy.obj
+
+# target to build an object file
+src/strategy/prosperitygrowthstrategy.cpp.obj:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/src/strategy/prosperitygrowthstrategy.cpp.obj
+.PHONY : src/strategy/prosperitygrowthstrategy.cpp.obj
+
+src/strategy/prosperitygrowthstrategy.i: src/strategy/prosperitygrowthstrategy.cpp.i
+.PHONY : src/strategy/prosperitygrowthstrategy.i
+
+# target to preprocess a source file
+src/strategy/prosperitygrowthstrategy.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/src/strategy/prosperitygrowthstrategy.cpp.i
+.PHONY : src/strategy/prosperitygrowthstrategy.cpp.i
+
+src/strategy/prosperitygrowthstrategy.s: src/strategy/prosperitygrowthstrategy.cpp.s
+.PHONY : src/strategy/prosperitygrowthstrategy.s
+
+# target to generate assembly for a file
+src/strategy/prosperitygrowthstrategy.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/src/strategy/prosperitygrowthstrategy.cpp.s
+.PHONY : src/strategy/prosperitygrowthstrategy.cpp.s
 
 src/strategy/strategybase.obj: src/strategy/strategybase.cpp.obj
 .PHONY : src/strategy/strategybase.obj
 
 # target to build an object file
 src/strategy/strategybase.cpp.obj:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/src/strategy/strategybase.cpp.obj
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/src/strategy/strategybase.cpp.obj
 .PHONY : src/strategy/strategybase.cpp.obj
 
 src/strategy/strategybase.i: src/strategy/strategybase.cpp.i
@@ -311,7 +359,7 @@ src/strategy/strategybase.i: src/strategy/strategybase.cpp.i
 
 # target to preprocess a source file
 src/strategy/strategybase.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/src/strategy/strategybase.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/src/strategy/strategybase.cpp.i
 .PHONY : src/strategy/strategybase.cpp.i
 
 src/strategy/strategybase.s: src/strategy/strategybase.cpp.s
@@ -319,7 +367,7 @@ src/strategy/strategybase.s: src/strategy/strategybase.cpp.s
 
 # target to generate assembly for a file
 src/strategy/strategybase.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/src/strategy/strategybase.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/src/strategy/strategybase.cpp.s
 .PHONY : src/strategy/strategybase.cpp.s
 
 src/ui/accountpanel.obj: src/ui/accountpanel.cpp.obj
@@ -327,7 +375,7 @@ src/ui/accountpanel.obj: src/ui/accountpanel.cpp.obj
 
 # target to build an object file
 src/ui/accountpanel.cpp.obj:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/src/ui/accountpanel.cpp.obj
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/src/ui/accountpanel.cpp.obj
 .PHONY : src/ui/accountpanel.cpp.obj
 
 src/ui/accountpanel.i: src/ui/accountpanel.cpp.i
@@ -335,7 +383,7 @@ src/ui/accountpanel.i: src/ui/accountpanel.cpp.i
 
 # target to preprocess a source file
 src/ui/accountpanel.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/src/ui/accountpanel.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/src/ui/accountpanel.cpp.i
 .PHONY : src/ui/accountpanel.cpp.i
 
 src/ui/accountpanel.s: src/ui/accountpanel.cpp.s
@@ -343,7 +391,7 @@ src/ui/accountpanel.s: src/ui/accountpanel.cpp.s
 
 # target to generate assembly for a file
 src/ui/accountpanel.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/src/ui/accountpanel.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/src/ui/accountpanel.cpp.s
 .PHONY : src/ui/accountpanel.cpp.s
 
 src/ui/candlestickwidget.obj: src/ui/candlestickwidget.cpp.obj
@@ -351,7 +399,7 @@ src/ui/candlestickwidget.obj: src/ui/candlestickwidget.cpp.obj
 
 # target to build an object file
 src/ui/candlestickwidget.cpp.obj:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/src/ui/candlestickwidget.cpp.obj
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/src/ui/candlestickwidget.cpp.obj
 .PHONY : src/ui/candlestickwidget.cpp.obj
 
 src/ui/candlestickwidget.i: src/ui/candlestickwidget.cpp.i
@@ -359,7 +407,7 @@ src/ui/candlestickwidget.i: src/ui/candlestickwidget.cpp.i
 
 # target to preprocess a source file
 src/ui/candlestickwidget.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/src/ui/candlestickwidget.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/src/ui/candlestickwidget.cpp.i
 .PHONY : src/ui/candlestickwidget.cpp.i
 
 src/ui/candlestickwidget.s: src/ui/candlestickwidget.cpp.s
@@ -367,7 +415,7 @@ src/ui/candlestickwidget.s: src/ui/candlestickwidget.cpp.s
 
 # target to generate assembly for a file
 src/ui/candlestickwidget.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/src/ui/candlestickwidget.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/src/ui/candlestickwidget.cpp.s
 .PHONY : src/ui/candlestickwidget.cpp.s
 
 src/ui/chartpanel.obj: src/ui/chartpanel.cpp.obj
@@ -375,7 +423,7 @@ src/ui/chartpanel.obj: src/ui/chartpanel.cpp.obj
 
 # target to build an object file
 src/ui/chartpanel.cpp.obj:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/src/ui/chartpanel.cpp.obj
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/src/ui/chartpanel.cpp.obj
 .PHONY : src/ui/chartpanel.cpp.obj
 
 src/ui/chartpanel.i: src/ui/chartpanel.cpp.i
@@ -383,7 +431,7 @@ src/ui/chartpanel.i: src/ui/chartpanel.cpp.i
 
 # target to preprocess a source file
 src/ui/chartpanel.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/src/ui/chartpanel.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/src/ui/chartpanel.cpp.i
 .PHONY : src/ui/chartpanel.cpp.i
 
 src/ui/chartpanel.s: src/ui/chartpanel.cpp.s
@@ -391,7 +439,7 @@ src/ui/chartpanel.s: src/ui/chartpanel.cpp.s
 
 # target to generate assembly for a file
 src/ui/chartpanel.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/src/ui/chartpanel.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/src/ui/chartpanel.cpp.s
 .PHONY : src/ui/chartpanel.cpp.s
 
 src/ui/logindialog.obj: src/ui/logindialog.cpp.obj
@@ -399,7 +447,7 @@ src/ui/logindialog.obj: src/ui/logindialog.cpp.obj
 
 # target to build an object file
 src/ui/logindialog.cpp.obj:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/src/ui/logindialog.cpp.obj
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/src/ui/logindialog.cpp.obj
 .PHONY : src/ui/logindialog.cpp.obj
 
 src/ui/logindialog.i: src/ui/logindialog.cpp.i
@@ -407,7 +455,7 @@ src/ui/logindialog.i: src/ui/logindialog.cpp.i
 
 # target to preprocess a source file
 src/ui/logindialog.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/src/ui/logindialog.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/src/ui/logindialog.cpp.i
 .PHONY : src/ui/logindialog.cpp.i
 
 src/ui/logindialog.s: src/ui/logindialog.cpp.s
@@ -415,7 +463,7 @@ src/ui/logindialog.s: src/ui/logindialog.cpp.s
 
 # target to generate assembly for a file
 src/ui/logindialog.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/src/ui/logindialog.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/src/ui/logindialog.cpp.s
 .PHONY : src/ui/logindialog.cpp.s
 
 src/ui/marketpanel.obj: src/ui/marketpanel.cpp.obj
@@ -423,7 +471,7 @@ src/ui/marketpanel.obj: src/ui/marketpanel.cpp.obj
 
 # target to build an object file
 src/ui/marketpanel.cpp.obj:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/src/ui/marketpanel.cpp.obj
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/src/ui/marketpanel.cpp.obj
 .PHONY : src/ui/marketpanel.cpp.obj
 
 src/ui/marketpanel.i: src/ui/marketpanel.cpp.i
@@ -431,7 +479,7 @@ src/ui/marketpanel.i: src/ui/marketpanel.cpp.i
 
 # target to preprocess a source file
 src/ui/marketpanel.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/src/ui/marketpanel.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/src/ui/marketpanel.cpp.i
 .PHONY : src/ui/marketpanel.cpp.i
 
 src/ui/marketpanel.s: src/ui/marketpanel.cpp.s
@@ -439,15 +487,39 @@ src/ui/marketpanel.s: src/ui/marketpanel.cpp.s
 
 # target to generate assembly for a file
 src/ui/marketpanel.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/src/ui/marketpanel.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/src/ui/marketpanel.cpp.s
 .PHONY : src/ui/marketpanel.cpp.s
+
+src/ui/newspanel.obj: src/ui/newspanel.cpp.obj
+.PHONY : src/ui/newspanel.obj
+
+# target to build an object file
+src/ui/newspanel.cpp.obj:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/src/ui/newspanel.cpp.obj
+.PHONY : src/ui/newspanel.cpp.obj
+
+src/ui/newspanel.i: src/ui/newspanel.cpp.i
+.PHONY : src/ui/newspanel.i
+
+# target to preprocess a source file
+src/ui/newspanel.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/src/ui/newspanel.cpp.i
+.PHONY : src/ui/newspanel.cpp.i
+
+src/ui/newspanel.s: src/ui/newspanel.cpp.s
+.PHONY : src/ui/newspanel.s
+
+# target to generate assembly for a file
+src/ui/newspanel.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/src/ui/newspanel.cpp.s
+.PHONY : src/ui/newspanel.cpp.s
 
 src/ui/signalsignalpanel.obj: src/ui/signalsignalpanel.cpp.obj
 .PHONY : src/ui/signalsignalpanel.obj
 
 # target to build an object file
 src/ui/signalsignalpanel.cpp.obj:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/src/ui/signalsignalpanel.cpp.obj
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/src/ui/signalsignalpanel.cpp.obj
 .PHONY : src/ui/signalsignalpanel.cpp.obj
 
 src/ui/signalsignalpanel.i: src/ui/signalsignalpanel.cpp.i
@@ -455,7 +527,7 @@ src/ui/signalsignalpanel.i: src/ui/signalsignalpanel.cpp.i
 
 # target to preprocess a source file
 src/ui/signalsignalpanel.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/src/ui/signalsignalpanel.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/src/ui/signalsignalpanel.cpp.i
 .PHONY : src/ui/signalsignalpanel.cpp.i
 
 src/ui/signalsignalpanel.s: src/ui/signalsignalpanel.cpp.s
@@ -463,7 +535,7 @@ src/ui/signalsignalpanel.s: src/ui/signalsignalpanel.cpp.s
 
 # target to generate assembly for a file
 src/ui/signalsignalpanel.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/src/ui/signalsignalpanel.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/src/ui/signalsignalpanel.cpp.s
 .PHONY : src/ui/signalsignalpanel.cpp.s
 
 src/ui/statisticspanel.obj: src/ui/statisticspanel.cpp.obj
@@ -471,7 +543,7 @@ src/ui/statisticspanel.obj: src/ui/statisticspanel.cpp.obj
 
 # target to build an object file
 src/ui/statisticspanel.cpp.obj:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/src/ui/statisticspanel.cpp.obj
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/src/ui/statisticspanel.cpp.obj
 .PHONY : src/ui/statisticspanel.cpp.obj
 
 src/ui/statisticspanel.i: src/ui/statisticspanel.cpp.i
@@ -479,7 +551,7 @@ src/ui/statisticspanel.i: src/ui/statisticspanel.cpp.i
 
 # target to preprocess a source file
 src/ui/statisticspanel.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/src/ui/statisticspanel.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/src/ui/statisticspanel.cpp.i
 .PHONY : src/ui/statisticspanel.cpp.i
 
 src/ui/statisticspanel.s: src/ui/statisticspanel.cpp.s
@@ -487,7 +559,7 @@ src/ui/statisticspanel.s: src/ui/statisticspanel.cpp.s
 
 # target to generate assembly for a file
 src/ui/statisticspanel.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/src/ui/statisticspanel.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/src/ui/statisticspanel.cpp.s
 .PHONY : src/ui/statisticspanel.cpp.s
 
 src/ui/strategypanel.obj: src/ui/strategypanel.cpp.obj
@@ -495,7 +567,7 @@ src/ui/strategypanel.obj: src/ui/strategypanel.cpp.obj
 
 # target to build an object file
 src/ui/strategypanel.cpp.obj:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/src/ui/strategypanel.cpp.obj
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/src/ui/strategypanel.cpp.obj
 .PHONY : src/ui/strategypanel.cpp.obj
 
 src/ui/strategypanel.i: src/ui/strategypanel.cpp.i
@@ -503,7 +575,7 @@ src/ui/strategypanel.i: src/ui/strategypanel.cpp.i
 
 # target to preprocess a source file
 src/ui/strategypanel.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/src/ui/strategypanel.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/src/ui/strategypanel.cpp.i
 .PHONY : src/ui/strategypanel.cpp.i
 
 src/ui/strategypanel.s: src/ui/strategypanel.cpp.s
@@ -511,7 +583,7 @@ src/ui/strategypanel.s: src/ui/strategypanel.cpp.s
 
 # target to generate assembly for a file
 src/ui/strategypanel.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\QTQuant.dir\build.make CMakeFiles/QTQuant.dir/src/ui/strategypanel.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/src/ui/strategypanel.cpp.s
 .PHONY : src/ui/strategypanel.cpp.s
 
 # Help Target
@@ -522,12 +594,15 @@ help:
 	@echo ... depend
 	@echo ... edit_cache
 	@echo ... rebuild_cache
-	@echo ... QTQuant_autogen
-	@echo ... QTQuant_autogen_timestamp_deps
-	@echo ... QTQuant
-	@echo ... QTQuant_autogen/mocs_compilation.obj
-	@echo ... QTQuant_autogen/mocs_compilation.i
-	@echo ... QTQuant_autogen/mocs_compilation.s
+	@echo ... StarQuant_autogen
+	@echo ... StarQuant_autogen_timestamp_deps
+	@echo ... StarQuant
+	@echo ... StarQuant_autogen/3YJK5W5UP7/qrc_starquant.obj
+	@echo ... StarQuant_autogen/3YJK5W5UP7/qrc_starquant.i
+	@echo ... StarQuant_autogen/3YJK5W5UP7/qrc_starquant.s
+	@echo ... StarQuant_autogen/mocs_compilation.obj
+	@echo ... StarQuant_autogen/mocs_compilation.i
+	@echo ... StarQuant_autogen/mocs_compilation.s
 	@echo ... src/indicator/indicators.obj
 	@echo ... src/indicator/indicators.i
 	@echo ... src/indicator/indicators.s
@@ -543,6 +618,9 @@ help:
 	@echo ... src/strategy/movingaveragestrategy.obj
 	@echo ... src/strategy/movingaveragestrategy.i
 	@echo ... src/strategy/movingaveragestrategy.s
+	@echo ... src/strategy/prosperitygrowthstrategy.obj
+	@echo ... src/strategy/prosperitygrowthstrategy.i
+	@echo ... src/strategy/prosperitygrowthstrategy.s
 	@echo ... src/strategy/strategybase.obj
 	@echo ... src/strategy/strategybase.i
 	@echo ... src/strategy/strategybase.s
@@ -561,6 +639,9 @@ help:
 	@echo ... src/ui/marketpanel.obj
 	@echo ... src/ui/marketpanel.i
 	@echo ... src/ui/marketpanel.s
+	@echo ... src/ui/newspanel.obj
+	@echo ... src/ui/newspanel.i
+	@echo ... src/ui/newspanel.s
 	@echo ... src/ui/signalsignalpanel.obj
 	@echo ... src/ui/signalsignalpanel.i
 	@echo ... src/ui/signalsignalpanel.s
