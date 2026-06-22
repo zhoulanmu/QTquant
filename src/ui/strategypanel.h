@@ -65,7 +65,6 @@ public:
     void rememberStockName(const QString& symbol, const QString& name);
     void addSystemLog(const QString& message);
     void addSignalLog(const StrategySignal& signal);
-    void setStrategyRuntimeStatus(const QString& viewSymbol, const QString& strategySymbol, const QString& quoteStatus, const QString& runStatus, const QString& lastQuoteTime);
     QWidget* takeSymbolSelectorWidget(QWidget* parent);
     QWidget* takeStrategyControlWidget(QWidget* parent);
     QWidget* takeTradeLogWidget(QWidget* parent);
@@ -146,11 +145,6 @@ private:
     QLineEdit* m_activeSearchEdit;
     QComboBox* m_strategyPresetCombo;
     QLabel* m_strategyPresetDescLabel;
-    QLabel* m_viewSymbolStatusLabel;
-    QLabel* m_strategySymbolStatusLabel;
-    QLabel* m_strategyQuoteStatusLabel;
-    QLabel* m_strategyRunStatusLabel;
-    QLabel* m_strategyQuoteTimeLabel;
     QPushButton* m_strategyDetailButton;
     QPushButton* m_applyStrategyPresetBtn;
     QGroupBox* m_strategyConfigGroup;

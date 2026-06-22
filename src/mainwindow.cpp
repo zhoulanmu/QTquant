@@ -29,25 +29,6 @@
 namespace {
 constexpr int MaxStoredTradeRecords = 50;
 
-bool shouldLogStrategySampleProgress(int sampleCount, int requiredSamples)
-{
-    if (sampleCount <= 0 || requiredSamples <= 0) {
-        return false;
-    }
-    return sampleCount == 1
-        || sampleCount == requiredSamples
-        || sampleCount == requiredSamples - 1
-        || sampleCount % 5 == 0;
-}
-
-bool shouldLogStrategyMonitorSnapshot(int sampleCount, int requiredSamples)
-{
-    if (sampleCount <= 0 || requiredSamples <= 0) {
-        return false;
-    }
-    return sampleCount == requiredSamples || sampleCount % 5 == 0;
-}
-
 void showThemedWarning(QWidget* parent, const QString& title, const QString& message)
 {
     QDialog dialog(parent);
@@ -179,7 +160,6 @@ MainWindow::MainWindow(bool guestMode, const QString& accountName, QWidget *pare
     , m_manualTradeMarketData(nullptr)
     , m_strategy(nullptr)
     , m_activeStrategyType(StrategyType::DoubleMA)
-    , m_runningStrategyConfig()
     , m_accountPanel(nullptr)
     , m_statisticsPanel(nullptr)
     , m_signalPanel(nullptr)
@@ -191,13 +171,6 @@ MainWindow::MainWindow(bool guestMode, const QString& accountName, QWidget *pare
     , m_currentPrice(10.78)
     , m_hasLastMarketData(false)
     , m_hasLastStrategyMarketData(false)
-    , m_lastStrategyQuoteReceivedAt()
-    , m_lastStrategyProgressLoggedSample(0)
-    , m_lastStrategyMonitorLoggedSample(0)
-    , m_strategyFirstQuoteLogged(false)
-    , m_strategyFirstErrorLogged(false)
-    , m_strategyMonitoringEntered(false)
-    , m_strategySignalTriggeredOnTick(false)
     , m_pendingManualTradeType(SignalType::NONE)
     , m_pendingManualTradeVolume(0.0)
     , m_guestMode(guestMode)
@@ -484,7 +457,6 @@ void MainWindow::onStrategyMarketDataUpdated(const MarketData& data)
 {
     m_lastStrategyMarketData = data;
     m_hasLastStrategyMarketData = true;
-    m_lastStrategyQuoteReceivedAt = data.timestamp.isValid() ? data.timestamp : QDateTime::currentDateTime();
 
     ui->strategyPanel->rememberStockName(data.symbol, data.name);
     if (m_positions.contains(data.symbol)) {
@@ -493,34 +465,9 @@ void MainWindow::onStrategyMarketDataUpdated(const MarketData& data)
     updateSignalIndicators();
     updateAccountInfo();
 
-    if (!m_isRunning || !m_strategy) {
-        updateStrategyRuntimeStatus(QStringLiteral("已连接"), QStringLiteral("已收到行情"), m_lastStrategyQuoteReceivedAt);
-        return;
+    if (m_isRunning && m_strategy) {
+        m_strategy->processMarketData(data);
     }
-
-    if (!m_strategyFirstQuoteLogged) {
-        m_strategyFirstQuoteLogged = true;
-        updateStrategyRuntimeStatus(QStringLiteral("已连接"), QStringLiteral("已收到行情"), m_lastStrategyQuoteReceivedAt);
-        ui->strategyPanel->addSystemLog(
-            QStringLiteral("已收到策略行情：%1 @ %2")
-                .arg(data.symbol)
-                .arg(data.close, 0, 'f', 2));
-        ui->strategyPanel->addSystemLog(QStringLiteral("策略行情已连接，开始累计%1样本")
-            .arg(m_runningStrategyConfig.strategyType == StrategyType::DoubleMA
-                ? QStringLiteral("双均线")
-                : QStringLiteral("景气成长")));
-    }
-
-    m_strategySignalTriggeredOnTick = false;
-    m_strategy->processMarketData(data);
-    const StrategyRuntimeSnapshot snapshot = m_strategy->runtimeSnapshot();
-    if (m_strategySignalTriggeredOnTick) {
-        updateStrategyRuntimeStatus(QStringLiteral("已连接"), QStringLiteral("已触发模拟交易"), m_lastStrategyQuoteReceivedAt);
-        m_strategySignalTriggeredOnTick = false;
-        return;
-    }
-
-    logStrategyRuntimeProgress(snapshot);
 }
 
 void MainWindow::onStrategyIntradayDataUpdated(const QVector<MarketData>& data)
@@ -529,83 +476,6 @@ void MainWindow::onStrategyIntradayDataUpdated(const QVector<MarketData>& data)
     updateSignalIndicators();
 }
 
-void MainWindow::updateStrategyRuntimeStatus(const QString& quoteStatus, const QString& runStatus, const QDateTime& quoteTime)
-{
-    const QString viewSymbol = ui->strategyPanel->getViewSymbol();
-    const QString strategySymbol = m_runningStrategyConfig.symbol.isEmpty()
-        ? ui->strategyPanel->getStrategySymbol()
-        : m_runningStrategyConfig.symbol;
-    QString timeText = QStringLiteral("--");
-    if (quoteTime.isValid()) {
-        timeText = quoteTime.time().toString(QStringLiteral("HH:mm:ss"));
-    } else if (m_lastStrategyQuoteReceivedAt.isValid()) {
-        timeText = m_lastStrategyQuoteReceivedAt.time().toString(QStringLiteral("HH:mm:ss"));
-    }
-
-    ui->strategyPanel->setStrategyRuntimeStatus(viewSymbol, strategySymbol, quoteStatus, runStatus, timeText);
-}
-
-void MainWindow::resetStrategyRuntimeTracking(const StrategyConfig& config)
-{
-    m_runningStrategyConfig = config;
-    m_lastStrategyQuoteReceivedAt = QDateTime();
-    m_lastStrategyProgressLoggedSample = 0;
-    m_lastStrategyMonitorLoggedSample = 0;
-    m_strategyFirstQuoteLogged = false;
-    m_strategyFirstErrorLogged = false;
-    m_strategyMonitoringEntered = false;
-    m_strategySignalTriggeredOnTick = false;
-    updateStrategyRuntimeStatus(QStringLiteral("等待中"), QStringLiteral("等待行情"));
-}
-
-void MainWindow::logStrategyRuntimeProgress(const StrategyRuntimeSnapshot& snapshot)
-{
-    if (!m_isRunning || snapshot.requiredSamples <= 0) {
-        return;
-    }
-
-    const bool isDoubleMA = m_runningStrategyConfig.strategyType == StrategyType::DoubleMA;
-    const QString strategyName = isDoubleMA ? QStringLiteral("双均线") : QStringLiteral("景气成长");
-    const int sampleCount = snapshot.sampleCount;
-    const int requiredSamples = snapshot.requiredSamples;
-
-    if (!snapshot.readyForSignal) {
-        updateStrategyRuntimeStatus(QStringLiteral("已连接"), QStringLiteral("样本累计中"), m_lastStrategyQuoteReceivedAt);
-        if (sampleCount != m_lastStrategyProgressLoggedSample
-            && shouldLogStrategySampleProgress(sampleCount, requiredSamples)) {
-            ui->strategyPanel->addSystemLog(
-                QStringLiteral("%1样本累计中：%2/%3，暂不计算信号")
-                    .arg(strategyName)
-                    .arg(sampleCount)
-                    .arg(requiredSamples));
-            m_lastStrategyProgressLoggedSample = sampleCount;
-        }
-        return;
-    }
-
-    if (!m_strategyMonitoringEntered) {
-        m_strategyMonitoringEntered = true;
-        m_lastStrategyProgressLoggedSample = sampleCount;
-        updateStrategyRuntimeStatus(QStringLiteral("已连接"), QStringLiteral("监控信号中"), m_lastStrategyQuoteReceivedAt);
-        ui->strategyPanel->addSystemLog(
-            QStringLiteral("%1样本累计中：%2/%3，进入信号监控")
-                .arg(strategyName)
-                .arg(sampleCount)
-                .arg(requiredSamples));
-    } else {
-        updateStrategyRuntimeStatus(QStringLiteral("已连接"), QStringLiteral("监控信号中"), m_lastStrategyQuoteReceivedAt);
-    }
-
-    if (isDoubleMA && snapshot.hasFastSlowMA
-        && sampleCount != m_lastStrategyMonitorLoggedSample
-        && shouldLogStrategyMonitorSnapshot(sampleCount, requiredSamples)) {
-        ui->strategyPanel->addSystemLog(
-            QStringLiteral("当前快MA: %1，慢MA: %2，未触发交易")
-                .arg(snapshot.fastMA, 0, 'f', 3)
-                .arg(snapshot.slowMA, 0, 'f', 3));
-        m_lastStrategyMonitorLoggedSample = sampleCount;
-    }
-}
 void MainWindow::updateSignalIndicators()
 {
     if (!m_signalPanel) {
@@ -667,35 +537,16 @@ void MainWindow::onMarketDataError(const QString &message)
 void MainWindow::onStrategyMarketDataError(const QString& message)
 {
     ui->statusbar->showMessage(message, 5000);
-    if (!m_isRunning) {
-        return;
+    if (m_isRunning) {
+        ui->strategyPanel->addSystemLog(QStringLiteral("策略行情错误：%1").arg(message));
+        showThemedWarning(this,
+                          QStringLiteral("策略已停止"),
+                          QStringLiteral("未获取到可用于策略执行的实时行情。\n\n%1").arg(message));
+        onStopStrategy();
     }
-
-    if (!m_strategyFirstQuoteLogged) {
-        updateStrategyRuntimeStatus(QStringLiteral("错误"), QStringLiteral("行情异常"));
-        if (!m_strategyFirstErrorLogged) {
-            QString detail = message;
-            if (message.contains(QStringLiteral("Connection closed"), Qt::CaseInsensitive)) {
-                detail = QStringLiteral("Connection closed");
-            } else if (message.contains(QStringLiteral("Operation canceled"), Qt::CaseInsensitive)) {
-                detail = QStringLiteral("Operation canceled");
-            }
-            ui->strategyPanel->addSystemLog(QStringLiteral("策略行情首包失败：%1，正在重试").arg(detail));
-            m_strategyFirstErrorLogged = true;
-        }
-        return;
-    }
-
-    updateStrategyRuntimeStatus(QStringLiteral("错误"), QStringLiteral("行情异常"), m_lastStrategyQuoteReceivedAt);
-    ui->strategyPanel->addSystemLog(QStringLiteral("策略行情异常：%1；最近行情 %2，继续重试")
-        .arg(message, m_lastStrategyQuoteReceivedAt.isValid()
-            ? m_lastStrategyQuoteReceivedAt.time().toString(QStringLiteral("HH:mm:ss"))
-            : QStringLiteral("--")));
 }
 void MainWindow::onStrategySignal(const StrategySignal &signal)
 {
-    m_strategySignalTriggeredOnTick = true;
-    updateStrategyRuntimeStatus(QStringLiteral("已连接"), QStringLiteral("已触发模拟交易"), signal.timestamp);
     ui->strategyPanel->addSignalLog(signal);
 
     QString signalText;
@@ -1147,7 +998,6 @@ void MainWindow::onStartStrategy()
     const StrategyConfig config = ui->strategyPanel->strategyConfig();
     configureStrategy(config);
     m_strategyMarketData->setSymbol(config.symbol);
-    resetStrategyRuntimeTracking(config);
 
     m_isRunning = true;
     if (m_strategy) {
@@ -1160,7 +1010,6 @@ void MainWindow::onStartStrategy()
     if (m_signalPanel) {
         m_signalPanel->clearIndicators();
     }
-    updateStrategyRuntimeStatus(QStringLiteral("等待中"), QStringLiteral("等待行情"));
     m_strategyMarketData->startSimulation();
 
     const QString strategyMode = config.strategyType == StrategyType::ProsperityGrowth
@@ -1172,9 +1021,16 @@ void MainWindow::onStartStrategy()
     ui->strategyPanel->addSystemLog(
         QStringLiteral("当前策略：%1").arg(ui->strategyPanel->currentStrategyName()));
     ui->strategyPanel->addSystemLog(ui->strategyPanel->currentStrategyConfigurationSummary());
-    ui->strategyPanel->addSystemLog(QStringLiteral("看盘标的：%1").arg(ui->strategyPanel->getViewSymbol()));
-    ui->strategyPanel->addSystemLog(QStringLiteral("策略标的：%1").arg(config.symbol));
-    ui->strategyPanel->addSystemLog(QStringLiteral("正在连接策略行情源..."));
+
+    if (m_hasLastStrategyMarketData && m_lastStrategyMarketData.symbol == config.symbol && m_strategy) {
+        m_strategy->processMarketData(m_lastStrategyMarketData);
+        ui->strategyPanel->addSystemLog(
+            QStringLiteral("已载入策略行情：%1 @ %2")
+                .arg(m_lastStrategyMarketData.symbol)
+                .arg(m_lastStrategyMarketData.close, 0, 'f', 2));
+    } else {
+        ui->strategyPanel->addSystemLog(QStringLiteral("正在等待策略标的第一笔实时行情..."));
+    }
 
     ui->statusbar->showMessage(QStringLiteral("实时模拟策略已启动"), 2000);
 }
@@ -1189,7 +1045,6 @@ void MainWindow::onStopStrategy()
         m_strategyMarketData->stopSimulation();
     }
     ui->strategyPanel->setRunningState(false);
-    updateStrategyRuntimeStatus(QStringLiteral("等待中"), QStringLiteral("等待行情"));
     ui->strategyPanel->addSystemLog(QStringLiteral("实时模拟策略已停止，主页看盘行情继续刷新。"));
 
     ui->statusbar->showMessage(QStringLiteral("实时模拟策略已停止"), 2000);
@@ -1200,8 +1055,6 @@ void MainWindow::onUpdateParameters()
     configureStrategy(config);
     if (!m_isRunning && m_strategyMarketData) {
         m_strategyMarketData->setSymbol(config.symbol);
-        m_runningStrategyConfig = config;
-        updateStrategyRuntimeStatus(QStringLiteral("等待中"), QStringLiteral("等待行情"));
         m_indicatorHistory.clear();
         m_hasLastStrategyMarketData = false;
         if (m_signalPanel) {

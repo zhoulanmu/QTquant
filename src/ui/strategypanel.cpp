@@ -8,7 +8,6 @@
 #include <QDoubleSpinBox>
 #include <QFormLayout>
 #include <QGroupBox>
-#include <QGridLayout>
 #include <QHBoxLayout>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -169,11 +168,6 @@ StrategyPanel::StrategyPanel(QWidget *parent) :
     m_activeSearchEdit(nullptr),
     m_strategyPresetCombo(nullptr),
     m_strategyPresetDescLabel(nullptr),
-    m_viewSymbolStatusLabel(nullptr),
-    m_strategySymbolStatusLabel(nullptr),
-    m_strategyQuoteStatusLabel(nullptr),
-    m_strategyRunStatusLabel(nullptr),
-    m_strategyQuoteTimeLabel(nullptr),
     m_strategyDetailButton(nullptr),
     m_applyStrategyPresetBtn(nullptr),
     m_strategyConfigGroup(nullptr),
@@ -401,9 +395,6 @@ void StrategyPanel::setRunningState(bool running)
     if (m_addFavoriteBtn) {
         m_addFavoriteBtn->setEnabled(true);
     }
-    if (!running) {
-        setStrategyRuntimeStatus(getViewSymbol(), getStrategySymbol(), QStringLiteral("等待中"), QStringLiteral("等待行情"), QStringLiteral("--"));
-    }
     onFavoriteSelectionChanged();
 }
 
@@ -455,49 +446,8 @@ QWidget* StrategyPanel::takeStrategyControlWidget(QWidget* parent)
         ui->stopBtn->setParent(m_strategyControlGroup);
         ui->startBtn->setMinimumWidth(120);
         ui->stopBtn->setMinimumWidth(120);
-
-        auto* buttonLayout = new QVBoxLayout();
-        buttonLayout->setContentsMargins(0, 0, 0, 0);
-        buttonLayout->setSpacing(8);
-        buttonLayout->addWidget(ui->startBtn);
-        buttonLayout->addWidget(ui->stopBtn);
-
-        auto* statusLayout = new QGridLayout();
-        statusLayout->setContentsMargins(4, 0, 0, 0);
-        statusLayout->setHorizontalSpacing(8);
-        statusLayout->setVerticalSpacing(4);
-
-        auto* viewTitle = new QLabel(QStringLiteral("看盘标的"), m_strategyControlGroup);
-        auto* strategyTitle = new QLabel(QStringLiteral("策略标的"), m_strategyControlGroup);
-        auto* quoteTitle = new QLabel(QStringLiteral("策略行情"), m_strategyControlGroup);
-        auto* runTitle = new QLabel(QStringLiteral("运行状态"), m_strategyControlGroup);
-        auto* timeTitle = new QLabel(QStringLiteral("最近行情"), m_strategyControlGroup);
-        for (QLabel* label : {viewTitle, strategyTitle, quoteTitle, runTitle, timeTitle}) {
-            label->setStyleSheet(QStringLiteral("color: #a0aec0; font-size: 12px;"));
-        }
-
-        m_viewSymbolStatusLabel = new QLabel(QStringLiteral("--"), m_strategyControlGroup);
-        m_strategySymbolStatusLabel = new QLabel(QStringLiteral("--"), m_strategyControlGroup);
-        m_strategyQuoteStatusLabel = new QLabel(QStringLiteral("等待中"), m_strategyControlGroup);
-        m_strategyRunStatusLabel = new QLabel(QStringLiteral("等待行情"), m_strategyControlGroup);
-        m_strategyQuoteTimeLabel = new QLabel(QStringLiteral("--"), m_strategyControlGroup);
-        for (QLabel* label : {m_viewSymbolStatusLabel, m_strategySymbolStatusLabel, m_strategyQuoteStatusLabel, m_strategyRunStatusLabel, m_strategyQuoteTimeLabel}) {
-            label->setStyleSheet(QStringLiteral("color: #e2e8f0; font-size: 12px; font-weight: 600;"));
-        }
-
-        statusLayout->addWidget(viewTitle, 0, 0);
-        statusLayout->addWidget(m_viewSymbolStatusLabel, 0, 1);
-        statusLayout->addWidget(strategyTitle, 1, 0);
-        statusLayout->addWidget(m_strategySymbolStatusLabel, 1, 1);
-        statusLayout->addWidget(quoteTitle, 2, 0);
-        statusLayout->addWidget(m_strategyQuoteStatusLabel, 2, 1);
-        statusLayout->addWidget(runTitle, 3, 0);
-        statusLayout->addWidget(m_strategyRunStatusLabel, 3, 1);
-        statusLayout->addWidget(timeTitle, 4, 0);
-        statusLayout->addWidget(m_strategyQuoteTimeLabel, 4, 1);
-
-        controlLayout->addLayout(buttonLayout);
-        controlLayout->addLayout(statusLayout, 1);
+        controlLayout->addWidget(ui->startBtn);
+        controlLayout->addWidget(ui->stopBtn);
     }
 
     m_strategyControlGroup->setParent(parent);
@@ -1597,45 +1547,6 @@ void StrategyPanel::addSystemLog(const QString &message)
 
     QScrollBar *scrollBar = ui->logTextEdit->verticalScrollBar();
     scrollBar->setValue(scrollBar->maximum());
-}
-
-void StrategyPanel::setStrategyRuntimeStatus(const QString& viewSymbol, const QString& strategySymbol, const QString& quoteStatus, const QString& runStatus, const QString& lastQuoteTime)
-{
-    if (m_viewSymbolStatusLabel) {
-        m_viewSymbolStatusLabel->setText(viewSymbol.isEmpty() ? QStringLiteral("--") : viewSymbol);
-    }
-    if (m_strategySymbolStatusLabel) {
-        m_strategySymbolStatusLabel->setText(strategySymbol.isEmpty() ? QStringLiteral("--") : strategySymbol);
-    }
-    if (m_strategyQuoteStatusLabel) {
-        m_strategyQuoteStatusLabel->setText(quoteStatus.isEmpty() ? QStringLiteral("等待中") : quoteStatus);
-        QString color = QStringLiteral("#e2e8f0");
-        if (quoteStatus.contains(QStringLiteral("错误")) || quoteStatus.contains(QStringLiteral("异常"))) {
-            color = QStringLiteral("#fc8181");
-        } else if (quoteStatus.contains(QStringLiteral("已连接")) || quoteStatus.contains(QStringLiteral("监控"))) {
-            color = QStringLiteral("#68d391");
-        } else if (quoteStatus.contains(QStringLiteral("累计")) || quoteStatus.contains(QStringLiteral("等待"))) {
-            color = QStringLiteral("#f6ad55");
-        }
-        m_strategyQuoteStatusLabel->setStyleSheet(QStringLiteral("color: %1; font-size: 12px; font-weight: 700;").arg(color));
-    }
-    if (m_strategyRunStatusLabel) {
-        m_strategyRunStatusLabel->setText(runStatus.isEmpty() ? QStringLiteral("等待行情") : runStatus);
-        QString color = QStringLiteral("#e2e8f0");
-        if (runStatus == QStringLiteral("行情异常")) {
-            color = QStringLiteral("#fc8181");
-        } else if (runStatus == QStringLiteral("监控信号中") || runStatus == QStringLiteral("已触发模拟交易")) {
-            color = QStringLiteral("#68d391");
-        } else if (runStatus == QStringLiteral("样本累计中") || runStatus == QStringLiteral("等待行情")) {
-            color = QStringLiteral("#f6ad55");
-        } else if (runStatus == QStringLiteral("已收到行情")) {
-            color = QStringLiteral("#90cdf4");
-        }
-        m_strategyRunStatusLabel->setStyleSheet(QStringLiteral("color: %1; font-size: 12px; font-weight: 700;").arg(color));
-    }
-    if (m_strategyQuoteTimeLabel) {
-        m_strategyQuoteTimeLabel->setText(lastQuoteTime.isEmpty() ? QStringLiteral("--") : lastQuoteTime);
-    }
 }
 
 void StrategyPanel::addSignalLog(const StrategySignal &signal)
