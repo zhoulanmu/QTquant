@@ -148,6 +148,10 @@ StrategyPanel::StrategyPanel(QWidget *parent) :
     m_surgeTakeProfitSpin(nullptr),
     m_partialTakeProfitCheck(nullptr),
     m_breakMA60VolumeStopCheck(nullptr),
+    m_symbolSelectorWidget(nullptr),
+    m_symbolAddFavoriteBtn(nullptr),
+    m_strategyControlGroup(nullptr),
+    m_watchlistGroup(nullptr),
     m_watchlistWidget(nullptr),
     m_addFavoriteBtn(nullptr),
     m_removeFavoriteBtn(nullptr),
@@ -273,6 +277,85 @@ void StrategyPanel::setRunningState(bool running)
     onFavoriteSelectionChanged();
 }
 
+QWidget* StrategyPanel::takeSymbolSelectorWidget(QWidget* parent)
+{
+    if (!m_symbolSelectorWidget) {
+        m_symbolSelectorWidget = new QWidget(parent);
+        m_symbolSelectorWidget->setObjectName(QStringLiteral("symbolSelectorWidget"));
+        auto* selectorLayout = new QHBoxLayout(m_symbolSelectorWidget);
+        selectorLayout->setContentsMargins(0, 0, 0, 0);
+        selectorLayout->setSpacing(8);
+
+        const QFormLayout::TakeRowResult symbolRow = ui->formLayout->takeRow(ui->symbolEdit);
+        delete symbolRow.labelItem;
+        delete symbolRow.fieldItem;
+
+        ui->label->setParent(m_symbolSelectorWidget);
+        ui->symbolEdit->setParent(m_symbolSelectorWidget);
+        ui->label->setText(QStringLiteral("股票代码"));
+        ui->symbolEdit->setMinimumWidth(170);
+
+        m_symbolAddFavoriteBtn = new QPushButton(QStringLiteral("加入自选"), m_symbolSelectorWidget);
+        m_symbolAddFavoriteBtn->setObjectName(QStringLiteral("favoriteAddBtn"));
+
+        selectorLayout->addWidget(ui->label);
+        selectorLayout->addWidget(ui->symbolEdit, 1);
+        selectorLayout->addWidget(m_symbolAddFavoriteBtn);
+
+        connect(m_symbolAddFavoriteBtn, &QPushButton::clicked, this, &StrategyPanel::onAddFavoriteClicked);
+    }
+
+    m_symbolSelectorWidget->setParent(parent);
+    return m_symbolSelectorWidget;
+}
+
+QWidget* StrategyPanel::takeStrategyControlWidget(QWidget* parent)
+{
+    if (!m_strategyControlGroup) {
+        m_strategyControlGroup = new QGroupBox(QStringLiteral("策略操作"), parent);
+        auto* controlLayout = new QHBoxLayout(m_strategyControlGroup);
+        controlLayout->setContentsMargins(10, 12, 10, 10);
+        controlLayout->setSpacing(10);
+
+        ui->horizontalLayout_2->removeWidget(ui->startBtn);
+        ui->horizontalLayout_2->removeWidget(ui->stopBtn);
+        ui->verticalLayout_4->removeItem(ui->horizontalLayout_2);
+
+        ui->startBtn->setParent(m_strategyControlGroup);
+        ui->stopBtn->setParent(m_strategyControlGroup);
+        ui->startBtn->setMinimumWidth(120);
+        ui->stopBtn->setMinimumWidth(120);
+        controlLayout->addWidget(ui->startBtn);
+        controlLayout->addWidget(ui->stopBtn);
+    }
+
+    m_strategyControlGroup->setParent(parent);
+    return m_strategyControlGroup;
+}
+
+QWidget* StrategyPanel::takeTradeLogWidget(QWidget* parent)
+{
+    ui->verticalLayout_4->removeWidget(ui->groupBox_2);
+    ui->groupBox_2->setParent(parent);
+    ui->groupBox_2->setMinimumHeight(190);
+    ui->logTextEdit->setMinimumHeight(160);
+    return ui->groupBox_2;
+}
+
+QWidget* StrategyPanel::takeWatchlistWidget(QWidget* parent)
+{
+    if (!m_watchlistGroup) {
+        return nullptr;
+    }
+
+    ui->verticalLayout_4->removeWidget(m_watchlistGroup);
+    m_watchlistGroup->setParent(parent);
+    m_watchlistGroup->setMinimumWidth(300);
+    if (m_watchlistWidget) {
+        m_watchlistWidget->setMinimumHeight(180);
+    }
+    return m_watchlistGroup;
+}
 void StrategyPanel::rememberStockName(const QString& symbol, const QString& name)
 {
     const QString normalized = MarketDataSimulator::normalizeSymbol(symbol);
@@ -507,25 +590,27 @@ void StrategyPanel::setupStockSearchUi()
 
     m_searchNetwork = new QNetworkAccessManager(this);
 
-    auto favoriteGroup = new QGroupBox(QStringLiteral("自选股"), this);
-    auto favoriteLayout = new QVBoxLayout(favoriteGroup);
+    m_watchlistGroup = new QGroupBox(QStringLiteral("自选股"), this);
+    auto favoriteLayout = new QVBoxLayout(m_watchlistGroup);
     favoriteLayout->setContentsMargins(10, 12, 10, 10);
     favoriteLayout->setSpacing(8);
 
     auto buttonLayout = new QHBoxLayout();
     buttonLayout->setContentsMargins(0, 0, 0, 0);
-    m_addFavoriteBtn = new QPushButton(QStringLiteral("加入自选"), favoriteGroup);
-    m_removeFavoriteBtn = new QPushButton(QStringLiteral("删除"), favoriteGroup);
+    m_addFavoriteBtn = new QPushButton(QStringLiteral("加入自选"), m_watchlistGroup);
+    m_addFavoriteBtn->setObjectName(QStringLiteral("favoriteAddBtn"));
+    m_removeFavoriteBtn = new QPushButton(QStringLiteral("删除"), m_watchlistGroup);
+    m_removeFavoriteBtn->setObjectName(QStringLiteral("favoriteRemoveBtn"));
     buttonLayout->addWidget(m_addFavoriteBtn);
     buttonLayout->addWidget(m_removeFavoriteBtn);
     favoriteLayout->addLayout(buttonLayout);
 
-    m_watchlistWidget = new QListWidget(favoriteGroup);
+    m_watchlistWidget = new QListWidget(m_watchlistGroup);
     m_watchlistWidget->setMinimumHeight(86);
     m_watchlistWidget->setAlternatingRowColors(false);
     favoriteLayout->addWidget(m_watchlistWidget);
 
-    ui->verticalLayout_4->insertWidget(3, favoriteGroup);
+    ui->verticalLayout_4->insertWidget(3, m_watchlistGroup);
 
     connect(m_addFavoriteBtn, &QPushButton::clicked, this, &StrategyPanel::onAddFavoriteClicked);
     connect(m_removeFavoriteBtn, &QPushButton::clicked, this, &StrategyPanel::onRemoveFavoriteClicked);

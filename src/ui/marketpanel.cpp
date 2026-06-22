@@ -21,6 +21,35 @@ MarketPanel::~MarketPanel()
     delete ui;
 }
 
+void MarketPanel::setSymbolSelector(QWidget* selector)
+{
+    if (!selector) {
+        return;
+    }
+
+    selector->setParent(ui->groupBox);
+    selector->setMinimumHeight(42);
+    ui->label->setText(QStringLiteral("当前:"));
+
+    ui->gridLayout->addWidget(selector, 0, 0, 1, 4);
+    ui->gridLayout->addWidget(ui->label, 1, 0);
+    ui->gridLayout->addWidget(ui->symbolLabel, 1, 1);
+    ui->gridLayout->addWidget(ui->label_2, 1, 2);
+    ui->gridLayout->addWidget(ui->timeLabel, 1, 3);
+    ui->gridLayout->addWidget(ui->label_3, 2, 0);
+    ui->gridLayout->addWidget(ui->openLabel, 2, 1);
+    ui->gridLayout->addWidget(ui->label_4, 2, 2);
+    ui->gridLayout->addWidget(ui->closeLabel, 2, 3);
+    ui->gridLayout->addWidget(ui->label_5, 3, 0);
+    ui->gridLayout->addWidget(ui->highLabel, 3, 1);
+    ui->gridLayout->addWidget(ui->label_6, 3, 2);
+    ui->gridLayout->addWidget(ui->lowLabel, 3, 3);
+    ui->gridLayout->addWidget(ui->label_7, 4, 0);
+    ui->gridLayout->addWidget(ui->volumeLabel, 4, 1);
+    ui->gridLayout->addWidget(ui->label_8, 4, 2);
+    ui->gridLayout->addWidget(ui->turnoverLabel, 4, 3);
+}
+
 void MarketPanel::updateMarketData(const MarketData &data)
 {
     const QString displaySymbol = data.name.isEmpty()

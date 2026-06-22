@@ -57,6 +57,10 @@ public:
     void rememberStockName(const QString& symbol, const QString& name);
     void addSystemLog(const QString& message);
     void addSignalLog(const StrategySignal& signal);
+    QWidget* takeSymbolSelectorWidget(QWidget* parent);
+    QWidget* takeStrategyControlWidget(QWidget* parent);
+    QWidget* takeTradeLogWidget(QWidget* parent);
+    QWidget* takeWatchlistWidget(QWidget* parent);
 
 private slots:
     void on_paramChanged();
@@ -124,6 +128,10 @@ private:
     QDoubleSpinBox* m_surgeTakeProfitSpin;
     QCheckBox* m_partialTakeProfitCheck;
     QCheckBox* m_breakMA60VolumeStopCheck;
+    QWidget* m_symbolSelectorWidget;
+    QPushButton* m_symbolAddFavoriteBtn;
+    QGroupBox* m_strategyControlGroup;
+    QGroupBox* m_watchlistGroup;
     QListWidget* m_watchlistWidget;
     QPushButton* m_addFavoriteBtn;
     QPushButton* m_removeFavoriteBtn;

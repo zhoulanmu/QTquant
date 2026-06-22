@@ -1,6 +1,7 @@
 #include "candlestickwidget.h"
 #include <QPainter>
 #include <QWheelEvent>
+#include <QPolygonF>
 #include <cmath>
 
 CandlestickWidget::CandlestickWidget(QWidget *parent) :
@@ -150,35 +151,40 @@ void CandlestickWidget::drawCandlesticks(QPainter &painter)
     if (visibleCount == 1) {
         const MarketData& data = m_priceHistory.back();
         const int y = priceToY(data.close, area);
-        const QColor color = data.close >= data.open ? Qt::red : Qt::green;
-        painter.setPen(QPen(color, 2));
+        painter.setPen(QPen(QColor(0, 229, 255), 2));
         painter.drawLine(QPointF(area.left(), y), QPointF(area.right(), y));
-        painter.setBrush(color);
-        painter.drawEllipse(QPointF(area.center().x(), y), 3.5, 3.5);
+        painter.setBrush(QColor(0, 229, 255));
+        painter.drawEllipse(QPointF(area.center().x(), y), 4.0, 4.0);
         return;
     }
 
     const qreal stepX = area.width() / (visibleCount - 1);
-    const int candleWidth = qBound(3, static_cast<int>(stepX * 0.55), 12);
+    QPolygonF closeLine;
 
     for (int i = startIdx; i < dataCount; ++i) {
         const MarketData& data = m_priceHistory[i];
+        if (data.close <= 0.0) {
+            continue;
+        }
+
         const int relativeIdx = i - startIdx;
         const qreal x = area.left() + stepX * relativeIdx;
-
-        const int openY = priceToY(data.open, area);
-        const int closeY = priceToY(data.close, area);
-        const int highY = priceToY(data.high, area);
-        const int lowY = priceToY(data.low, area);
-
-        const QColor color = data.close >= data.open ? Qt::red : Qt::green;
-        painter.setPen(QPen(color, 1));
-        painter.setBrush(color);
-
-        painter.drawLine(QPointF(x, highY), QPointF(x, lowY));
-
-        const int bodyTop = qMin(openY, closeY);
-        const int bodyHeight = qMax(1, qAbs(closeY - openY));
-        painter.drawRect(QRectF(x - candleWidth / 2.0, bodyTop, candleWidth, bodyHeight));
+        closeLine << QPointF(x, priceToY(data.close, area));
     }
+
+    if (closeLine.isEmpty()) {
+        return;
+    }
+
+    painter.setRenderHint(QPainter::Antialiasing, true);
+    painter.setPen(QPen(QColor(0, 229, 255), 2.2, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+    painter.drawPolyline(closeLine);
+
+    const QPointF lastPoint = closeLine.last();
+    painter.setPen(QPen(QColor(255, 255, 255, 180), 1));
+    painter.setBrush(QColor(0, 229, 255));
+    painter.drawEllipse(lastPoint, 4.5, 4.5);
+
+    painter.setPen(QPen(QColor(99, 179, 237, 120), 1, Qt::DashLine));
+    painter.drawLine(QPointF(area.left(), lastPoint.y()), QPointF(area.right(), lastPoint.y()));
 }

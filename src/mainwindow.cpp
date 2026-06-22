@@ -44,16 +44,30 @@ MainWindow::MainWindow(bool guestMode, const QString& accountName, QWidget *pare
         "QLineEdit:focus { border-color: #63b3ed; }"
         "QPushButton { background-color: #718096; color: white; border: none; border-radius: 6px; padding: 8px 20px; font-size: 13px; min-height: 32px; }"
         "QPushButton:hover { background-color: #5a6678; }"
+        "QPushButton:disabled { background-color: #3b4556; color: #8ea0b8; }"
         "QPushButton#startBtn { background-color: #2196f3; }"
         "QPushButton#startBtn:hover { background-color: #1976d2; }"
+        "QPushButton#stopBtn { background-color: #e53e3e; }"
+        "QPushButton#stopBtn:hover { background-color: #c53030; }"
+        "QPushButton#favoriteAddBtn { background-color: #38a169; }"
+        "QPushButton#favoriteAddBtn:hover { background-color: #2f855a; }"
+        "QPushButton#favoriteRemoveBtn { background-color: #718096; }"
         "QTableWidget { background-color: #1a1a2e; border: 1px solid #4a5568; border-radius: 6px; gridline-color: #4a5568; }"
         "QTableWidget::item { color: #e0e0e0; padding: 4px 8px; }"
         "QTableWidget::item:selected { background-color: #4299e1; }"
         "QTableWidget::horizontalHeader { background-color: #2d3748; }"
         "QTableWidget::horizontalHeader::section { color: #63b3ed; background-color: #2d3748; padding: 6px 8px; border: 1px solid #4a5568; }"
         "QTextEdit { background-color: #1a1a2e; color: #e0e0e0; border: 1px solid #4a5568; border-radius: 6px; font-family: Consolas,Monaco,monospace; font-size: 12px; }"
+        "QListWidget { background-color: #1a1a2e; color: #e0e0e0; border: 1px solid #4a5568; border-radius: 6px; padding: 4px; }"
+        "QListWidget::item { padding: 6px 8px; border-radius: 4px; }"
+        "QListWidget::item:selected { background-color: #2b6cb0; color: white; }"
         "QSpinBox { background-color: #4a5568; color: white; border: 1px solid #718096; border-radius: 6px; padding: 4px 8px; font-size: 13px; }"
         "QDoubleSpinBox { background-color: #4a5568; color: white; border: 1px solid #718096; border-radius: 6px; padding: 4px 8px; font-size: 13px; }"
+        "QTabWidget#mainTabs::pane { border: 1px solid #4a5568; border-radius: 8px; background-color: #253b6e; top: -1px; }"
+        "QTabBar::tab { background-color: #2d3748; color: #cbd5e0; padding: 10px 24px; min-width: 72px; border: 1px solid #4a5568; border-bottom: none; border-top-left-radius: 8px; border-top-right-radius: 8px; margin-right: 4px; }"
+        "QTabBar::tab:selected { background-color: #1a1a2e; color: #63b3ed; font-weight: bold; }"
+        "QTabBar::tab:!selected { margin-top: 4px; }"
+        "QTabBar::tab:hover:!selected { background-color: #3b4a68; color: white; }"
         "QStatusBar { background-color: #2d3748; color: #e0e0e0; }";
     setStyleSheet(darkTheme);
 
@@ -125,7 +139,10 @@ void MainWindow::buildTabbedLayout()
 
     m_mainTabs = new QTabWidget(ui->centralwidget);
     m_mainTabs->setObjectName(QStringLiteral("mainTabs"));
-    m_mainTabs->setDocumentMode(true);
+    m_mainTabs->setDocumentMode(false);
+    m_mainTabs->setTabPosition(QTabWidget::North);
+    m_mainTabs->setElideMode(Qt::ElideNone);
+    m_mainTabs->setUsesScrollButtons(false);
     m_mainTabs->addTab(createMainTab(), QStringLiteral("主"));
     m_mainTabs->addTab(createStrategyTab(), QStringLiteral("策略"));
     m_mainTabs->addTab(createPersonalTab(), QStringLiteral("个人"));
@@ -145,12 +162,30 @@ QWidget* MainWindow::createMainTab()
     auto* leftLayout = new QVBoxLayout();
     leftLayout->setContentsMargins(0, 0, 0, 0);
     leftLayout->setSpacing(12);
-    ui->marketPanel->setMinimumHeight(150);
-    m_statisticsPanel->setMinimumHeight(180);
-    leftLayout->addWidget(ui->marketPanel);
-    leftLayout->addWidget(m_statisticsPanel);
-    leftLayout->addStretch(1);
 
+    QWidget* strategyControls = ui->strategyPanel->takeStrategyControlWidget(tab);
+    QWidget* tradeLog = ui->strategyPanel->takeTradeLogWidget(tab);
+    ui->marketPanel->setSymbolSelector(ui->strategyPanel->takeSymbolSelectorWidget(ui->marketPanel));
+
+    ui->marketPanel->setMinimumHeight(200);
+    m_statisticsPanel->setMinimumHeight(160);
+    if (strategyControls) {
+        strategyControls->setMinimumHeight(74);
+    }
+    if (tradeLog) {
+        tradeLog->setMinimumHeight(190);
+    }
+
+    leftLayout->addWidget(ui->marketPanel);
+    if (strategyControls) {
+        leftLayout->addWidget(strategyControls);
+    }
+    leftLayout->addWidget(m_statisticsPanel);
+    if (tradeLog) {
+        leftLayout->addWidget(tradeLog, 1);
+    }
+
+    ui->chartPanel->setMinimumWidth(520);
     rootLayout->addLayout(leftLayout, 1);
     rootLayout->addWidget(ui->chartPanel, 3);
     return tab;
@@ -173,10 +208,19 @@ QWidget* MainWindow::createStrategyTab()
 QWidget* MainWindow::createPersonalTab()
 {
     auto* tab = new QWidget(m_mainTabs);
-    auto* rootLayout = new QVBoxLayout(tab);
+    auto* rootLayout = new QHBoxLayout(tab);
     rootLayout->setContentsMargins(10, 10, 10, 10);
     rootLayout->setSpacing(12);
-    rootLayout->addWidget(m_accountPanel);
+
+    QWidget* watchlist = ui->strategyPanel->takeWatchlistWidget(tab);
+    if (watchlist) {
+        watchlist->setMinimumWidth(300);
+        watchlist->setMaximumWidth(420);
+        rootLayout->addWidget(watchlist, 1);
+    }
+
+    m_accountPanel->setMinimumWidth(620);
+    rootLayout->addWidget(m_accountPanel, 3);
     return tab;
 }
 

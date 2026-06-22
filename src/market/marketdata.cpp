@@ -199,7 +199,7 @@ void MarketDataSimulator::onQuoteReplyFinished()
     reply->deleteLater();
 
     if (networkError != QNetworkReply::NoError) {
-        emit errorOccurred(QStringLiteral("EastMoney quote request failed: %1").arg(networkErrorText));
+        emit errorOccurred(QStringLiteral("Market quote request failed: %1").arg(networkErrorText));
         return;
     }
 
@@ -233,7 +233,7 @@ bool MarketDataSimulator::parseQuoteResponse(const QByteArray& payload, MarketDa
     const QJsonDocument document = QJsonDocument::fromJson(payload, &jsonError);
     if (jsonError.error != QJsonParseError::NoError || !document.isObject()) {
         if (errorMessage) {
-            *errorMessage = QStringLiteral("EastMoney returned invalid JSON: %1").arg(jsonError.errorString());
+            *errorMessage = QStringLiteral("Market quote returned invalid JSON: %1").arg(jsonError.errorString());
         }
         return false;
     }
@@ -242,7 +242,7 @@ bool MarketDataSimulator::parseQuoteResponse(const QByteArray& payload, MarketDa
     const QJsonValue quoteValue = root.value(QStringLiteral("data"));
     if (!quoteValue.isObject()) {
         if (errorMessage) {
-            *errorMessage = QStringLiteral("EastMoney returned no quote data for %1").arg(m_symbol);
+            *errorMessage = QStringLiteral("Market quote returned no data for %1").arg(m_symbol);
         }
         return false;
     }
@@ -259,7 +259,7 @@ bool MarketDataSimulator::parseQuoteResponse(const QByteArray& payload, MarketDa
     }
     if (close <= 0.0) {
         if (errorMessage) {
-            *errorMessage = QStringLiteral("EastMoney quote has no usable price for %1").arg(m_symbol);
+            *errorMessage = QStringLiteral("Market quote has no usable price for %1").arg(m_symbol);
         }
         return false;
     }
