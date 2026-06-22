@@ -196,7 +196,8 @@ StrategyPanel::StrategyPanel(QWidget *parent) :
     m_manualVolumeSpin(nullptr),
     m_buyFavoriteBtn(nullptr),
     m_sellFavoriteBtn(nullptr),
-    m_updatingSymbol(false)
+    m_updatingSymbol(false),
+    m_loadingSettings(true)
 {
     ui->setupUi(this);
     ui->groupBox->setTitle(QStringLiteral("基本交易参数"));
@@ -216,6 +217,11 @@ StrategyPanel::StrategyPanel(QWidget *parent) :
     loadWatchlist();
     loadViewSymbol();
     loadStrategySymbol();
+    loadStrategySettings();
+    loadPersonalSettings();
+    m_loadingSettings = false;
+    saveStrategySettings();
+    savePersonalSettings();
     updateSearchSuggestions(ui->symbolEdit->text());
     addSystemLog(QStringLiteral("行情连接中，等待策略启动。"));
 
@@ -495,6 +501,7 @@ void StrategyPanel::setManualTradePrice(const QString& symbol, double price)
     const QString selected = selectedFavoriteSymbol();
     if (m_manualPriceSpin && price > 0.0 && (selected.isEmpty() || MarketDataSimulator::normalizeSymbol(symbol) == selected)) {
         m_manualPriceSpin->setValue(price);
+        savePersonalSettings();
     }
 }
 void StrategyPanel::rememberStockName(const QString& symbol, const QString& name)
@@ -887,6 +894,16 @@ void StrategyPanel::setupStockSearchUi()
     connect(m_watchlistWidget, &QListWidget::itemClicked, this, &StrategyPanel::onFavoriteActivated);
     connect(m_watchlistWidget, &QListWidget::itemDoubleClicked, this, &StrategyPanel::onFavoriteActivated);
     connect(m_watchlistWidget, &QListWidget::itemSelectionChanged, this, &StrategyPanel::onFavoriteSelectionChanged);
+    connect(m_manualPriceSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, [this](double) {
+        if (!m_loadingSettings) {
+            savePersonalSettings();
+        }
+    });
+    connect(m_manualVolumeSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, [this](double) {
+        if (!m_loadingSettings) {
+            savePersonalSettings();
+        }
+    });
 }
 void StrategyPanel::loadWatchlist()
 {
@@ -995,6 +1012,159 @@ void StrategyPanel::saveCurrentStrategyType() const
     settings.setValue(QStringLiteral("strategy/currentType"), m_strategyPresetCombo->currentIndex());
     settings.sync();
 }
+
+void StrategyPanel::loadStrategySettings()
+{
+    QSettings settings(QStringLiteral("StarQuant"), QStringLiteral("StarQuant"));
+    const QVector<StrategyPreset> presets = commonStrategyPresets();
+    const int savedType = settings.value(QStringLiteral("strategy/currentType"),
+                                         m_strategyPresetCombo ? m_strategyPresetCombo->currentIndex() : 0).toInt();
+    if (m_strategyPresetCombo && savedType >= 0 && savedType < presets.size()) {
+        m_strategyPresetCombo->setCurrentIndex(savedType);
+    }
+
+    if (settings.contains(QStringLiteral("strategy/basic/fastMA"))) {
+        ui->fastMASpin->setValue(settings.value(QStringLiteral("strategy/basic/fastMA")).toInt());
+    }
+    if (settings.contains(QStringLiteral("strategy/basic/slowMA"))) {
+        ui->slowMASpin->setValue(settings.value(QStringLiteral("strategy/basic/slowMA")).toInt());
+    }
+    if (settings.contains(QStringLiteral("strategy/basic/stopLossPercent"))) {
+        ui->stopLossSpin->setValue(settings.value(QStringLiteral("strategy/basic/stopLossPercent")).toDouble());
+    }
+    if (settings.contains(QStringLiteral("strategy/basic/takeProfitPercent"))) {
+        ui->takeProfitSpin->setValue(settings.value(QStringLiteral("strategy/basic/takeProfitPercent")).toDouble());
+    }
+    if (settings.contains(QStringLiteral("strategy/basic/lotSize"))) {
+        ui->lotSizeSpin->setValue(settings.value(QStringLiteral("strategy/basic/lotSize")).toDouble());
+    }
+
+    const auto applyCheck = [&settings](QCheckBox* check, const QString& key) {
+        if (check && settings.contains(key)) {
+            check->setChecked(settings.value(key).toBool());
+        }
+    };
+
+    if (settings.contains(QStringLiteral("strategy/growth/enabledTracks"))) {
+        const QStringList enabledTracks = settings.value(QStringLiteral("strategy/growth/enabledTracks")).toStringList();
+        for (QCheckBox* check : m_growthTrackChecks) {
+            if (check) {
+                check->setChecked(enabledTracks.contains(check->text()));
+            }
+        }
+    }
+
+    applyCheck(m_ma60UpCheck, QStringLiteral("strategy/growth/requireMA60Up"));
+    applyCheck(m_volumePullbackCheck, QStringLiteral("strategy/growth/requireVolumePullback"));
+    applyCheck(m_profitGrowthCheck, QStringLiteral("strategy/growth/profitGrowthConfirmed"));
+    applyCheck(m_orderLandingCheck, QStringLiteral("strategy/growth/orderLandingConfirmed"));
+    applyCheck(m_noPureConceptCheck, QStringLiteral("strategy/growth/noPureConceptConfirmed"));
+    applyCheck(m_partialTakeProfitCheck, QStringLiteral("strategy/growth/partialTakeProfitEnabled"));
+    applyCheck(m_breakMA60VolumeStopCheck, QStringLiteral("strategy/growth/breakMA60VolumeStopEnabled"));
+
+    if (m_pullbackMinSpin && settings.contains(QStringLiteral("strategy/growth/pullbackMinDays"))) {
+        m_pullbackMinSpin->setValue(settings.value(QStringLiteral("strategy/growth/pullbackMinDays")).toInt());
+    }
+    if (m_pullbackMaxSpin && settings.contains(QStringLiteral("strategy/growth/pullbackMaxDays"))) {
+        m_pullbackMaxSpin->setValue(settings.value(QStringLiteral("strategy/growth/pullbackMaxDays")).toInt());
+    }
+    if (m_sectorCapSpin && settings.contains(QStringLiteral("strategy/growth/maxSingleTrackPercent"))) {
+        m_sectorCapSpin->setValue(settings.value(QStringLiteral("strategy/growth/maxSingleTrackPercent")).toDouble());
+    }
+    if (m_diversifyMainlineSpin && settings.contains(QStringLiteral("strategy/growth/diversifyTrackCount"))) {
+        m_diversifyMainlineSpin->setValue(settings.value(QStringLiteral("strategy/growth/diversifyTrackCount")).toInt());
+    }
+    if (m_surgeTakeProfitSpin && settings.contains(QStringLiteral("strategy/growth/surgeTakeProfitPercent"))) {
+        m_surgeTakeProfitSpin->setValue(settings.value(QStringLiteral("strategy/growth/surgeTakeProfitPercent")).toDouble());
+    }
+
+    updateCurrentStrategyConfigUi();
+}
+
+void StrategyPanel::saveStrategySettings() const
+{
+    QSettings settings(QStringLiteral("StarQuant"), QStringLiteral("StarQuant"));
+    if (m_strategyPresetCombo) {
+        settings.setValue(QStringLiteral("strategy/currentType"), m_strategyPresetCombo->currentIndex());
+    }
+
+    const QString symbol = MarketDataSimulator::normalizeSymbol(getStrategySymbol());
+    if (isValidMarketSymbol(symbol)) {
+        settings.setValue(QStringLiteral("strategy/currentSymbol"), symbol);
+        settings.setValue(QStringLiteral("strategy/currentName"), stockNameForSymbol(symbol));
+    }
+
+    settings.setValue(QStringLiteral("strategy/basic/fastMA"), ui->fastMASpin->value());
+    settings.setValue(QStringLiteral("strategy/basic/slowMA"), ui->slowMASpin->value());
+    settings.setValue(QStringLiteral("strategy/basic/stopLossPercent"), ui->stopLossSpin->value());
+    settings.setValue(QStringLiteral("strategy/basic/takeProfitPercent"), ui->takeProfitSpin->value());
+    settings.setValue(QStringLiteral("strategy/basic/lotSize"), ui->lotSizeSpin->value());
+
+    QStringList enabledTracks;
+    for (QCheckBox* check : m_growthTrackChecks) {
+        if (check && check->isChecked()) {
+            enabledTracks.append(check->text());
+        }
+    }
+    settings.setValue(QStringLiteral("strategy/growth/enabledTracks"), enabledTracks);
+    settings.setValue(QStringLiteral("strategy/growth/requireMA60Up"), m_ma60UpCheck && m_ma60UpCheck->isChecked());
+    settings.setValue(QStringLiteral("strategy/growth/requireVolumePullback"), m_volumePullbackCheck && m_volumePullbackCheck->isChecked());
+    settings.setValue(QStringLiteral("strategy/growth/profitGrowthConfirmed"), m_profitGrowthCheck && m_profitGrowthCheck->isChecked());
+    settings.setValue(QStringLiteral("strategy/growth/orderLandingConfirmed"), m_orderLandingCheck && m_orderLandingCheck->isChecked());
+    settings.setValue(QStringLiteral("strategy/growth/noPureConceptConfirmed"), m_noPureConceptCheck && m_noPureConceptCheck->isChecked());
+    if (m_pullbackMinSpin) settings.setValue(QStringLiteral("strategy/growth/pullbackMinDays"), m_pullbackMinSpin->value());
+    if (m_pullbackMaxSpin) settings.setValue(QStringLiteral("strategy/growth/pullbackMaxDays"), m_pullbackMaxSpin->value());
+    if (m_sectorCapSpin) settings.setValue(QStringLiteral("strategy/growth/maxSingleTrackPercent"), m_sectorCapSpin->value());
+    if (m_diversifyMainlineSpin) settings.setValue(QStringLiteral("strategy/growth/diversifyTrackCount"), m_diversifyMainlineSpin->value());
+    if (m_surgeTakeProfitSpin) settings.setValue(QStringLiteral("strategy/growth/surgeTakeProfitPercent"), m_surgeTakeProfitSpin->value());
+    settings.setValue(QStringLiteral("strategy/growth/partialTakeProfitEnabled"), m_partialTakeProfitCheck && m_partialTakeProfitCheck->isChecked());
+    settings.setValue(QStringLiteral("strategy/growth/breakMA60VolumeStopEnabled"), m_breakMA60VolumeStopCheck && m_breakMA60VolumeStopCheck->isChecked());
+    settings.sync();
+}
+
+void StrategyPanel::loadPersonalSettings()
+{
+    QSettings settings(QStringLiteral("StarQuant"), QStringLiteral("StarQuant"));
+    if (m_watchlistSymbolEdit) {
+        m_watchlistSymbolEdit->setText(settings.value(QStringLiteral("personal/watchlistInput"),
+                                                     m_watchlistSymbolEdit->text()).toString());
+    }
+    if (m_manualPriceSpin && settings.contains(QStringLiteral("personal/manualPrice"))) {
+        m_manualPriceSpin->setValue(settings.value(QStringLiteral("personal/manualPrice")).toDouble());
+    }
+    if (m_manualVolumeSpin && settings.contains(QStringLiteral("personal/manualVolume"))) {
+        m_manualVolumeSpin->setValue(settings.value(QStringLiteral("personal/manualVolume")).toDouble());
+    }
+
+    const QString selected = MarketDataSimulator::normalizeSymbol(settings.value(QStringLiteral("personal/selectedFavorite")).toString());
+    if (m_watchlistWidget && !selected.isEmpty()) {
+        for (int row = 0; row < m_watchlistWidget->count(); ++row) {
+            QListWidgetItem* item = m_watchlistWidget->item(row);
+            if (item && item->data(Qt::UserRole).toString() == selected) {
+                m_watchlistWidget->setCurrentItem(item);
+                break;
+            }
+        }
+    }
+    onFavoriteSelectionChanged();
+}
+
+void StrategyPanel::savePersonalSettings() const
+{
+    QSettings settings(QStringLiteral("StarQuant"), QStringLiteral("StarQuant"));
+    if (m_watchlistSymbolEdit) {
+        settings.setValue(QStringLiteral("personal/watchlistInput"), m_watchlistSymbolEdit->text().trimmed());
+    }
+    if (m_manualPriceSpin) {
+        settings.setValue(QStringLiteral("personal/manualPrice"), m_manualPriceSpin->value());
+    }
+    if (m_manualVolumeSpin) {
+        settings.setValue(QStringLiteral("personal/manualVolume"), m_manualVolumeSpin->value());
+    }
+    settings.setValue(QStringLiteral("personal/selectedFavorite"), selectedFavoriteSymbol());
+    settings.sync();
+}
+
 void StrategyPanel::saveWatchlist() const
 {
     QStringList entries;
@@ -1004,6 +1174,7 @@ void StrategyPanel::saveWatchlist() const
 
     QSettings settings(QStringLiteral("StarQuant"), QStringLiteral("StarQuant"));
     settings.setValue(QStringLiteral("watchlist/items"), entries);
+    settings.sync();
 }
 
 void StrategyPanel::refreshWatchlist()
@@ -1067,6 +1238,9 @@ void StrategyPanel::selectStrategySymbol(const QString& symbol, const QString& n
     updateSearchSuggestions(normalized);
     m_updatingSymbol = false;
     saveStrategySymbol();
+    if (!m_loadingSettings) {
+        saveStrategySettings();
+    }
 
     if (emitChange) {
         emit parametersChanged();
@@ -1109,6 +1283,7 @@ void StrategyPanel::addFavoriteSymbol(const QString& symbol, const QString& name
     }
 
     selectSymbol(normalized, stockNameForSymbol(normalized), true);
+    savePersonalSettings();
 }
 
 QString StrategyPanel::resolveSymbolText(const QString& text) const
@@ -1404,6 +1579,9 @@ void StrategyPanel::addSignalLog(const StrategySignal &signal)
 
 void StrategyPanel::on_paramChanged()
 {
+    if (!m_loadingSettings) {
+        saveStrategySettings();
+    }
     emit parametersChanged();
 }
 
@@ -1473,6 +1651,9 @@ void StrategyPanel::onFavoriteSearchTextChanged(const QString& text)
 
     m_activeSearchEdit = m_watchlistSymbolEdit;
     updateSearchSuggestions(text);
+    if (!m_loadingSettings) {
+        savePersonalSettings();
+    }
 
     const QString trimmed = text.trimmed();
     if (!trimmed.isEmpty() && (trimmed.size() >= 2 || containsChinese(trimmed))) {
@@ -1602,7 +1783,10 @@ void StrategyPanel::onStrategyPresetChanged(int index)
     }
 
     updateCurrentStrategyConfigUi();
-    saveCurrentStrategyType();
+    if (!m_loadingSettings) {
+        saveCurrentStrategyType();
+        saveStrategySettings();
+    }
     emit parametersChanged();
 }
 
@@ -1640,6 +1824,9 @@ void StrategyPanel::onStrategyConfigChanged()
     if (m_pullbackMinSpin && m_pullbackMaxSpin && m_pullbackMinSpin->value() > m_pullbackMaxSpin->value()) {
         m_pullbackMaxSpin->setValue(m_pullbackMinSpin->value());
     }
+    if (!m_loadingSettings) {
+        saveStrategySettings();
+    }
     emit parametersChanged();
 }
 void StrategyPanel::onAddFavoriteClicked()
@@ -1654,6 +1841,7 @@ void StrategyPanel::onAddFavoriteClicked()
     if (sourceEdit == m_watchlistSymbolEdit && isValidMarketSymbol(symbol)) {
         m_watchlistSymbolEdit->setText(MarketDataSimulator::normalizeSymbol(symbol));
     }
+    savePersonalSettings();
 }
 
 void StrategyPanel::onRemoveFavoriteClicked()
@@ -1666,6 +1854,7 @@ void StrategyPanel::onRemoveFavoriteClicked()
     m_favorites.removeAll(symbol);
     saveWatchlist();
     refreshWatchlist();
+    savePersonalSettings();
 }
 
 void StrategyPanel::onFavoriteActivated(QListWidgetItem* item)
@@ -1690,6 +1879,9 @@ void StrategyPanel::onFavoriteSelectionChanged()
     }
     if (m_sellFavoriteBtn) {
         m_sellFavoriteBtn->setEnabled(hasSelection);
+    }
+    if (!m_loadingSettings) {
+        savePersonalSettings();
     }
     if (hasSelection) {
         emit favoriteSelected(selectedFavoriteSymbol());

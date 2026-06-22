@@ -106,6 +106,10 @@ private:
     void loadStrategySymbol();
     void saveStrategySymbol() const;
     void saveCurrentStrategyType() const;
+    void loadStrategySettings();
+    void saveStrategySettings() const;
+    void loadPersonalSettings();
+    void savePersonalSettings() const;
     void loadWatchlist();
     void saveWatchlist() const;
     void refreshWatchlist();
@@ -176,4 +180,5 @@ private:
     QMap<QString, QString> m_completionSymbols;
     QStringList m_favorites;
     bool m_updatingSymbol;
+    bool m_loadingSettings;
 };

@@ -9,8 +9,12 @@
 #include <QGridLayout>
 #include <QGroupBox>
 #include <QHBoxLayout>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QHeaderView>
 #include <QLabel>
+#include <QSettings>
 #include <QTableWidget>
 #include <QTableWidgetItem>
 #include <QTabWidget>
@@ -18,6 +22,10 @@
 #include <QVBoxLayout>
 
 #include <vector>
+
+namespace {
+constexpr int MaxStoredTradeRecords = 50;
+}
 
 MainWindow::MainWindow(bool guestMode, const QString& accountName, QWidget *parent)
     : QMainWindow(parent)
@@ -135,6 +143,7 @@ MainWindow::MainWindow(bool guestMode, const QString& accountName, QWidget *pare
     ui->signalPanel = m_signalPanel;
 
     m_newsPanel = new NewsPanel(this);
+    loadAccountState();
 
     buildTabbedLayout();
 
@@ -158,6 +167,7 @@ MainWindow::~MainWindow()
     if (m_manualTradeMarketData) {
         m_manualTradeMarketData->stopSimulation();
     }
+    saveAccountState();
     delete ui;
 }
 
@@ -420,6 +430,145 @@ void MainWindow::onStrategySignal(const StrategySignal &signal)
     executeOrder(signal);
 }
 
+void MainWindow::loadAccountState()
+{
+    QSettings settings(QStringLiteral("StarQuant"), QStringLiteral("StarQuant"));
+    m_initialCapital = settings.value(QStringLiteral("account/initialCapital"), 100000.0).toDouble();
+    if (m_initialCapital <= 0.0) {
+        m_initialCapital = 100000.0;
+    }
+    m_currentCash = settings.value(QStringLiteral("account/currentCash"), m_initialCapital).toDouble();
+
+    m_positions.clear();
+    const QByteArray positionsPayload = settings.value(QStringLiteral("account/positions")).toString().toUtf8();
+    if (!positionsPayload.isEmpty()) {
+        QJsonParseError error;
+        const QJsonDocument document = QJsonDocument::fromJson(positionsPayload, &error);
+        if (error.error == QJsonParseError::NoError && document.isArray()) {
+            const QJsonArray positions = document.array();
+            for (const QJsonValue& value : positions) {
+                if (!value.isObject()) {
+                    continue;
+                }
+
+                const QJsonObject object = value.toObject();
+                const QString symbol = MarketDataSimulator::normalizeSymbol(object.value(QStringLiteral("symbol")).toString());
+                const double quantity = object.value(QStringLiteral("quantity")).toDouble();
+                if (symbol.isEmpty() || quantity <= 0.0) {
+                    continue;
+                }
+
+                PositionInfo position;
+                position.symbol = symbol;
+                position.quantity = quantity;
+                position.avgCost = object.value(QStringLiteral("avgCost")).toDouble();
+                position.currentPrice = object.value(QStringLiteral("currentPrice")).toDouble(position.avgCost);
+                position.marketValue = position.quantity * position.currentPrice;
+                position.profit = (position.currentPrice - position.avgCost) * position.quantity;
+                position.profitPercent = position.avgCost > 0.0 ? (position.currentPrice / position.avgCost - 1.0) * 100.0 : 0.0;
+                m_positions[symbol] = position;
+            }
+        }
+    }
+
+    m_tradeRecords.clear();
+    const QByteArray tradesPayload = settings.value(QStringLiteral("account/trades")).toString().toUtf8();
+    if (!tradesPayload.isEmpty()) {
+        QJsonParseError error;
+        const QJsonDocument document = QJsonDocument::fromJson(tradesPayload, &error);
+        if (error.error == QJsonParseError::NoError && document.isArray()) {
+            const QJsonArray trades = document.array();
+            for (const QJsonValue& value : trades) {
+                if (!value.isObject()) {
+                    continue;
+                }
+
+                const QJsonObject object = value.toObject();
+                TradeRecordInfo record;
+                record.time = object.value(QStringLiteral("time")).toString();
+                record.symbol = MarketDataSimulator::normalizeSymbol(object.value(QStringLiteral("symbol")).toString());
+                record.type = object.value(QStringLiteral("type")).toString();
+                record.price = object.value(QStringLiteral("price")).toDouble();
+                record.volume = object.value(QStringLiteral("volume")).toDouble();
+                record.amount = object.value(QStringLiteral("amount")).toDouble();
+                if (record.symbol.isEmpty() || record.type.isEmpty()) {
+                    continue;
+                }
+
+                m_tradeRecords.append(record);
+                while (m_tradeRecords.size() > MaxStoredTradeRecords) {
+                    m_tradeRecords.removeFirst();
+                }
+            }
+        }
+    }
+
+    if (m_accountPanel) {
+        for (const TradeRecordInfo& record : m_tradeRecords) {
+            m_accountPanel->addTradeRecord(record.symbol, record.type, record.price, record.volume, record.amount, record.time);
+        }
+    }
+}
+
+void MainWindow::saveAccountState() const
+{
+    QSettings settings(QStringLiteral("StarQuant"), QStringLiteral("StarQuant"));
+    settings.setValue(QStringLiteral("account/initialCapital"), m_initialCapital);
+    settings.setValue(QStringLiteral("account/currentCash"), m_currentCash);
+    settings.setValue(QStringLiteral("account/guestMode"), m_guestMode);
+    settings.setValue(QStringLiteral("account/accountName"), m_accountName);
+
+    QJsonArray positions;
+    for (auto it = m_positions.cbegin(); it != m_positions.cend(); ++it) {
+        const PositionInfo& position = it.value();
+        if (position.quantity <= 0.0) {
+            continue;
+        }
+
+        QJsonObject object;
+        object.insert(QStringLiteral("symbol"), position.symbol.isEmpty() ? it.key() : position.symbol);
+        object.insert(QStringLiteral("quantity"), position.quantity);
+        object.insert(QStringLiteral("avgCost"), position.avgCost);
+        object.insert(QStringLiteral("currentPrice"), position.currentPrice);
+        positions.append(object);
+    }
+    settings.setValue(QStringLiteral("account/positions"), QString::fromUtf8(QJsonDocument(positions).toJson(QJsonDocument::Compact)));
+
+    QJsonArray trades;
+    for (const TradeRecordInfo& record : m_tradeRecords) {
+        QJsonObject object;
+        object.insert(QStringLiteral("time"), record.time);
+        object.insert(QStringLiteral("symbol"), record.symbol);
+        object.insert(QStringLiteral("type"), record.type);
+        object.insert(QStringLiteral("price"), record.price);
+        object.insert(QStringLiteral("volume"), record.volume);
+        object.insert(QStringLiteral("amount"), record.amount);
+        trades.append(object);
+    }
+    settings.setValue(QStringLiteral("account/trades"), QString::fromUtf8(QJsonDocument(trades).toJson(QJsonDocument::Compact)));
+    settings.sync();
+}
+
+void MainWindow::appendTradeRecord(const QString& symbol, const QString& type, double price, double volume, double amount, const QString& time)
+{
+    TradeRecordInfo record;
+    record.time = time;
+    record.symbol = symbol;
+    record.type = type;
+    record.price = price;
+    record.volume = volume;
+    record.amount = amount;
+
+    m_tradeRecords.append(record);
+    while (m_tradeRecords.size() > MaxStoredTradeRecords) {
+        m_tradeRecords.removeFirst();
+    }
+
+    if (m_accountPanel) {
+        m_accountPanel->addTradeRecord(symbol, type, price, volume, amount, time);
+    }
+}
+
 void MainWindow::executeOrder(const StrategySignal& signal)
 {
     const double price = signal.price;
@@ -448,9 +597,10 @@ void MainWindow::executeOrder(const StrategySignal& signal)
                 m_positions[symbol] = pos;
             }
 
-            m_accountPanel->addTradeRecord(symbol, typeStr, price, lotSize, totalCost,
-                                           QDateTime::currentDateTime().toString("HH:mm:ss"));
+            appendTradeRecord(symbol, typeStr, price, lotSize, totalCost,
+                              QDateTime::currentDateTime().toString("HH:mm:ss"));
             updateAccountInfo();
+            saveAccountState();
         }
         return;
     }
@@ -472,9 +622,10 @@ void MainWindow::executeOrder(const StrategySignal& signal)
         m_positions.remove(symbol);
     }
 
-    m_accountPanel->addTradeRecord(symbol, typeStr, price, lotSize, totalRevenue,
-                                   QDateTime::currentDateTime().toString("HH:mm:ss"));
+    appendTradeRecord(symbol, typeStr, price, lotSize, totalRevenue,
+                      QDateTime::currentDateTime().toString("HH:mm:ss"));
     updateAccountInfo();
+    saveAccountState();
 }
 
 double MainWindow::latestPriceForSymbol(const QString& symbol) const

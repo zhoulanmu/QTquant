@@ -3,6 +3,7 @@
 #include <QMainWindow>
 #include <QMap>
 #include <QString>
+#include <QVector>
 #include "market/marketdata.h"
 #include "strategy/strategybase.h"
 #include "ui/accountpanel.h"
@@ -45,6 +46,9 @@ private slots:
 
 private:
     void updateAccountInfo();
+    void loadAccountState();
+    void saveAccountState() const;
+    void appendTradeRecord(const QString& symbol, const QString& type, double price, double volume, double amount, const QString& time);
     void executeOrder(const StrategySignal& signal);
     void buildTabbedLayout();
     QWidget* createMainTab();
@@ -73,7 +77,17 @@ private:
 
     double m_initialCapital;
     double m_currentCash;
+    struct TradeRecordInfo {
+        QString time;
+        QString symbol;
+        QString type;
+        double price = 0.0;
+        double volume = 0.0;
+        double amount = 0.0;
+    };
+
     QMap<QString, PositionInfo> m_positions;
+    QVector<TradeRecordInfo> m_tradeRecords;
     double m_currentPrice;
     MarketData m_lastMarketData;
     bool m_hasLastMarketData;
