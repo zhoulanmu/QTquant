@@ -1,6 +1,7 @@
 #include "movingaveragestrategy.h"
 #include "../indicator/indicators.h"
 #include <QDateTime>
+#include <algorithm>
 
 MovingAverageStrategy::MovingAverageStrategy(QObject *parent)
     : StrategyBase(parent)
@@ -51,6 +52,18 @@ void MovingAverageStrategy::processMarketData(const MarketData &data)
     }
 
     checkTradingSignal(data.close);
+}
+
+StrategyRuntimeSnapshot MovingAverageStrategy::runtimeSnapshot() const
+{
+    StrategyRuntimeSnapshot snapshot;
+    snapshot.sampleCount = static_cast<int>(m_closePrices.size());
+    snapshot.requiredSamples = std::max(m_params.fastMA, m_params.slowMA);
+    snapshot.readyForSignal = snapshot.requiredSamples > 0 && snapshot.sampleCount >= snapshot.requiredSamples;
+    snapshot.hasFastSlowMA = snapshot.readyForSignal && m_fastMA > 0.0 && m_slowMA > 0.0;
+    snapshot.fastMA = m_fastMA;
+    snapshot.slowMA = m_slowMA;
+    return snapshot;
 }
 
 void MovingAverageStrategy::calculateIndicators()

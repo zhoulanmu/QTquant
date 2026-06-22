@@ -35,6 +35,11 @@ void StrategyBase::setConfig(const StrategyConfig& config)
     m_params.lotSize = config.positionConfig.lotSize;
 }
 
+StrategyRuntimeSnapshot StrategyBase::runtimeSnapshot() const
+{
+    return StrategyRuntimeSnapshot{};
+}
+
 void StrategyBase::reset()
 {
     m_hasPosition = false;

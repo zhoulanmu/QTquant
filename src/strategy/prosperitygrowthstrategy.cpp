@@ -49,6 +49,15 @@ void ProsperityGrowthStrategy::processMarketData(const MarketData& data)
     checkEntryRules(data, ma20, ma60, prevMA60, avgVolume20);
 }
 
+StrategyRuntimeSnapshot ProsperityGrowthStrategy::runtimeSnapshot() const
+{
+    StrategyRuntimeSnapshot snapshot;
+    snapshot.sampleCount = static_cast<int>(m_closePrices.size());
+    snapshot.requiredSamples = 60;
+    snapshot.readyForSignal = snapshot.sampleCount >= snapshot.requiredSamples;
+    return snapshot;
+}
+
 void ProsperityGrowthStrategy::appendData(const MarketData& data)
 {
     m_priceHistory.push_back(data);

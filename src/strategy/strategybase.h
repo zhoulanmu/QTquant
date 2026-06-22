@@ -77,6 +77,15 @@ struct StrategyParameters {
     double lotSize;
 };
 
+struct StrategyRuntimeSnapshot {
+    int sampleCount = 0;
+    int requiredSamples = 0;
+    bool readyForSignal = false;
+    bool hasFastSlowMA = false;
+    double fastMA = 0.0;
+    double slowMA = 0.0;
+};
+
 class StrategyBase : public QObject
 {
     Q_OBJECT
@@ -92,6 +101,7 @@ public:
     virtual void setConfig(const StrategyConfig& config);
     const StrategyConfig& config() const { return m_config; }
     virtual void processMarketData(const MarketData& data) = 0;
+    virtual StrategyRuntimeSnapshot runtimeSnapshot() const;
     virtual void reset();
 
 protected:

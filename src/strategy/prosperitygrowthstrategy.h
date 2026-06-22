@@ -13,6 +13,7 @@ public:
     ~ProsperityGrowthStrategy() override = default;
 
     void processMarketData(const MarketData& data) override;
+    StrategyRuntimeSnapshot runtimeSnapshot() const override;
     void reset() override;
 
 private:

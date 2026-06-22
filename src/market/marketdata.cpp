@@ -352,15 +352,17 @@ void MarketDataSimulator::onQuoteReplyFinished()
         return;
     }
 
-    if (networkError == QNetworkReply::OperationCanceledError
+    const bool transientClosed = networkError == QNetworkReply::OperationCanceledError
         || networkError == QNetworkReply::RemoteHostClosedError
         || networkErrorText.contains(QStringLiteral("Operation canceled"), Qt::CaseInsensitive)
-        || networkErrorText.contains(QStringLiteral("Connection closed"), Qt::CaseInsensitive)) {
-        return;
-    }
+        || networkErrorText.contains(QStringLiteral("Connection closed"), Qt::CaseInsensitive);
 
     if (m_lastSuccessfulDataAt.isValid()
         && m_lastSuccessfulDataAt.secsTo(QDateTime::currentDateTime()) <= 15) {
+        return;
+    }
+
+    if (transientClosed && m_feedMode != MarketDataFeedMode::RealtimeQuoteOnly) {
         return;
     }
 
