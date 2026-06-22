@@ -14,6 +14,7 @@
 #include <QJsonObject>
 #include <QHeaderView>
 #include <QLabel>
+#include <QMessageBox>
 #include <QSettings>
 #include <QSizePolicy>
 #include <QTableWidget>
@@ -110,6 +111,9 @@ MainWindow::MainWindow(bool guestMode, const QString& accountName, QWidget *pare
     m_marketData = new MarketDataSimulator(this);
     m_strategyMarketData = new MarketDataSimulator(this);
     m_manualTradeMarketData = new MarketDataSimulator(this);
+    m_marketData->setFeedMode(MarketDataFeedMode::QuoteWhenOpenTrendWhenClosed);
+    m_strategyMarketData->setFeedMode(MarketDataFeedMode::RealtimeQuoteOnly);
+    m_manualTradeMarketData->setFeedMode(MarketDataFeedMode::QuoteOnly);
     m_strategy = nullptr;
 
     connect(m_marketData, &MarketDataSimulator::dataUpdated, this, &MainWindow::onMarketDataUpdated);
@@ -403,6 +407,10 @@ void MainWindow::onStrategyMarketDataError(const QString& message)
     ui->statusbar->showMessage(message, 5000);
     if (m_isRunning) {
         ui->strategyPanel->addSystemLog(QStringLiteral("策略行情错误：%1").arg(message));
+        QMessageBox::warning(this,
+                             QStringLiteral("策略已停止"),
+                             QStringLiteral("未获取到可用于策略执行的实时行情。\n\n%1").arg(message));
+        onStopStrategy();
     }
 }
 void MainWindow::onStrategySignal(const StrategySignal &signal)
@@ -844,6 +852,14 @@ void MainWindow::onViewSymbolChanged(const QString& symbol)
 void MainWindow::onStartStrategy()
 {
     if (m_isRunning) {
+        return;
+    }
+
+    if (!MarketDataSimulator::isAShareContinuousTradingTime()) {
+        const QString message = QStringLiteral("当前未处于 A 股连续竞价时段。\n\n策略只能在交易日 09:30-11:30、13:00-15:00 使用实时行情运行；收盘后主图可以查看最近可用交易日行情，但不能启动策略。");
+        QMessageBox::warning(this, QStringLiteral("不能启动策略"), message);
+        ui->strategyPanel->addSystemLog(message);
+        ui->statusbar->showMessage(QStringLiteral("未开盘，不能执行策略"), 4000);
         return;
     }
 

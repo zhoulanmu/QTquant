@@ -52,7 +52,9 @@ void ChartPanel::updateChartData(const MarketData &data)
         return;
     }
 
-    if (!m_priceHistory.empty() && m_priceHistory.back().symbol != data.symbol) {
+    if (!m_priceHistory.empty()
+        && (m_priceHistory.back().symbol != data.symbol
+            || m_priceHistory.back().timestamp.date() != data.timestamp.date())) {
         m_priceHistory.clear();
     }
 

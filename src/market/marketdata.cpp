@@ -33,6 +33,7 @@ MarketDataSimulator::MarketDataSimulator(QObject *parent)
     , m_network(new QNetworkAccessManager(this))
     , m_activeReply(nullptr)
     , m_trendReply(nullptr)
+    , m_feedMode(MarketDataFeedMode::QuoteAndTrend)
     , m_isRunning(false)
 {
     connect(m_timer, &QTimer::timeout, this, &MarketDataSimulator::generateNewData);
@@ -48,8 +49,7 @@ MarketDataSimulator::~MarketDataSimulator()
 void MarketDataSimulator::startSimulation()
 {
     if (m_isRunning) {
-        fetchLatestQuote();
-        fetchIntradayTrend();
+        generateNewData();
         if (!m_timer->isActive()) {
             m_timer->start();
         }
@@ -57,8 +57,7 @@ void MarketDataSimulator::startSimulation()
     }
 
     m_isRunning = true;
-    fetchLatestQuote();
-    fetchIntradayTrend();
+    generateNewData();
     m_timer->start();
 }
 
@@ -114,8 +113,19 @@ void MarketDataSimulator::setSymbol(const QString &symbol)
     }
 
     if (m_isRunning) {
-        fetchLatestQuote();
-        fetchIntradayTrend();
+        generateNewData();
+    }
+}
+
+void MarketDataSimulator::setFeedMode(MarketDataFeedMode mode)
+{
+    if (m_feedMode == mode) {
+        return;
+    }
+
+    m_feedMode = mode;
+    if (m_isRunning) {
+        generateNewData();
     }
 }
 
@@ -181,10 +191,45 @@ QString MarketDataSimulator::normalizeSymbol(const QString &symbol)
     return code + QLatin1Char('.') + exchange;
 }
 
+bool MarketDataSimulator::isAShareContinuousTradingTime(const QDateTime& now)
+{
+    const QDateTime current = now.isValid() ? now : QDateTime::currentDateTime();
+    const int day = current.date().dayOfWeek();
+    if (day < 1 || day > 5) {
+        return false;
+    }
+
+    const QTime time = current.time();
+    const bool morning = time >= QTime(9, 30) && time <= QTime(11, 30);
+    const bool afternoon = time >= QTime(13, 0) && time <= QTime(15, 0);
+    return morning || afternoon;
+}
 void MarketDataSimulator::generateNewData()
 {
-    fetchLatestQuote();
-    fetchIntradayTrend();
+    const bool marketOpen = isAShareContinuousTradingTime();
+    switch (m_feedMode) {
+    case MarketDataFeedMode::QuoteOnly:
+        fetchLatestQuote();
+        break;
+    case MarketDataFeedMode::QuoteAndTrend:
+        fetchLatestQuote();
+        fetchIntradayTrend();
+        break;
+    case MarketDataFeedMode::QuoteWhenOpenTrendWhenClosed:
+        if (marketOpen) {
+            fetchLatestQuote();
+        } else {
+            fetchIntradayTrend();
+        }
+        break;
+    case MarketDataFeedMode::RealtimeQuoteOnly:
+        if (marketOpen) {
+            fetchLatestQuote();
+        } else {
+            emit errorOccurred(QStringLiteral("A 股未处于连续竞价时段，策略只能在交易日 09:30-11:30、13:00-15:00 使用实时行情运行。"));
+        }
+        break;
+    }
 }
 
 void MarketDataSimulator::fetchLatestQuote()
@@ -374,6 +419,12 @@ bool MarketDataSimulator::parseQuoteResponse(const QByteArray& payload, MarketDa
     double high = valueToDouble(quote.value(QStringLiteral("f44")));
     double low = valueToDouble(quote.value(QStringLiteral("f45")));
 
+    if (close <= 0.0 && m_feedMode == MarketDataFeedMode::RealtimeQuoteOnly) {
+        if (errorMessage) {
+            *errorMessage = QStringLiteral("策略实时行情不可用：%1 当前没有可用实时报价。" ).arg(m_symbol);
+        }
+        return false;
+    }
     if (close <= 0.0) {
         close = previousClose > 0.0 ? previousClose : m_lastPrice;
     }

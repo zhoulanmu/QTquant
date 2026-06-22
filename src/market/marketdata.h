@@ -11,6 +11,13 @@
 class QNetworkAccessManager;
 class QNetworkReply;
 
+enum class MarketDataFeedMode {
+    QuoteOnly,
+    QuoteAndTrend,
+    QuoteWhenOpenTrendWhenClosed,
+    RealtimeQuoteOnly
+};
+
 struct MarketData {
     MarketData()
         : symbol("")
@@ -57,8 +64,10 @@ public:
     void startSimulation();
     void stopSimulation();
     void setSymbol(const QString& symbol);
+    void setFeedMode(MarketDataFeedMode mode);
     const QString& getSymbol() const { return m_symbol; }
     static QString normalizeSymbol(const QString& symbol);
+    static bool isAShareContinuousTradingTime(const QDateTime& now = QDateTime());
 
 private slots:
     void generateNewData();
@@ -84,5 +93,6 @@ private:
     QNetworkAccessManager* m_network;
     QNetworkReply* m_activeReply;
     QNetworkReply* m_trendReply;
+    MarketDataFeedMode m_feedMode;
     bool m_isRunning;
 };
