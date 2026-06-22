@@ -99,7 +99,7 @@ void CandlestickWidget::paintEvent(QPaintEvent *event)
 
     if (m_priceHistory.empty()) {
         painter.setPen(Qt::white);
-        painter.drawText(rect(), Qt::AlignCenter, QStringLiteral("等待行情数据..."));
+        painter.drawText(rect(), Qt::AlignCenter, QStringLiteral("正在加载行情数据..."));
         return;
     }
 

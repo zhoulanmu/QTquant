@@ -24,6 +24,7 @@
 #include <QRegularExpression>
 #include <QScrollBar>
 #include <QSettings>
+#include <QSizePolicy>
 #include <QSpinBox>
 #include <QStringListModel>
 #include <QTime>
@@ -473,11 +474,10 @@ QWidget* StrategyPanel::takeWatchlistWidget(QWidget* parent)
         auto* sidebarLayout = new QVBoxLayout(m_personalSidebarWidget);
         sidebarLayout->setContentsMargins(0, 0, 0, 0);
         sidebarLayout->setSpacing(12);
-        sidebarLayout->addWidget(m_watchlistGroup);
+        sidebarLayout->addWidget(m_watchlistGroup, 1);
         if (m_manualTradeGroup) {
-            sidebarLayout->addWidget(m_manualTradeGroup);
+            sidebarLayout->addWidget(m_manualTradeGroup, 1);
         }
-        sidebarLayout->addStretch(1);
     }
 
     ui->verticalLayout_4->removeWidget(m_watchlistGroup);
@@ -487,11 +487,18 @@ QWidget* StrategyPanel::takeWatchlistWidget(QWidget* parent)
     m_personalSidebarWidget->setParent(parent);
     m_personalSidebarWidget->setMinimumWidth(300);
     m_personalSidebarWidget->setMaximumWidth(420);
+    m_personalSidebarWidget->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
     m_watchlistGroup->setMinimumWidth(300);
-    m_watchlistGroup->setMaximumHeight(300);
+    m_watchlistGroup->setMaximumHeight(QWIDGETSIZE_MAX);
+    m_watchlistGroup->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Ignored);
+    if (m_manualTradeGroup) {
+        m_manualTradeGroup->setMaximumHeight(QWIDGETSIZE_MAX);
+        m_manualTradeGroup->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Ignored);
+    }
     if (m_watchlistWidget) {
         m_watchlistWidget->setMinimumHeight(120);
-        m_watchlistWidget->setMaximumHeight(150);
+        m_watchlistWidget->setMaximumHeight(QWIDGETSIZE_MAX);
+        m_watchlistWidget->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
     }
     return m_personalSidebarWidget;
 }
@@ -817,7 +824,7 @@ void StrategyPanel::setupStockSearchUi()
     m_searchNetwork = new QNetworkAccessManager(this);
 
     m_watchlistGroup = new QGroupBox(QStringLiteral("自选股"), this);
-    m_watchlistGroup->setMaximumHeight(300);
+    m_watchlistGroup->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
     auto favoriteLayout = new QVBoxLayout(m_watchlistGroup);
     favoriteLayout->setContentsMargins(10, 12, 10, 10);
     favoriteLayout->setSpacing(8);
@@ -843,14 +850,14 @@ void StrategyPanel::setupStockSearchUi()
     favoriteLayout->addLayout(buttonLayout);
 
     m_watchlistWidget = new QListWidget(m_watchlistGroup);
-    m_watchlistWidget->setMinimumHeight(86);
-    m_watchlistWidget->setMaximumHeight(150);
+    m_watchlistWidget->setMinimumHeight(120);
+    m_watchlistWidget->setMaximumHeight(QWIDGETSIZE_MAX);
+    m_watchlistWidget->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
     m_watchlistWidget->setAlternatingRowColors(false);
-    favoriteLayout->addWidget(m_watchlistWidget);
-
-    favoriteLayout->addStretch(1);
+    favoriteLayout->addWidget(m_watchlistWidget, 1);
 
     m_manualTradeGroup = new QGroupBox(QStringLiteral("手动买卖"), this);
+    m_manualTradeGroup->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
     auto* manualLayout = new QFormLayout(m_manualTradeGroup);
     manualLayout->setContentsMargins(10, 12, 10, 10);
     manualLayout->setSpacing(8);

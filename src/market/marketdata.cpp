@@ -14,6 +14,7 @@
 namespace {
 constexpr int QuoteIntervalMs = 3000;
 constexpr int QuoteTimeoutMs = 2500;
+constexpr int TrendTimeoutMs = 6000;
 constexpr auto QuoteEndpoint = "https://push2.eastmoney.com/api/qt/stock/get";
 constexpr auto TrendEndpoint = "https://push2his.eastmoney.com/api/qt/stock/trends2/get";
 constexpr auto EastMoneyUt = "fa5fd1943c7b386f172d6893dbfba10b";
@@ -221,7 +222,7 @@ void MarketDataSimulator::fetchIntradayTrend()
     request.setHeader(QNetworkRequest::UserAgentHeader,
                       QStringLiteral("Mozilla/5.0 StarQuant/0.1 MarketTrend"));
     request.setRawHeader("Referer", "https://quote.eastmoney.com/");
-    request.setTransferTimeout(QuoteTimeoutMs);
+    request.setTransferTimeout(TrendTimeoutMs);
 
     m_trendReply = m_network->get(request);
     connect(m_trendReply, &QNetworkReply::finished, this, &MarketDataSimulator::onTrendReplyFinished);
@@ -252,7 +253,9 @@ void MarketDataSimulator::onQuoteReplyFinished()
         return;
     }
 
-    if (networkError == QNetworkReply::RemoteHostClosedError
+    if (networkError == QNetworkReply::OperationCanceledError
+        || networkError == QNetworkReply::RemoteHostClosedError
+        || networkErrorText.contains(QStringLiteral("Operation canceled"), Qt::CaseInsensitive)
         || networkErrorText.contains(QStringLiteral("Connection closed"), Qt::CaseInsensitive)) {
         return;
     }
@@ -296,7 +299,9 @@ void MarketDataSimulator::onTrendReplyFinished()
         return;
     }
 
-    if (networkError == QNetworkReply::RemoteHostClosedError
+    if (networkError == QNetworkReply::OperationCanceledError
+        || networkError == QNetworkReply::RemoteHostClosedError
+        || networkErrorText.contains(QStringLiteral("Operation canceled"), Qt::CaseInsensitive)
         || networkErrorText.contains(QStringLiteral("Connection closed"), Qt::CaseInsensitive)) {
         return;
     }
@@ -335,7 +340,7 @@ QUrl MarketDataSimulator::buildTrendUrl() const
     query.addQueryItem(QStringLiteral("fields1"), QString::fromLatin1(TrendFields1));
     query.addQueryItem(QStringLiteral("fields2"), QString::fromLatin1(TrendFields2));
     query.addQueryItem(QStringLiteral("secid"), m_secid);
-    query.addQueryItem(QStringLiteral("ndays"), QStringLiteral("1"));
+    query.addQueryItem(QStringLiteral("ndays"), QStringLiteral("5"));
     query.addQueryItem(QStringLiteral("iscr"), QStringLiteral("0"));
     query.addQueryItem(QStringLiteral("iscca"), QStringLiteral("0"));
     url.setQuery(query);
@@ -444,6 +449,8 @@ bool MarketDataSimulator::parseTrendResponse(const QByteArray& payload, QVector<
         previousClose = valueToDouble(trendData.value(QStringLiteral("prePrice")));
     }
 
+    QVector<MarketData> latestSessionPoints;
+    QDate latestSessionDate;
     for (const QJsonValue& value : trends) {
         const QString row = value.toString().trimmed();
         if (row.isEmpty()) {
@@ -451,7 +458,7 @@ bool MarketDataSimulator::parseTrendResponse(const QByteArray& payload, QVector<
         }
 
         const QStringList parts = row.split(QLatin1Char(','));
-        if (parts.size() < 7) {
+        if (parts.size() < 3) {
             continue;
         }
 
@@ -459,15 +466,53 @@ bool MarketDataSimulator::parseTrendResponse(const QByteArray& payload, QVector<
         if (!timestamp.isValid()) {
             timestamp = QDateTime::fromString(parts.value(0), QStringLiteral("yyyy-MM-dd HH:mm:ss"));
         }
-        const double open = parts.value(1).toDouble();
-        const double close = parts.value(2).toDouble();
-        const double high = parts.value(3).toDouble();
-        const double low = parts.value(4).toDouble();
-        const double volume = parts.value(5).toDouble();
-        const double turnover = parts.value(6).toDouble();
-        const double averagePrice = parts.size() > 7 ? parts.value(7).toDouble() : 0.0;
+        if (!timestamp.isValid()) {
+            continue;
+        }
 
-        if (!timestamp.isValid() || close <= 0.0) {
+        const double first = parts.value(1).toDouble();
+        const double second = parts.value(2).toDouble();
+        const double third = parts.size() > 3 ? parts.value(3).toDouble() : 0.0;
+        const double fourth = parts.size() > 4 ? parts.value(4).toDouble() : 0.0;
+        const double fifth = parts.size() > 5 ? parts.value(5).toDouble() : 0.0;
+        const double sixth = parts.size() > 6 ? parts.value(6).toDouble() : 0.0;
+        const double seventh = parts.size() > 7 ? parts.value(7).toDouble() : 0.0;
+        const double priceBase = qMax(qAbs(first), qAbs(second));
+        const bool looksLikeOhlc = parts.size() >= 7
+            && priceBase > 0.0
+            && third > 0.0
+            && fourth > 0.0
+            && third <= priceBase * 3.0
+            && fourth <= priceBase * 3.0;
+
+        double open = first;
+        double close = second;
+        double high = third;
+        double low = fourth;
+        double volume = fifth;
+        double turnover = sixth;
+        double averagePrice = seventh;
+
+        if (!looksLikeOhlc) {
+            close = first;
+            open = close;
+            high = close;
+            low = close;
+            averagePrice = second;
+            volume = third;
+            turnover = fourth;
+        }
+
+        if (close <= 0.0) {
+            continue;
+        }
+
+        const QDate sessionDate = timestamp.date();
+        if (!latestSessionDate.isValid() || sessionDate > latestSessionDate) {
+            latestSessionDate = sessionDate;
+            latestSessionPoints.clear();
+        }
+        if (sessionDate != latestSessionDate) {
             continue;
         }
 
@@ -486,8 +531,10 @@ bool MarketDataSimulator::parseTrendResponse(const QByteArray& payload, QVector<
             ? averagePrice
             : (volume > 0.0 ? turnover / (volume * 100.0) : close);
         point.tradeCount = volume > 0.0 ? static_cast<int>(volume) : 0;
-        points->append(point);
+        latestSessionPoints.append(point);
     }
+
+    *points = latestSessionPoints;
 
     if (points->isEmpty()) {
         if (errorMessage) {

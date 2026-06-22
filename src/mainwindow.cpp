@@ -15,6 +15,7 @@
 #include <QHeaderView>
 #include <QLabel>
 #include <QSettings>
+#include <QSizePolicy>
 #include <QTableWidget>
 #include <QTableWidgetItem>
 #include <QTabWidget>
@@ -273,8 +274,9 @@ QWidget* MainWindow::createPersonalTab()
     if (watchlist) {
         watchlist->setMinimumWidth(300);
         watchlist->setMaximumWidth(420);
-        watchlist->setMaximumHeight(520);
-        rootLayout->addWidget(watchlist, 1, Qt::AlignTop);
+        watchlist->setMaximumHeight(QWIDGETSIZE_MAX);
+        watchlist->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
+        rootLayout->addWidget(watchlist, 1);
     }
 
     m_accountPanel->setMinimumWidth(620);
