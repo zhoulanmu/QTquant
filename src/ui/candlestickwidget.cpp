@@ -37,6 +37,7 @@ void CandlestickWidget::paintEvent(QPaintEvent *event)
     Q_UNUSED(event);
 
     QPainter painter(this);
+    painter.fillRect(rect(), QColor(26, 26, 46));
     painter.setRenderHint(QPainter::Antialiasing);
 
     if (m_priceHistory.empty()) {

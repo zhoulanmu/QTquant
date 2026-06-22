@@ -94,6 +94,7 @@ void MainWindow::onMarketDataUpdated(const MarketData &data)
     m_hasLastMarketData = true;
 
     ui->marketPanel->updateMarketData(data);
+    ui->strategyPanel->rememberStockName(data.symbol, data.name);
     ui->chartPanel->updateChartData(data);
     m_statisticsPanel->setData(data.turnover, data.volume, data.volume, 0.0, 0.0, 0);
 

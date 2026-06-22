@@ -20,6 +20,9 @@ public:
 
     void updateChartData(const MarketData& data);
 
+protected:
+    void paintEvent(QPaintEvent* event) override;
+
 private:
     Ui::ChartPanel *ui;
     std::deque<MarketData> m_priceHistory;

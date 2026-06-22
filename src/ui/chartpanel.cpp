@@ -1,5 +1,7 @@
 #include "chartpanel.h"
 #include "ui_chartpanel.h"
+
+#include <QPainter>
 #include <limits>
 
 ChartPanel::ChartPanel(QWidget *parent) :
@@ -9,20 +11,32 @@ ChartPanel::ChartPanel(QWidget *parent) :
     m_maxPrice(1.0)
 {
     ui->setupUi(this);
-    setStyleSheet("background-color: #1a1a2e; border: 2px solid #4a5568; border-radius: 12px; padding: 8px;");
+    setAutoFillBackground(false);
 
     m_candlestickWidget = new CandlestickWidget(this);
-    m_candlestickWidget->setStyleSheet("background-color: #1a1a2e; border: none; border-radius: 8px;");
+    m_candlestickWidget->setStyleSheet("background-color: transparent; border: none;");
     ui->verticalLayout->removeWidget(ui->chartWidget);
     delete ui->chartWidget;
     ui->chartWidget = m_candlestickWidget;
     ui->verticalLayout->addWidget(m_candlestickWidget);
-    ui->verticalLayout->setContentsMargins(0, 0, 0, 0);
+    ui->verticalLayout->setContentsMargins(10, 10, 10, 10);
 }
 
 ChartPanel::~ChartPanel()
 {
     delete ui;
+}
+
+void ChartPanel::paintEvent(QPaintEvent *event)
+{
+    Q_UNUSED(event);
+
+    QPainter painter(this);
+    painter.setRenderHint(QPainter::Antialiasing);
+    const QRectF frame = rect().adjusted(1.0, 1.0, -1.0, -1.0);
+    painter.setPen(QPen(QColor(74, 85, 104), 1.2));
+    painter.setBrush(QColor(26, 26, 46));
+    painter.drawRoundedRect(frame, 8.0, 8.0);
 }
 
 void ChartPanel::updateChartData(const MarketData &data)
