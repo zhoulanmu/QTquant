@@ -58,6 +58,8 @@ private:
     QWidget* createNewsTab();
     void configureStrategy(const StrategyConfig& config);
     void updateSignalIndicators();
+    void resetStrategyProgressTracking(const StrategyConfig& config);
+    void appendStrategyProgressLog();
     double latestPriceForSymbol(const QString& symbol) const;
     void requestManualTrade(const QString& symbol, SignalType type, double price, double volume);
     void executeManualTrade(const QString& symbol, SignalType type, double price, double volume);
@@ -69,6 +71,7 @@ private:
     MarketDataSimulator* m_manualTradeMarketData;
     StrategyBase* m_strategy;
     StrategyType m_activeStrategyType;
+    StrategyConfig m_runningStrategyConfig;
     AccountPanel* m_accountPanel;
     StatisticsPanel* m_statisticsPanel;
     SignalPanel* m_signalPanel;
@@ -95,6 +98,12 @@ private:
     MarketData m_lastStrategyMarketData;
     bool m_hasLastStrategyMarketData;
     QVector<MarketData> m_indicatorHistory;
+    QVector<double> m_strategyCloseSamples;
+    int m_lastStrategyProgressSampleLogged;
+    int m_lastStrategyMonitorSampleLogged;
+    bool m_strategyFirstQuoteLogged;
+    bool m_strategyMonitorEntered;
+    bool m_strategyTradeTriggeredOnTick;
     QString m_pendingManualTradeSymbol;
     QString m_manualPriceQuoteSymbol;
     SignalType m_pendingManualTradeType;
