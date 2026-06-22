@@ -24,6 +24,7 @@ MainWindow::MainWindow(bool guestMode, const QString& accountName, QWidget *pare
     , ui(new Ui::MainWindow)
     , m_marketData(nullptr)
     , m_strategyMarketData(nullptr)
+    , m_manualTradeMarketData(nullptr)
     , m_strategy(nullptr)
     , m_activeStrategyType(StrategyType::DoubleMA)
     , m_accountPanel(nullptr)
@@ -37,6 +38,8 @@ MainWindow::MainWindow(bool guestMode, const QString& accountName, QWidget *pare
     , m_currentPrice(10.78)
     , m_hasLastMarketData(false)
     , m_hasLastStrategyMarketData(false)
+    , m_pendingManualTradeType(SignalType::NONE)
+    , m_pendingManualTradeVolume(0.0)
     , m_guestMode(guestMode)
     , m_accountName(accountName)
 {
@@ -71,6 +74,10 @@ MainWindow::MainWindow(bool guestMode, const QString& accountName, QWidget *pare
         "QPushButton#favoriteAddBtn { background-color: #38a169; }"
         "QPushButton#favoriteAddBtn:hover { background-color: #2f855a; }"
         "QPushButton#favoriteRemoveBtn { background-color: #718096; }"
+        "QPushButton#favoriteBuyBtn { background-color: #38a169; }"
+        "QPushButton#favoriteBuyBtn:hover { background-color: #2f855a; }"
+        "QPushButton#favoriteSellBtn { background-color: #e53e3e; }"
+        "QPushButton#favoriteSellBtn:hover { background-color: #c53030; }"
         "QTableWidget { background-color: #1a1a2e; border: 1px solid #4a5568; border-radius: 6px; gridline-color: #4a5568; }"
         "QTableWidget::item { color: #e0e0e0; padding: 4px 8px; }"
         "QTableWidget::item:selected { background-color: #4299e1; }"
@@ -93,6 +100,7 @@ MainWindow::MainWindow(bool guestMode, const QString& accountName, QWidget *pare
 
     m_marketData = new MarketDataSimulator(this);
     m_strategyMarketData = new MarketDataSimulator(this);
+    m_manualTradeMarketData = new MarketDataSimulator(this);
     m_strategy = nullptr;
 
     connect(m_marketData, &MarketDataSimulator::dataUpdated, this, &MainWindow::onMarketDataUpdated);
@@ -105,6 +113,11 @@ MainWindow::MainWindow(bool guestMode, const QString& accountName, QWidget *pare
     connect(ui->strategyPanel, &StrategyPanel::stopClicked, this, &MainWindow::onStopStrategy);
     connect(ui->strategyPanel, &StrategyPanel::parametersChanged, this, &MainWindow::onUpdateParameters);
     connect(ui->strategyPanel, &StrategyPanel::viewSymbolChanged, this, &MainWindow::onViewSymbolChanged);
+    connect(ui->strategyPanel, &StrategyPanel::favoriteSelected, this, &MainWindow::onFavoriteSelected);
+    connect(ui->strategyPanel, &StrategyPanel::favoriteBuyRequested, this, &MainWindow::onFavoriteBuyRequested);
+    connect(ui->strategyPanel, &StrategyPanel::favoriteSellRequested, this, &MainWindow::onFavoriteSellRequested);
+    connect(m_manualTradeMarketData, &MarketDataSimulator::dataUpdated, this, &MainWindow::onManualTradeQuoteUpdated);
+    connect(m_manualTradeMarketData, &MarketDataSimulator::errorOccurred, this, &MainWindow::onManualTradeQuoteError);
 
     m_accountPanel = new AccountPanel(this);
     ui->verticalLayout_3->replaceWidget(ui->accountPanel, m_accountPanel);
@@ -141,6 +154,9 @@ MainWindow::~MainWindow()
     m_marketData->stopSimulation();
     if (m_strategyMarketData) {
         m_strategyMarketData->stopSimulation();
+    }
+    if (m_manualTradeMarketData) {
+        m_manualTradeMarketData->stopSimulation();
     }
     delete ui;
 }
@@ -247,7 +263,8 @@ QWidget* MainWindow::createPersonalTab()
     if (watchlist) {
         watchlist->setMinimumWidth(300);
         watchlist->setMaximumWidth(420);
-        rootLayout->addWidget(watchlist, 1);
+        watchlist->setMaximumHeight(520);
+        rootLayout->addWidget(watchlist, 1, Qt::AlignTop);
     }
 
     m_accountPanel->setMinimumWidth(620);
@@ -460,6 +477,152 @@ void MainWindow::executeOrder(const StrategySignal& signal)
     updateAccountInfo();
 }
 
+double MainWindow::latestPriceForSymbol(const QString& symbol) const
+{
+    const QString normalized = MarketDataSimulator::normalizeSymbol(symbol);
+    if (m_hasLastMarketData && MarketDataSimulator::normalizeSymbol(m_lastMarketData.symbol) == normalized) {
+        if (m_lastMarketData.close > 0.0) {
+            return m_lastMarketData.close;
+        }
+        if (m_lastMarketData.previousClose > 0.0) {
+            return m_lastMarketData.previousClose;
+        }
+    }
+    if (m_hasLastStrategyMarketData && MarketDataSimulator::normalizeSymbol(m_lastStrategyMarketData.symbol) == normalized) {
+        if (m_lastStrategyMarketData.close > 0.0) {
+            return m_lastStrategyMarketData.close;
+        }
+        if (m_lastStrategyMarketData.previousClose > 0.0) {
+            return m_lastStrategyMarketData.previousClose;
+        }
+    }
+    if (m_positions.contains(normalized) && m_positions.value(normalized).currentPrice > 0.0) {
+        return m_positions.value(normalized).currentPrice;
+    }
+    return 0.0;
+}
+
+void MainWindow::onFavoriteSelected(const QString& symbol)
+{
+    const QString normalized = MarketDataSimulator::normalizeSymbol(symbol);
+    const double price = latestPriceForSymbol(normalized);
+    if (price > 0.0) {
+        ui->strategyPanel->setManualTradePrice(normalized, price);
+        return;
+    }
+
+    m_manualPriceQuoteSymbol = normalized;
+    m_manualTradeMarketData->setSymbol(normalized);
+    m_manualTradeMarketData->startSimulation();
+}
+
+void MainWindow::onFavoriteBuyRequested(const QString& symbol, double price, double volume)
+{
+    requestManualTrade(symbol, SignalType::BUY, price, volume);
+}
+
+void MainWindow::onFavoriteSellRequested(const QString& symbol, double price, double volume)
+{
+    requestManualTrade(symbol, SignalType::SELL, price, volume);
+}
+
+void MainWindow::requestManualTrade(const QString& symbol, SignalType type, double price, double volume)
+{
+    const QString normalized = MarketDataSimulator::normalizeSymbol(symbol);
+    const double tradePrice = price > 0.0 ? price : latestPriceForSymbol(normalized);
+    if (tradePrice > 0.0) {
+        executeManualTrade(normalized, type, tradePrice, volume);
+        return;
+    }
+
+    m_pendingManualTradeSymbol = normalized;
+    m_pendingManualTradeType = type;
+    m_pendingManualTradeVolume = volume;
+    m_manualTradeMarketData->setSymbol(normalized);
+    m_manualTradeMarketData->startSimulation();
+    ui->statusbar->showMessage(QStringLiteral("正在获取 %1 最新行情，获取后执行模拟%2...")
+        .arg(normalized, type == SignalType::BUY ? QStringLiteral("买入") : QStringLiteral("卖出")), 3000);
+}
+
+void MainWindow::onManualTradeQuoteUpdated(const MarketData& data)
+{
+    const QString normalized = MarketDataSimulator::normalizeSymbol(data.symbol);
+    const double quotePrice = data.close > 0.0 ? data.close : data.previousClose;
+    ui->strategyPanel->rememberStockName(normalized, data.name);
+
+    if (quotePrice > 0.0 && normalized == m_manualPriceQuoteSymbol) {
+        ui->strategyPanel->setManualTradePrice(normalized, quotePrice);
+        m_manualPriceQuoteSymbol.clear();
+    }
+
+    if (m_pendingManualTradeType == SignalType::NONE || normalized != m_pendingManualTradeSymbol || quotePrice <= 0.0) {
+        if (m_pendingManualTradeType == SignalType::NONE && m_manualPriceQuoteSymbol.isEmpty()) {
+            m_manualTradeMarketData->stopSimulation();
+        }
+        return;
+    }
+
+    const SignalType type = m_pendingManualTradeType;
+    const double volume = m_pendingManualTradeVolume;
+    m_pendingManualTradeSymbol.clear();
+    m_pendingManualTradeType = SignalType::NONE;
+    m_pendingManualTradeVolume = 0.0;
+    m_manualTradeMarketData->stopSimulation();
+    executeManualTrade(normalized, type, quotePrice, volume);
+}
+
+void MainWindow::onManualTradeQuoteError(const QString& message)
+{
+    if (m_pendingManualTradeType == SignalType::NONE && m_manualPriceQuoteSymbol.isEmpty()) {
+        return;
+    }
+
+    m_pendingManualTradeSymbol.clear();
+    m_manualPriceQuoteSymbol.clear();
+    m_pendingManualTradeType = SignalType::NONE;
+    m_pendingManualTradeVolume = 0.0;
+    m_manualTradeMarketData->stopSimulation();
+    ui->statusbar->showMessage(QStringLiteral("手动模拟交易行情获取失败：%1").arg(message), 5000);
+}
+
+void MainWindow::executeManualTrade(const QString& symbol, SignalType type, double price, double volume)
+{
+    const QString normalized = MarketDataSimulator::normalizeSymbol(symbol);
+    if (volume <= 0.0 || price <= 0.0) {
+        return;
+    }
+
+    if (type == SignalType::BUY) {
+        const double amount = price * volume;
+        if (amount > m_currentCash) {
+            ui->statusbar->showMessage(QStringLiteral("模拟买入失败：可用资金不足"), 4000);
+            return;
+        }
+    } else if (type == SignalType::SELL) {
+        if (!m_positions.contains(normalized) || m_positions.value(normalized).quantity <= 0.0) {
+            ui->statusbar->showMessage(QStringLiteral("模拟卖出失败：当前没有 %1 持仓").arg(normalized), 4000);
+            return;
+        }
+        volume = qMin(volume, m_positions.value(normalized).quantity);
+        m_positions[normalized].currentPrice = price;
+    } else {
+        return;
+    }
+
+    StrategySignal signal;
+    signal.type = type;
+    signal.symbol = normalized;
+    signal.price = price;
+    signal.volume = volume;
+    signal.timestamp = QDateTime::currentDateTime();
+    signal.comment = type == SignalType::BUY ? QStringLiteral("手动模拟买入") : QStringLiteral("手动模拟卖出");
+    executeOrder(signal);
+
+    ui->statusbar->showMessage(QStringLiteral("已%1 %2 %3 股 @ %4")
+        .arg(type == SignalType::BUY ? QStringLiteral("买入") : QStringLiteral("卖出"), normalized)
+        .arg(volume, 0, 'f', 0)
+        .arg(price, 0, 'f', 2), 4000);
+}
 void MainWindow::updateAccountInfo()
 {
     double marketValue = 0.0;

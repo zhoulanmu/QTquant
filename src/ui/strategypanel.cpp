@@ -28,6 +28,7 @@
 #include <QStringListModel>
 #include <QTime>
 #include <QTimer>
+#include <QToolTip>
 #include <QUrlQuery>
 #include <QVBoxLayout>
 
@@ -155,12 +156,14 @@ StrategyPanel::StrategyPanel(QWidget *parent) :
     ui(new Ui::StrategyPanel),
     m_symbolCompleter(nullptr),
     m_strategySymbolCompleter(nullptr),
+    m_watchlistSymbolCompleter(nullptr),
     m_searchModel(nullptr),
     m_strategySearchModel(nullptr),
     m_searchTimer(nullptr),
     m_searchNetwork(nullptr),
     m_searchReply(nullptr),
     m_strategySymbolEdit(nullptr),
+    m_watchlistSymbolEdit(nullptr),
     m_activeSearchEdit(nullptr),
     m_strategyPresetCombo(nullptr),
     m_strategyPresetDescLabel(nullptr),
@@ -181,12 +184,18 @@ StrategyPanel::StrategyPanel(QWidget *parent) :
     m_partialTakeProfitCheck(nullptr),
     m_breakMA60VolumeStopCheck(nullptr),
     m_symbolSelectorWidget(nullptr),
+    m_personalSidebarWidget(nullptr),
     m_symbolAddFavoriteBtn(nullptr),
     m_strategyControlGroup(nullptr),
     m_watchlistGroup(nullptr),
+    m_manualTradeGroup(nullptr),
     m_watchlistWidget(nullptr),
     m_addFavoriteBtn(nullptr),
     m_removeFavoriteBtn(nullptr),
+    m_manualPriceSpin(nullptr),
+    m_manualVolumeSpin(nullptr),
+    m_buyFavoriteBtn(nullptr),
+    m_sellFavoriteBtn(nullptr),
     m_updatingSymbol(false)
 {
     ui->setupUi(this);
@@ -219,6 +228,11 @@ StrategyPanel::StrategyPanel(QWidget *parent) :
     connect(ui->stopLossSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &StrategyPanel::on_paramChanged);
     connect(ui->takeProfitSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &StrategyPanel::on_paramChanged);
     connect(ui->lotSizeSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &StrategyPanel::on_paramChanged);
+    connect(ui->lotSizeSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, [this](double value) {
+        if (m_manualVolumeSpin && !m_manualVolumeSpin->hasFocus()) {
+            m_manualVolumeSpin->setValue(value);
+        }
+    });
 }
 
 StrategyPanel::~StrategyPanel()
@@ -448,13 +462,40 @@ QWidget* StrategyPanel::takeWatchlistWidget(QWidget* parent)
         return nullptr;
     }
 
-    ui->verticalLayout_4->removeWidget(m_watchlistGroup);
-    m_watchlistGroup->setParent(parent);
-    m_watchlistGroup->setMinimumWidth(300);
-    if (m_watchlistWidget) {
-        m_watchlistWidget->setMinimumHeight(180);
+    if (!m_personalSidebarWidget) {
+        m_personalSidebarWidget = new QWidget(parent);
+        auto* sidebarLayout = new QVBoxLayout(m_personalSidebarWidget);
+        sidebarLayout->setContentsMargins(0, 0, 0, 0);
+        sidebarLayout->setSpacing(12);
+        sidebarLayout->addWidget(m_watchlistGroup);
+        if (m_manualTradeGroup) {
+            sidebarLayout->addWidget(m_manualTradeGroup);
+        }
+        sidebarLayout->addStretch(1);
     }
-    return m_watchlistGroup;
+
+    ui->verticalLayout_4->removeWidget(m_watchlistGroup);
+    if (m_manualTradeGroup) {
+        ui->verticalLayout_4->removeWidget(m_manualTradeGroup);
+    }
+    m_personalSidebarWidget->setParent(parent);
+    m_personalSidebarWidget->setMinimumWidth(300);
+    m_personalSidebarWidget->setMaximumWidth(420);
+    m_watchlistGroup->setMinimumWidth(300);
+    m_watchlistGroup->setMaximumHeight(300);
+    if (m_watchlistWidget) {
+        m_watchlistWidget->setMinimumHeight(120);
+        m_watchlistWidget->setMaximumHeight(150);
+    }
+    return m_personalSidebarWidget;
+}
+
+void StrategyPanel::setManualTradePrice(const QString& symbol, double price)
+{
+    const QString selected = selectedFavoriteSymbol();
+    if (m_manualPriceSpin && price > 0.0 && (selected.isEmpty() || MarketDataSimulator::normalizeSymbol(symbol) == selected)) {
+        m_manualPriceSpin->setValue(price);
+    }
 }
 void StrategyPanel::rememberStockName(const QString& symbol, const QString& name)
 {
@@ -547,6 +588,13 @@ void StrategyPanel::setupCommonStrategyUi()
             this, &StrategyPanel::onStrategyPresetChanged);
     connect(m_applyStrategyPresetBtn, &QPushButton::clicked,
             this, &StrategyPanel::onApplyStrategyPresetClicked);
+    connect(m_strategyDetailButton, &QPushButton::clicked, this, [this]() {
+        if (!m_strategyDetailButton || m_strategyDetailButton->toolTip().isEmpty()) {
+            return;
+        }
+        const QPoint pos = m_strategyDetailButton->mapToGlobal(QPoint(0, m_strategyDetailButton->height() + 4));
+        QToolTip::showText(pos, m_strategyDetailButton->toolTip(), m_strategyDetailButton);
+    });
 
     onStrategyPresetChanged(m_strategyPresetCombo->currentIndex());
 }
@@ -762,12 +810,23 @@ void StrategyPanel::setupStockSearchUi()
     m_searchNetwork = new QNetworkAccessManager(this);
 
     m_watchlistGroup = new QGroupBox(QStringLiteral("自选股"), this);
+    m_watchlistGroup->setMaximumHeight(300);
     auto favoriteLayout = new QVBoxLayout(m_watchlistGroup);
     favoriteLayout->setContentsMargins(10, 12, 10, 10);
     favoriteLayout->setSpacing(8);
 
+    m_watchlistSymbolEdit = new QLineEdit(m_watchlistGroup);
+    m_watchlistSymbolEdit->setPlaceholderText(QStringLiteral("代码 / 名称 / 拼音"));
+    m_watchlistSymbolCompleter = new QCompleter(m_searchModel, this);
+    m_watchlistSymbolCompleter->setCaseSensitivity(Qt::CaseInsensitive);
+    m_watchlistSymbolCompleter->setCompletionMode(QCompleter::PopupCompletion);
+    m_watchlistSymbolCompleter->setFilterMode(Qt::MatchContains);
+    m_watchlistSymbolEdit->setCompleter(m_watchlistSymbolCompleter);
+    favoriteLayout->addWidget(m_watchlistSymbolEdit);
+
     auto buttonLayout = new QHBoxLayout();
     buttonLayout->setContentsMargins(0, 0, 0, 0);
+    buttonLayout->setSpacing(8);
     m_addFavoriteBtn = new QPushButton(QStringLiteral("加入自选"), m_watchlistGroup);
     m_addFavoriteBtn->setObjectName(QStringLiteral("favoriteAddBtn"));
     m_removeFavoriteBtn = new QPushButton(QStringLiteral("删除"), m_watchlistGroup);
@@ -778,13 +837,53 @@ void StrategyPanel::setupStockSearchUi()
 
     m_watchlistWidget = new QListWidget(m_watchlistGroup);
     m_watchlistWidget->setMinimumHeight(86);
+    m_watchlistWidget->setMaximumHeight(150);
     m_watchlistWidget->setAlternatingRowColors(false);
     favoriteLayout->addWidget(m_watchlistWidget);
 
-    ui->verticalLayout_4->insertWidget(3, m_watchlistGroup);
+    favoriteLayout->addStretch(1);
 
+    m_manualTradeGroup = new QGroupBox(QStringLiteral("手动买卖"), this);
+    auto* manualLayout = new QFormLayout(m_manualTradeGroup);
+    manualLayout->setContentsMargins(10, 12, 10, 10);
+    manualLayout->setSpacing(8);
+
+    m_manualPriceSpin = new QDoubleSpinBox(m_manualTradeGroup);
+    m_manualPriceSpin->setRange(0.0, 100000.0);
+    m_manualPriceSpin->setDecimals(2);
+    m_manualPriceSpin->setSingleStep(0.01);
+    m_manualPriceSpin->setSpecialValueText(QStringLiteral("自动"));
+    manualLayout->addRow(QStringLiteral("价格"), m_manualPriceSpin);
+
+    m_manualVolumeSpin = new QDoubleSpinBox(m_manualTradeGroup);
+    m_manualVolumeSpin->setRange(100.0, 1000000.0);
+    m_manualVolumeSpin->setDecimals(0);
+    m_manualVolumeSpin->setSingleStep(100.0);
+    m_manualVolumeSpin->setValue(ui->lotSizeSpin->value());
+    manualLayout->addRow(QStringLiteral("数量"), m_manualVolumeSpin);
+
+    auto* tradeButtonLayout = new QHBoxLayout();
+    tradeButtonLayout->setContentsMargins(0, 0, 0, 0);
+    tradeButtonLayout->setSpacing(8);
+    m_buyFavoriteBtn = new QPushButton(QStringLiteral("买入"), m_manualTradeGroup);
+    m_buyFavoriteBtn->setObjectName(QStringLiteral("favoriteBuyBtn"));
+    m_sellFavoriteBtn = new QPushButton(QStringLiteral("卖出"), m_manualTradeGroup);
+    m_sellFavoriteBtn->setObjectName(QStringLiteral("favoriteSellBtn"));
+    tradeButtonLayout->addWidget(m_buyFavoriteBtn);
+    tradeButtonLayout->addWidget(m_sellFavoriteBtn);
+    manualLayout->addRow(tradeButtonLayout);
+
+    ui->verticalLayout_4->insertWidget(3, m_watchlistGroup);
+    ui->verticalLayout_4->insertWidget(4, m_manualTradeGroup);
+
+    connect(m_watchlistSymbolEdit, &QLineEdit::textChanged, this, &StrategyPanel::onFavoriteSearchTextChanged);
+    connect(m_watchlistSymbolEdit, &QLineEdit::editingFinished, this, &StrategyPanel::onFavoriteSearchEditingFinished);
+    connect(m_watchlistSymbolCompleter, QOverload<const QString&>::of(&QCompleter::activated),
+            this, &StrategyPanel::onFavoriteCompleterActivated);
     connect(m_addFavoriteBtn, &QPushButton::clicked, this, &StrategyPanel::onAddFavoriteClicked);
     connect(m_removeFavoriteBtn, &QPushButton::clicked, this, &StrategyPanel::onRemoveFavoriteClicked);
+    connect(m_buyFavoriteBtn, &QPushButton::clicked, this, &StrategyPanel::onFavoriteBuyClicked);
+    connect(m_sellFavoriteBtn, &QPushButton::clicked, this, &StrategyPanel::onFavoriteSellClicked);
     connect(m_watchlistWidget, &QListWidget::itemClicked, this, &StrategyPanel::onFavoriteActivated);
     connect(m_watchlistWidget, &QListWidget::itemDoubleClicked, this, &StrategyPanel::onFavoriteActivated);
     connect(m_watchlistWidget, &QListWidget::itemSelectionChanged, this, &StrategyPanel::onFavoriteSelectionChanged);
@@ -973,6 +1072,14 @@ void StrategyPanel::selectStrategySymbol(const QString& symbol, const QString& n
         emit parametersChanged();
     }
 }
+QString StrategyPanel::selectedFavoriteSymbol() const
+{
+    if (!m_watchlistWidget || !m_watchlistWidget->currentItem()) {
+        return QString();
+    }
+    return m_watchlistWidget->currentItem()->data(Qt::UserRole).toString();
+}
+
 void StrategyPanel::addFavoriteSymbol(const QString& symbol, const QString& name)
 {
     const QString normalized = MarketDataSimulator::normalizeSymbol(symbol);
@@ -989,6 +1096,16 @@ void StrategyPanel::addFavoriteSymbol(const QString& symbol, const QString& name
         m_favorites.append(normalized);
         saveWatchlist();
         refreshWatchlist();
+    }
+
+    if (m_watchlistWidget) {
+        for (int row = 0; row < m_watchlistWidget->count(); ++row) {
+            QListWidgetItem* item = m_watchlistWidget->item(row);
+            if (item && item->data(Qt::UserRole).toString() == normalized) {
+                m_watchlistWidget->setCurrentItem(item);
+                break;
+            }
+        }
     }
 
     selectSymbol(normalized, stockNameForSymbol(normalized), true);
@@ -1179,6 +1296,8 @@ void StrategyPanel::showSearchCandidates(const QVector<StockCandidate>& candidat
             m_symbolCompleter->complete();
         } else if (m_strategySymbolEdit && m_strategySymbolEdit->hasFocus() && m_strategySymbolCompleter) {
             m_strategySymbolCompleter->complete();
+        } else if (m_watchlistSymbolEdit && m_watchlistSymbolEdit->hasFocus() && m_watchlistSymbolCompleter) {
+            m_watchlistSymbolCompleter->complete();
         }
     }
 }
@@ -1345,6 +1464,36 @@ void StrategyPanel::onStrategySymbolEditingFinished()
         selectStrategySymbol(symbol, stockNameForSymbol(symbol), true);
     }
 }
+
+void StrategyPanel::onFavoriteSearchTextChanged(const QString& text)
+{
+    if (m_updatingSymbol) {
+        return;
+    }
+
+    m_activeSearchEdit = m_watchlistSymbolEdit;
+    updateSearchSuggestions(text);
+
+    const QString trimmed = text.trimmed();
+    if (!trimmed.isEmpty() && (trimmed.size() >= 2 || containsChinese(trimmed))) {
+        m_searchTimer->start();
+    }
+}
+
+void StrategyPanel::onFavoriteSearchEditingFinished()
+{
+    if (!m_watchlistSymbolEdit) {
+        return;
+    }
+
+    const QString symbol = resolveSymbolText(m_watchlistSymbolEdit->text());
+    if (isValidMarketSymbol(symbol)) {
+        m_updatingSymbol = true;
+        m_watchlistSymbolEdit->setText(symbol);
+        updateSearchSuggestions(symbol);
+        m_updatingSymbol = false;
+    }
+}
 void StrategyPanel::onSearchTimerTimeout()
 {
     QLineEdit* sourceEdit = m_activeSearchEdit ? m_activeSearchEdit : ui->symbolEdit;
@@ -1416,6 +1565,23 @@ void StrategyPanel::onStrategyCompleterActivated(const QString& text)
     selectStrategySymbol(symbol, stockNameForSymbol(symbol), true);
 }
 
+void StrategyPanel::onFavoriteCompleterActivated(const QString& text)
+{
+    if (!m_watchlistSymbolEdit) {
+        return;
+    }
+
+    const QString symbol = m_completionSymbols.value(text, resolveSymbolText(text));
+    if (!isValidMarketSymbol(symbol)) {
+        return;
+    }
+
+    m_updatingSymbol = true;
+    m_watchlistSymbolEdit->setText(symbol);
+    updateSearchSuggestions(symbol);
+    m_updatingSymbol = false;
+}
+
 void StrategyPanel::onStrategyPresetChanged(int index)
 {
     const QVector<StrategyPreset> presets = commonStrategyPresets();
@@ -1478,8 +1644,16 @@ void StrategyPanel::onStrategyConfigChanged()
 }
 void StrategyPanel::onAddFavoriteClicked()
 {
-    const QString symbol = resolveSymbolText(ui->symbolEdit->text());
+    QLineEdit* sourceEdit = ui->symbolEdit;
+    if (sender() == m_addFavoriteBtn && m_watchlistSymbolEdit && !m_watchlistSymbolEdit->text().trimmed().isEmpty()) {
+        sourceEdit = m_watchlistSymbolEdit;
+    }
+
+    const QString symbol = resolveSymbolText(sourceEdit->text());
     addFavoriteSymbol(symbol, stockNameForSymbol(symbol));
+    if (sourceEdit == m_watchlistSymbolEdit && isValidMarketSymbol(symbol)) {
+        m_watchlistSymbolEdit->setText(MarketDataSimulator::normalizeSymbol(symbol));
+    }
 }
 
 void StrategyPanel::onRemoveFavoriteClicked()
@@ -1502,11 +1676,46 @@ void StrategyPanel::onFavoriteActivated(QListWidgetItem* item)
 
     const QString symbol = item->data(Qt::UserRole).toString();
     selectSymbol(symbol, stockNameForSymbol(symbol), true);
+    emit favoriteSelected(symbol);
 }
 
 void StrategyPanel::onFavoriteSelectionChanged()
 {
+    const bool hasSelection = m_watchlistWidget && m_watchlistWidget->currentItem();
     if (m_removeFavoriteBtn) {
-        m_removeFavoriteBtn->setEnabled(m_watchlistWidget && m_watchlistWidget->currentItem());
+        m_removeFavoriteBtn->setEnabled(hasSelection);
     }
+    if (m_buyFavoriteBtn) {
+        m_buyFavoriteBtn->setEnabled(hasSelection);
+    }
+    if (m_sellFavoriteBtn) {
+        m_sellFavoriteBtn->setEnabled(hasSelection);
+    }
+    if (hasSelection) {
+        emit favoriteSelected(selectedFavoriteSymbol());
+    }
+}
+
+void StrategyPanel::onFavoriteBuyClicked()
+{
+    const QString symbol = selectedFavoriteSymbol();
+    if (symbol.isEmpty()) {
+        addSystemLog(QStringLiteral("请先选择一只自选股。"));
+        return;
+    }
+    const double price = m_manualPriceSpin ? m_manualPriceSpin->value() : 0.0;
+    const double volume = m_manualVolumeSpin ? m_manualVolumeSpin->value() : getLotSize();
+    emit favoriteBuyRequested(symbol, price, volume);
+}
+
+void StrategyPanel::onFavoriteSellClicked()
+{
+    const QString symbol = selectedFavoriteSymbol();
+    if (symbol.isEmpty()) {
+        addSystemLog(QStringLiteral("请先选择一只自选股。"));
+        return;
+    }
+    const double price = m_manualPriceSpin ? m_manualPriceSpin->value() : 0.0;
+    const double volume = m_manualVolumeSpin ? m_manualVolumeSpin->value() : getLotSize();
+    emit favoriteSellRequested(symbol, price, volume);
 }

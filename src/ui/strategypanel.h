@@ -41,6 +41,9 @@ signals:
     void stopClicked();
     void parametersChanged();
     void viewSymbolChanged(const QString& symbol);
+    void favoriteSelected(const QString& symbol);
+    void favoriteBuyRequested(const QString& symbol, double price, double volume);
+    void favoriteSellRequested(const QString& symbol, double price, double volume);
 
 public:
     explicit StrategyPanel(QWidget *parent = nullptr);
@@ -66,6 +69,7 @@ public:
     QWidget* takeStrategyControlWidget(QWidget* parent);
     QWidget* takeTradeLogWidget(QWidget* parent);
     QWidget* takeWatchlistWidget(QWidget* parent);
+    void setManualTradePrice(const QString& symbol, double price);
 
 private slots:
     void on_paramChanged();
@@ -73,10 +77,13 @@ private slots:
     void onSymbolEditingFinished();
     void onStrategySymbolTextChanged(const QString& text);
     void onStrategySymbolEditingFinished();
+    void onFavoriteSearchTextChanged(const QString& text);
+    void onFavoriteSearchEditingFinished();
     void onSearchTimerTimeout();
     void onSearchReplyFinished();
     void onCompleterActivated(const QString& text);
     void onStrategyCompleterActivated(const QString& text);
+    void onFavoriteCompleterActivated(const QString& text);
     void onStrategyPresetChanged(int index);
     void onApplyStrategyPresetClicked();
     void onStrategyConfigChanged();
@@ -84,6 +91,8 @@ private slots:
     void onRemoveFavoriteClicked();
     void onFavoriteActivated(QListWidgetItem* item);
     void onFavoriteSelectionChanged();
+    void onFavoriteBuyClicked();
+    void onFavoriteSellClicked();
 
 private:
     void setupStockSearchUi();
@@ -103,6 +112,7 @@ private:
     void selectSymbol(const QString& symbol, const QString& name, bool emitChange);
     void selectStrategySymbol(const QString& symbol, const QString& name, bool emitChange);
     void addFavoriteSymbol(const QString& symbol, const QString& name);
+    QString selectedFavoriteSymbol() const;
     QString resolveSymbolText(const QString& text) const;
     QString stockNameForSymbol(const QString& symbol) const;
     QVector<StockCandidate> localStockCatalog() const;
@@ -120,12 +130,14 @@ private:
     Ui::StrategyPanel *ui;
     QCompleter* m_symbolCompleter;
     QCompleter* m_strategySymbolCompleter;
+    QCompleter* m_watchlistSymbolCompleter;
     QStringListModel* m_searchModel;
     QStringListModel* m_strategySearchModel;
     QTimer* m_searchTimer;
     QNetworkAccessManager* m_searchNetwork;
     QNetworkReply* m_searchReply;
     QLineEdit* m_strategySymbolEdit;
+    QLineEdit* m_watchlistSymbolEdit;
     QLineEdit* m_activeSearchEdit;
     QComboBox* m_strategyPresetCombo;
     QLabel* m_strategyPresetDescLabel;
@@ -148,12 +160,18 @@ private:
     QCheckBox* m_partialTakeProfitCheck;
     QCheckBox* m_breakMA60VolumeStopCheck;
     QWidget* m_symbolSelectorWidget;
+    QWidget* m_personalSidebarWidget;
     QPushButton* m_symbolAddFavoriteBtn;
     QGroupBox* m_strategyControlGroup;
     QGroupBox* m_watchlistGroup;
+    QGroupBox* m_manualTradeGroup;
     QListWidget* m_watchlistWidget;
     QPushButton* m_addFavoriteBtn;
     QPushButton* m_removeFavoriteBtn;
+    QDoubleSpinBox* m_manualPriceSpin;
+    QDoubleSpinBox* m_manualVolumeSpin;
+    QPushButton* m_buyFavoriteBtn;
+    QPushButton* m_sellFavoriteBtn;
     QMap<QString, QString> m_stockNames;
     QMap<QString, QString> m_completionSymbols;
     QStringList m_favorites;

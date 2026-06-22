@@ -37,6 +37,11 @@ private slots:
     void onStopStrategy();
     void onUpdateParameters();
     void onViewSymbolChanged(const QString& symbol);
+    void onFavoriteSelected(const QString& symbol);
+    void onFavoriteBuyRequested(const QString& symbol, double price, double volume);
+    void onFavoriteSellRequested(const QString& symbol, double price, double volume);
+    void onManualTradeQuoteUpdated(const MarketData& data);
+    void onManualTradeQuoteError(const QString& message);
 
 private:
     void updateAccountInfo();
@@ -48,11 +53,15 @@ private:
     QWidget* createNewsTab();
     void configureStrategy(const StrategyConfig& config);
     void updateSignalIndicators();
+    double latestPriceForSymbol(const QString& symbol) const;
+    void requestManualTrade(const QString& symbol, SignalType type, double price, double volume);
+    void executeManualTrade(const QString& symbol, SignalType type, double price, double volume);
 
 private:
     Ui::MainWindow *ui;
     MarketDataSimulator* m_marketData;
     MarketDataSimulator* m_strategyMarketData;
+    MarketDataSimulator* m_manualTradeMarketData;
     StrategyBase* m_strategy;
     StrategyType m_activeStrategyType;
     AccountPanel* m_accountPanel;
@@ -71,6 +80,10 @@ private:
     MarketData m_lastStrategyMarketData;
     bool m_hasLastStrategyMarketData;
     QVector<MarketData> m_indicatorHistory;
+    QString m_pendingManualTradeSymbol;
+    QString m_manualPriceQuoteSymbol;
+    SignalType m_pendingManualTradeType;
+    double m_pendingManualTradeVolume;
     bool m_guestMode;
     QString m_accountName;
 };
