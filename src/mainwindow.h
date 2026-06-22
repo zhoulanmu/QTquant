@@ -29,6 +29,7 @@ public:
 private slots:
     void onMarketDataUpdated(const MarketData& data);
     void onIntradayDataUpdated(const QVector<MarketData>& data);
+    void onFallbackIntradayDataUsed(const QString& symbol, const QString& reason);
     void onMarketDataError(const QString& message);
     void onStrategyMarketDataUpdated(const MarketData& data);
     void onStrategyIntradayDataUpdated(const QVector<MarketData>& data);

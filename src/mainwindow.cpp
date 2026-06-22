@@ -6,6 +6,7 @@
 
 #include <QAbstractItemView>
 #include <QDateTime>
+#include <QDialog>
 #include <QGridLayout>
 #include <QGroupBox>
 #include <QHBoxLayout>
@@ -14,7 +15,7 @@
 #include <QJsonObject>
 #include <QHeaderView>
 #include <QLabel>
-#include <QMessageBox>
+#include <QPushButton>
 #include <QSettings>
 #include <QSizePolicy>
 #include <QTableWidget>
@@ -27,6 +28,128 @@
 
 namespace {
 constexpr int MaxStoredTradeRecords = 50;
+
+void showThemedWarning(QWidget* parent, const QString& title, const QString& message)
+{
+    QDialog dialog(parent);
+    dialog.setModal(true);
+    dialog.setWindowTitle(title);
+    dialog.setWindowFlags(Qt::Dialog | Qt::FramelessWindowHint);
+    dialog.setObjectName(QStringLiteral("themedWarningDialog"));
+    dialog.setMinimumWidth(560);
+    dialog.setStyleSheet(QStringLiteral(R"(
+        QDialog#themedWarningDialog {
+            background-color: #1a1a2e;
+            border: 1px solid #4a5568;
+            border-radius: 8px;
+        }
+        QLabel#dialogTitle {
+            color: #f7fafc;
+            font-size: 15px;
+            font-weight: bold;
+        }
+        QLabel#dialogIcon {
+            background-color: #f6ad55;
+            color: #1a1a2e;
+            border-radius: 14px;
+            min-width: 28px;
+            max-width: 28px;
+            min-height: 28px;
+            max-height: 28px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        QLabel#dialogMessage {
+            color: #e2e8f0;
+            font-size: 13px;
+        }
+        QPushButton#dialogCloseButton {
+            background-color: transparent;
+            color: #a0aec0;
+            border: none;
+            border-radius: 4px;
+            min-width: 28px;
+            max-width: 28px;
+            min-height: 28px;
+            max-height: 28px;
+            padding: 0;
+            font-size: 16px;
+        }
+        QPushButton#dialogCloseButton:hover {
+            background-color: #2d3748;
+            color: white;
+        }
+        QPushButton#dialogOkButton {
+            background-color: #2b6cb0;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 8px 24px;
+            min-width: 72px;
+            min-height: 32px;
+            font-size: 13px;
+        }
+        QPushButton#dialogOkButton:hover {
+            background-color: #3182ce;
+        }
+        QPushButton#dialogOkButton:pressed {
+            background-color: #2c5282;
+        }
+    )"));
+
+    auto* rootLayout = new QVBoxLayout(&dialog);
+    rootLayout->setContentsMargins(18, 16, 18, 16);
+    rootLayout->setSpacing(14);
+
+    auto* titleLayout = new QHBoxLayout();
+    titleLayout->setContentsMargins(0, 0, 0, 0);
+    titleLayout->setSpacing(10);
+
+    auto* titleLabel = new QLabel(title, &dialog);
+    titleLabel->setObjectName(QStringLiteral("dialogTitle"));
+
+    auto* closeButton = new QPushButton(QStringLiteral("×"), &dialog);
+    closeButton->setObjectName(QStringLiteral("dialogCloseButton"));
+    closeButton->setCursor(Qt::PointingHandCursor);
+
+    titleLayout->addWidget(titleLabel, 1);
+    titleLayout->addWidget(closeButton, 0, Qt::AlignTop);
+    rootLayout->addLayout(titleLayout);
+
+    auto* contentLayout = new QHBoxLayout();
+    contentLayout->setContentsMargins(0, 2, 0, 2);
+    contentLayout->setSpacing(12);
+
+    auto* iconLabel = new QLabel(QStringLiteral("!"), &dialog);
+    iconLabel->setObjectName(QStringLiteral("dialogIcon"));
+    iconLabel->setAlignment(Qt::AlignCenter);
+
+    auto* messageLabel = new QLabel(message, &dialog);
+    messageLabel->setObjectName(QStringLiteral("dialogMessage"));
+    messageLabel->setWordWrap(true);
+    messageLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    messageLabel->setMinimumWidth(430);
+
+    contentLayout->addWidget(iconLabel, 0, Qt::AlignTop);
+    contentLayout->addWidget(messageLabel, 1);
+    rootLayout->addLayout(contentLayout);
+
+    auto* buttonLayout = new QHBoxLayout();
+    buttonLayout->setContentsMargins(0, 4, 0, 0);
+    buttonLayout->addStretch();
+
+    auto* okButton = new QPushButton(QStringLiteral("确定"), &dialog);
+    okButton->setObjectName(QStringLiteral("dialogOkButton"));
+    okButton->setCursor(Qt::PointingHandCursor);
+    okButton->setDefault(true);
+    buttonLayout->addWidget(okButton);
+    rootLayout->addLayout(buttonLayout);
+
+    QObject::connect(closeButton, &QPushButton::clicked, &dialog, &QDialog::accept);
+    QObject::connect(okButton, &QPushButton::clicked, &dialog, &QDialog::accept);
+
+    dialog.exec();
+}
 }
 
 MainWindow::MainWindow(bool guestMode, const QString& accountName, QWidget *parent)
@@ -118,6 +241,7 @@ MainWindow::MainWindow(bool guestMode, const QString& accountName, QWidget *pare
 
     connect(m_marketData, &MarketDataSimulator::dataUpdated, this, &MainWindow::onMarketDataUpdated);
     connect(m_marketData, &MarketDataSimulator::intradayDataUpdated, this, &MainWindow::onIntradayDataUpdated);
+    connect(m_marketData, &MarketDataSimulator::fallbackIntradayDataUsed, this, &MainWindow::onFallbackIntradayDataUsed);
     connect(m_marketData, &MarketDataSimulator::errorOccurred, this, &MainWindow::onMarketDataError);
     connect(m_strategyMarketData, &MarketDataSimulator::dataUpdated, this, &MainWindow::onStrategyMarketDataUpdated);
     connect(m_strategyMarketData, &MarketDataSimulator::intradayDataUpdated, this, &MainWindow::onStrategyIntradayDataUpdated);
@@ -321,6 +445,14 @@ void MainWindow::onIntradayDataUpdated(const QVector<MarketData>& data)
     ui->chartPanel->updateIntradayData(data);
 }
 
+void MainWindow::onFallbackIntradayDataUsed(const QString& symbol, const QString& reason)
+{
+    const QString detail = reason.isEmpty() ? QStringLiteral("分时接口未返回可用数据") : reason;
+    ui->strategyPanel->addSystemLog(
+        QStringLiteral("离线分时行情获取失败，已使用 %1 的开盘/最高/最低/收盘 4 点摘要兜底绘图；这不是完整分时行情。原因：%2")
+            .arg(symbol, detail));
+}
+
 void MainWindow::onStrategyMarketDataUpdated(const MarketData& data)
 {
     m_lastStrategyMarketData = data;
@@ -407,9 +539,9 @@ void MainWindow::onStrategyMarketDataError(const QString& message)
     ui->statusbar->showMessage(message, 5000);
     if (m_isRunning) {
         ui->strategyPanel->addSystemLog(QStringLiteral("策略行情错误：%1").arg(message));
-        QMessageBox::warning(this,
-                             QStringLiteral("策略已停止"),
-                             QStringLiteral("未获取到可用于策略执行的实时行情。\n\n%1").arg(message));
+        showThemedWarning(this,
+                          QStringLiteral("策略已停止"),
+                          QStringLiteral("未获取到可用于策略执行的实时行情。\n\n%1").arg(message));
         onStopStrategy();
     }
 }
@@ -857,7 +989,7 @@ void MainWindow::onStartStrategy()
 
     if (!MarketDataSimulator::isAShareContinuousTradingTime()) {
         const QString message = QStringLiteral("当前未处于 A 股连续竞价时段。\n\n策略只能在交易日 09:30-11:30、13:00-15:00 使用实时行情运行；收盘后主图可以查看最近可用交易日行情，但不能启动策略。");
-        QMessageBox::warning(this, QStringLiteral("不能启动策略"), message);
+        showThemedWarning(this, QStringLiteral("不能启动策略"), message);
         ui->strategyPanel->addSystemLog(message);
         ui->statusbar->showMessage(QStringLiteral("未开盘，不能执行策略"), 4000);
         return;

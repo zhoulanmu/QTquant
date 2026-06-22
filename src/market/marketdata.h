@@ -55,6 +55,7 @@ class MarketDataSimulator : public QObject
 signals:
     void dataUpdated(const MarketData& data);
     void intradayDataUpdated(const QVector<MarketData>& data);
+    void fallbackIntradayDataUsed(const QString& symbol, const QString& reason);
     void errorOccurred(const QString& message);
 
 public:
@@ -79,6 +80,7 @@ private:
     void fetchIntradayTrend();
     QUrl buildQuoteUrl() const;
     QUrl buildTrendUrl() const;
+    bool emitQuoteFallbackTrend(const QString& reason);
     bool parseQuoteResponse(const QByteArray& payload, MarketData* data, QString* errorMessage) const;
     bool parseTrendResponse(const QByteArray& payload, QVector<MarketData>* points, QString* errorMessage) const;
     static QString secIdForSymbol(const QString& symbol);
@@ -93,6 +95,10 @@ private:
     QNetworkAccessManager* m_network;
     QNetworkReply* m_activeReply;
     QNetworkReply* m_trendReply;
+    MarketData m_lastQuoteData;
+    bool m_hasLastQuoteData;
+    QString m_pendingTrendFallbackReason;
+    bool m_isUsingQuoteFallbackTrend;
     MarketDataFeedMode m_feedMode;
     bool m_isRunning;
 };

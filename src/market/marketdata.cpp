@@ -21,8 +21,43 @@ constexpr auto EastMoneyUt = "fa5fd1943c7b386f172d6893dbfba10b";
 constexpr auto EastMoneyFields = "f43,f44,f45,f46,f47,f48,f57,f58,f60,f169,f170";
 constexpr auto TrendFields1 = "f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13";
 constexpr auto TrendFields2 = "f51,f52,f53,f54,f55,f56,f57,f58";
-}
 
+QVector<MarketData> quoteSummaryTrend(const MarketData& quote)
+{
+    QVector<MarketData> points;
+    if (quote.close <= 0.0 || !quote.timestamp.isValid()) {
+        return points;
+    }
+
+    const QDate date = quote.timestamp.date();
+    const double open = quote.open > 0.0 ? quote.open : quote.close;
+    const double close = quote.close;
+    const double high = quote.high > 0.0 ? qMax(quote.high, qMax(open, close)) : qMax(open, close);
+    const double low = quote.low > 0.0 ? qMin(quote.low, qMin(open, close)) : qMin(open, close);
+    const double averagePrice = quote.averagePrice > 0.0 ? quote.averagePrice : close;
+
+    const bool closeAboveOpen = close >= open;
+    const QList<QPair<QTime, double>> summary = {
+        {QTime(9, 30), open},
+        {QTime(10, 30), closeAboveOpen ? low : high},
+        {QTime(14, 0), closeAboveOpen ? high : low},
+        {QTime(15, 0), close}
+    };
+
+    for (const auto& item : summary) {
+        MarketData point = quote;
+        point.timestamp = QDateTime(date, item.first);
+        point.open = item.second;
+        point.high = item.second;
+        point.low = item.second;
+        point.close = item.second;
+        point.averagePrice = averagePrice;
+        points.append(point);
+    }
+
+    return points;
+}
+}
 MarketDataSimulator::MarketDataSimulator(QObject *parent)
     : QObject(parent)
     , m_timer(new QTimer(this))
@@ -33,6 +68,10 @@ MarketDataSimulator::MarketDataSimulator(QObject *parent)
     , m_network(new QNetworkAccessManager(this))
     , m_activeReply(nullptr)
     , m_trendReply(nullptr)
+    , m_lastQuoteData()
+    , m_hasLastQuoteData(false)
+    , m_pendingTrendFallbackReason()
+    , m_isUsingQuoteFallbackTrend(false)
     , m_feedMode(MarketDataFeedMode::QuoteAndTrend)
     , m_isRunning(false)
 {
@@ -97,6 +136,9 @@ void MarketDataSimulator::setSymbol(const QString &symbol)
     m_symbol = normalized;
     m_secid = secid;
     m_lastPrice = 0.0;
+    m_hasLastQuoteData = false;
+    m_pendingTrendFallbackReason.clear();
+    m_isUsingQuoteFallbackTrend = false;
 
     if (m_activeReply) {
         disconnect(m_activeReply, nullptr, this, nullptr);
@@ -124,6 +166,8 @@ void MarketDataSimulator::setFeedMode(MarketDataFeedMode mode)
     }
 
     m_feedMode = mode;
+    m_pendingTrendFallbackReason.clear();
+    m_isUsingQuoteFallbackTrend = false;
     if (m_isRunning) {
         generateNewData();
     }
@@ -216,9 +260,8 @@ void MarketDataSimulator::generateNewData()
         fetchIntradayTrend();
         break;
     case MarketDataFeedMode::QuoteWhenOpenTrendWhenClosed:
-        if (marketOpen) {
-            fetchLatestQuote();
-        } else {
+        fetchLatestQuote();
+        if (!marketOpen) {
             fetchIntradayTrend();
         }
         break;
@@ -293,8 +336,19 @@ void MarketDataSimulator::onQuoteReplyFinished()
     QString parseError;
     if (parseQuoteResponse(payload, &data, &parseError)) {
         m_lastPrice = data.close;
+        m_lastQuoteData = data;
+        m_hasLastQuoteData = true;
         m_lastSuccessfulDataAt = QDateTime::currentDateTime();
         emit dataUpdated(data);
+        if (m_feedMode == MarketDataFeedMode::QuoteWhenOpenTrendWhenClosed
+            && isAShareContinuousTradingTime()) {
+            m_pendingTrendFallbackReason.clear();
+            m_isUsingQuoteFallbackTrend = false;
+        }
+        if (!m_pendingTrendFallbackReason.isEmpty()) {
+            const QString pendingReason = m_pendingTrendFallbackReason;
+            emitQuoteFallbackTrend(pendingReason);
+        }
         return;
     }
 
@@ -339,15 +393,39 @@ void MarketDataSimulator::onTrendReplyFinished()
     if (parseTrendResponse(payload, &points, &parseError)) {
         if (!points.isEmpty()) {
             m_lastSuccessfulDataAt = QDateTime::currentDateTime();
+            m_pendingTrendFallbackReason.clear();
+            m_isUsingQuoteFallbackTrend = false;
             emit intradayDataUpdated(points);
         }
         return;
     }
 
-    if (networkError == QNetworkReply::OperationCanceledError
+    const bool connectionClosed = networkError == QNetworkReply::OperationCanceledError
         || networkError == QNetworkReply::RemoteHostClosedError
         || networkErrorText.contains(QStringLiteral("Operation canceled"), Qt::CaseInsensitive)
-        || networkErrorText.contains(QStringLiteral("Connection closed"), Qt::CaseInsensitive)) {
+        || networkErrorText.contains(QStringLiteral("Connection closed"), Qt::CaseInsensitive);
+
+    QString failureReason;
+    if (networkError != QNetworkReply::NoError) {
+        failureReason = QStringLiteral("Market trend request failed: %1").arg(networkErrorText);
+    } else {
+        failureReason = parseError;
+    }
+    if (failureReason.isEmpty()) {
+        failureReason = QStringLiteral("Market trend returned no usable data for %1").arg(m_symbol);
+    }
+
+    if (emitQuoteFallbackTrend(failureReason)) {
+        return;
+    }
+    if (m_feedMode == MarketDataFeedMode::QuoteWhenOpenTrendWhenClosed
+        && !isAShareContinuousTradingTime()
+        && m_activeReply) {
+        m_pendingTrendFallbackReason = failureReason;
+        return;
+    }
+
+    if (connectionClosed) {
         return;
     }
 
@@ -357,11 +435,11 @@ void MarketDataSimulator::onTrendReplyFinished()
     }
 
     if (networkError != QNetworkReply::NoError) {
-        emit errorOccurred(QStringLiteral("Market trend request failed: %1").arg(networkErrorText));
+        emit errorOccurred(failureReason);
         return;
     }
 
-    emit errorOccurred(parseError);
+    emit errorOccurred(failureReason);
 }
 
 QUrl MarketDataSimulator::buildQuoteUrl() const
@@ -390,6 +468,38 @@ QUrl MarketDataSimulator::buildTrendUrl() const
     query.addQueryItem(QStringLiteral("iscca"), QStringLiteral("0"));
     url.setQuery(query);
     return url;
+}
+
+bool MarketDataSimulator::emitQuoteFallbackTrend(const QString& reason)
+{
+    if (m_feedMode != MarketDataFeedMode::QuoteWhenOpenTrendWhenClosed
+        || isAShareContinuousTradingTime()) {
+        m_pendingTrendFallbackReason.clear();
+        m_isUsingQuoteFallbackTrend = false;
+        return false;
+    }
+
+    const QString fallbackReason = reason.isEmpty()
+        ? QStringLiteral("分时接口未返回可用数据")
+        : reason;
+    if (!m_hasLastQuoteData) {
+        m_pendingTrendFallbackReason = fallbackReason;
+        return false;
+    }
+
+    const QVector<MarketData> fallbackPoints = quoteSummaryTrend(m_lastQuoteData);
+    if (fallbackPoints.isEmpty()) {
+        m_pendingTrendFallbackReason = fallbackReason;
+        return false;
+    }
+
+    m_pendingTrendFallbackReason.clear();
+    emit intradayDataUpdated(fallbackPoints);
+    if (!m_isUsingQuoteFallbackTrend) {
+        m_isUsingQuoteFallbackTrend = true;
+        emit fallbackIntradayDataUsed(m_symbol, fallbackReason);
+    }
+    return true;
 }
 
 bool MarketDataSimulator::parseQuoteResponse(const QByteArray& payload, MarketData* data, QString* errorMessage) const
