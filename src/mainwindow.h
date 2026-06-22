@@ -5,10 +5,10 @@
 #include <QString>
 #include "market/marketdata.h"
 #include "strategy/strategybase.h"
-#include "strategy/movingaveragestrategy.h"
 #include "ui/accountpanel.h"
 #include "ui/statisticspanel.h"
 #include "ui/signalsignalpanel.h"
+#include "ui/newspanel.h"
 
 class QTabWidget;
 class QWidget;
@@ -29,10 +29,14 @@ private slots:
     void onMarketDataUpdated(const MarketData& data);
     void onIntradayDataUpdated(const QVector<MarketData>& data);
     void onMarketDataError(const QString& message);
+    void onStrategyMarketDataUpdated(const MarketData& data);
+    void onStrategyIntradayDataUpdated(const QVector<MarketData>& data);
+    void onStrategyMarketDataError(const QString& message);
     void onStrategySignal(const StrategySignal& signal);
     void onStartStrategy();
     void onStopStrategy();
     void onUpdateParameters();
+    void onViewSymbolChanged(const QString& symbol);
 
 private:
     void updateAccountInfo();
@@ -42,14 +46,19 @@ private:
     QWidget* createStrategyTab();
     QWidget* createPersonalTab();
     QWidget* createNewsTab();
+    void configureStrategy(const StrategyConfig& config);
+    void updateSignalIndicators();
 
 private:
     Ui::MainWindow *ui;
     MarketDataSimulator* m_marketData;
-    MovingAverageStrategy* m_strategy;
+    MarketDataSimulator* m_strategyMarketData;
+    StrategyBase* m_strategy;
+    StrategyType m_activeStrategyType;
     AccountPanel* m_accountPanel;
     StatisticsPanel* m_statisticsPanel;
     SignalPanel* m_signalPanel;
+    NewsPanel* m_newsPanel;
     QTabWidget* m_mainTabs;
     bool m_isRunning;
 
@@ -59,6 +68,9 @@ private:
     double m_currentPrice;
     MarketData m_lastMarketData;
     bool m_hasLastMarketData;
+    MarketData m_lastStrategyMarketData;
+    bool m_hasLastStrategyMarketData;
+    QVector<MarketData> m_indicatorHistory;
     bool m_guestMode;
     QString m_accountName;
 };

@@ -15,6 +15,7 @@ public:
     explicit SignalPanel(QWidget *parent = nullptr);
     ~SignalPanel() override = default;
 
+    void clearIndicators();
     void updateIndicators(double rsi, double macd, double bollUpper, double bollLower, double currentPrice);
     void addSignal(const QString& time, const QString& type, const QString& indicator, double value);
 

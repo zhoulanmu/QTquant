@@ -42,6 +42,8 @@ add_executable(StarQuant WIN32
     src/strategy/strategybase.h
     src/strategy/movingaveragestrategy.cpp
     src/strategy/movingaveragestrategy.h
+    src/strategy/prosperitygrowthstrategy.cpp
+    src/strategy/prosperitygrowthstrategy.h
     src/ui/strategypanel.cpp
     src/ui/strategypanel.h
     src/ui/strategypanel.ui
@@ -60,6 +62,8 @@ add_executable(StarQuant WIN32
     src/ui/statisticspanel.h
     src/ui/signalsignalpanel.cpp
     src/ui/signalsignalpanel.h
+    src/ui/newspanel.cpp
+    src/ui/newspanel.h
     src/ui/logindialog.cpp
     src/ui/logindialog.h
     src/ui/logindialog.ui

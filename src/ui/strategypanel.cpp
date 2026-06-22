@@ -127,10 +127,14 @@ StrategyPanel::StrategyPanel(QWidget *parent) :
     QWidget(parent),
     ui(new Ui::StrategyPanel),
     m_symbolCompleter(nullptr),
+    m_strategySymbolCompleter(nullptr),
     m_searchModel(nullptr),
+    m_strategySearchModel(nullptr),
     m_searchTimer(nullptr),
     m_searchNetwork(nullptr),
     m_searchReply(nullptr),
+    m_strategySymbolEdit(nullptr),
+    m_activeSearchEdit(nullptr),
     m_strategyPresetCombo(nullptr),
     m_strategyPresetDescLabel(nullptr),
     m_applyStrategyPresetBtn(nullptr),
@@ -158,6 +162,9 @@ StrategyPanel::StrategyPanel(QWidget *parent) :
     m_updatingSymbol(false)
 {
     ui->setupUi(this);
+    ui->groupBox->setTitle(QStringLiteral("基本交易参数"));
+    ui->groupBox->setMinimumHeight(170);
+    ui->groupBox->setMaximumHeight(230);
     ui->logTextEdit->setReadOnly(true);
 
     ui->label->setBuddy(nullptr);
@@ -170,6 +177,8 @@ StrategyPanel::StrategyPanel(QWidget *parent) :
     setupCommonStrategyUi();
     setupStockSearchUi();
     loadWatchlist();
+    loadViewSymbol();
+    loadStrategySymbol();
     updateSearchSuggestions(ui->symbolEdit->text());
     addSystemLog(QStringLiteral("行情连接中，等待策略启动。"));
 
@@ -192,8 +201,62 @@ StrategyPanel::~StrategyPanel()
 
 QString StrategyPanel::getSymbol() const
 {
+    return getStrategySymbol();
+}
+
+QString StrategyPanel::getViewSymbol() const
+{
     const QString resolved = resolveSymbolText(ui->symbolEdit->text());
     return resolved.isEmpty() ? ui->symbolEdit->text().trimmed() : resolved;
+}
+
+QString StrategyPanel::getStrategySymbol() const
+{
+    if (!m_strategySymbolEdit) {
+        return getViewSymbol();
+    }
+
+    const QString resolved = resolveSymbolText(m_strategySymbolEdit->text());
+    return resolved.isEmpty() ? m_strategySymbolEdit->text().trimmed() : resolved;
+}
+
+StrategyConfig StrategyPanel::strategyConfig() const
+{
+    StrategyConfig config;
+    const int index = m_strategyPresetCombo ? m_strategyPresetCombo->currentIndex() : 0;
+    config.strategyType = strategyKindAt(index) == StrategyKind::ProsperityGrowth
+        ? StrategyType::ProsperityGrowth
+        : StrategyType::DoubleMA;
+    config.symbol = MarketDataSimulator::normalizeSymbol(getStrategySymbol());
+
+    config.doubleMAConfig.fastMA = getFastMA();
+    config.doubleMAConfig.slowMA = getSlowMA();
+
+    config.riskConfig.stopLossPercent = getStopLossPercent();
+    config.riskConfig.takeProfitPercent = getTakeProfitPercent();
+    config.riskConfig.surgeTakeProfitPercent = m_surgeTakeProfitSpin ? m_surgeTakeProfitSpin->value() : 25.0;
+    config.riskConfig.partialTakeProfitEnabled = !m_partialTakeProfitCheck || m_partialTakeProfitCheck->isChecked();
+    config.riskConfig.breakMA60VolumeStopEnabled = !m_breakMA60VolumeStopCheck || m_breakMA60VolumeStopCheck->isChecked();
+
+    config.positionConfig.lotSize = getLotSize();
+    config.positionConfig.maxSingleTrackPercent = m_sectorCapSpin ? m_sectorCapSpin->value() : 20.0;
+    config.positionConfig.diversifyTrackCount = m_diversifyMainlineSpin ? m_diversifyMainlineSpin->value() : 3;
+
+    for (QCheckBox* check : m_growthTrackChecks) {
+        if (check && check->isChecked()) {
+            config.growthBuyConfig.enabledTracks.append(check->text());
+        }
+    }
+    config.growthBuyConfig.requireMA60Up = !m_ma60UpCheck || m_ma60UpCheck->isChecked();
+    config.growthBuyConfig.requireVolumePullback = !m_volumePullbackCheck || m_volumePullbackCheck->isChecked();
+    config.growthBuyConfig.requirePullbackToMA20OrMA60 = !m_volumePullbackCheck || m_volumePullbackCheck->isChecked();
+    config.growthBuyConfig.profitGrowthConfirmed = m_profitGrowthCheck && m_profitGrowthCheck->isChecked();
+    config.growthBuyConfig.orderLandingConfirmed = m_orderLandingCheck && m_orderLandingCheck->isChecked();
+    config.growthBuyConfig.noPureConceptConfirmed = m_noPureConceptCheck && m_noPureConceptCheck->isChecked();
+    config.growthBuyConfig.pullbackMinDays = m_pullbackMinSpin ? m_pullbackMinSpin->value() : 3;
+    config.growthBuyConfig.pullbackMaxDays = m_pullbackMaxSpin ? m_pullbackMaxSpin->value() : 5;
+
+    return config;
 }
 
 int StrategyPanel::getFastMA() const
@@ -233,31 +296,40 @@ QString StrategyPanel::currentStrategyName() const
 
 QString StrategyPanel::currentStrategyConfigurationSummary() const
 {
-    if (strategyKindAt(m_strategyPresetCombo ? m_strategyPresetCombo->currentIndex() : 0) == StrategyKind::ProsperityGrowth) {
-        return QStringLiteral("%1；主线：%2；板块回调 %3-%4 天；单赛道≤%5%；分散 %6 条主线；短期涨幅≥%7% 分批止盈；放量跌破60日线止损。")
+    const StrategyConfig config = strategyConfig();
+    if (config.strategyType == StrategyType::ProsperityGrowth) {
+        return QStringLiteral("%1；策略标的:%2；主线:%3；自动项:60日线%4、缩量回踩%5、回调窗口%6-%7；人工确认:利润%8、订单%9、剔除纯概念%10；单赛道≤%11%；分散%12条主线；短期涨幅≥%13%分批止盈。")
             .arg(currentStrategyName(),
-                 selectedGrowthTracks())
-            .arg(m_pullbackMinSpin ? m_pullbackMinSpin->value() : 3)
-            .arg(m_pullbackMaxSpin ? m_pullbackMaxSpin->value() : 5)
-            .arg(m_sectorCapSpin ? m_sectorCapSpin->value() : 20.0, 0, 'f', 1)
-            .arg(m_diversifyMainlineSpin ? m_diversifyMainlineSpin->value() : 3)
-            .arg(m_surgeTakeProfitSpin ? m_surgeTakeProfitSpin->value() : 25.0, 0, 'f', 1);
+                 config.symbol,
+                 selectedGrowthTracks(),
+                 config.growthBuyConfig.requireMA60Up ? QStringLiteral("启用") : QStringLiteral("关闭"),
+                 config.growthBuyConfig.requireVolumePullback ? QStringLiteral("启用") : QStringLiteral("关闭"))
+            .arg(config.growthBuyConfig.pullbackMinDays)
+            .arg(config.growthBuyConfig.pullbackMaxDays)
+            .arg(config.growthBuyConfig.profitGrowthConfirmed ? QStringLiteral("已确认") : QStringLiteral("未确认"),
+                 config.growthBuyConfig.orderLandingConfirmed ? QStringLiteral("已确认") : QStringLiteral("未确认"),
+                 config.growthBuyConfig.noPureConceptConfirmed ? QStringLiteral("已确认") : QStringLiteral("未确认"))
+            .arg(config.positionConfig.maxSingleTrackPercent, 0, 'f', 1)
+            .arg(config.positionConfig.diversifyTrackCount)
+            .arg(config.riskConfig.surgeTakeProfitPercent, 0, 'f', 1);
     }
 
-    return QStringLiteral("%1；快MA:%2 慢MA:%3 止损:%4% 止盈:%5% 单笔数量:%6。")
-        .arg(currentStrategyName())
-        .arg(getFastMA())
-        .arg(getSlowMA())
-        .arg(getStopLossPercent(), 0, 'f', 1)
-        .arg(getTakeProfitPercent(), 0, 'f', 1)
-        .arg(getLotSize(), 0, 'f', 0);
+    return QStringLiteral("%1；策略标的:%2；快MA:%3 慢MA:%4 止损:%5% 止盈:%6% 单笔数量:%7。")
+        .arg(currentStrategyName(), config.symbol)
+        .arg(config.doubleMAConfig.fastMA)
+        .arg(config.doubleMAConfig.slowMA)
+        .arg(config.riskConfig.stopLossPercent, 0, 'f', 1)
+        .arg(config.riskConfig.takeProfitPercent, 0, 'f', 1)
+        .arg(config.positionConfig.lotSize, 0, 'f', 0);
 }
-
 void StrategyPanel::setRunningState(bool running)
 {
     ui->startBtn->setEnabled(!running);
     ui->stopBtn->setEnabled(running);
     ui->symbolEdit->setEnabled(true);
+    if (m_strategySymbolEdit) {
+        m_strategySymbolEdit->setEnabled(!running);
+    }
     ui->fastMASpin->setEnabled(!running);
     ui->slowMASpin->setEnabled(!running);
     ui->stopLossSpin->setEnabled(!running);
@@ -368,6 +440,13 @@ void StrategyPanel::rememberStockName(const QString& symbol, const QString& name
     }
 
     m_stockNames[normalized] = name.trimmed();
+    if (MarketDataSimulator::normalizeSymbol(getViewSymbol()) == normalized) {
+        saveViewSymbol();
+    }
+    if (MarketDataSimulator::normalizeSymbol(getStrategySymbol()) == normalized) {
+        saveStrategySymbol();
+    }
+
     if (m_favorites.contains(normalized)) {
         refreshWatchlist();
         saveWatchlist();
@@ -381,10 +460,28 @@ void StrategyPanel::setupCommonStrategyUi()
     presetLayout->setContentsMargins(10, 12, 10, 10);
     presetLayout->setSpacing(8);
 
+    auto* strategySymbolWidget = new QWidget(presetGroup);
+    auto* strategySymbolLayout = new QHBoxLayout(strategySymbolWidget);
+    strategySymbolLayout->setContentsMargins(0, 0, 0, 0);
+    strategySymbolLayout->setSpacing(8);
+    auto* strategySymbolLabel = new QLabel(QStringLiteral("策略标的"), strategySymbolWidget);
+    m_strategySymbolEdit = new QLineEdit(strategySymbolWidget);
+    m_strategySymbolEdit->setPlaceholderText(QStringLiteral("代码 / 名称 / 拼音"));
+    m_strategySymbolEdit->setText(ui->symbolEdit->text());
+    strategySymbolLayout->addWidget(strategySymbolLabel);
+    strategySymbolLayout->addWidget(m_strategySymbolEdit, 1);
+    presetLayout->addWidget(strategySymbolWidget);
+
     m_strategyPresetCombo = new QComboBox(presetGroup);
     const QVector<StrategyPreset> presets = commonStrategyPresets();
     for (const auto& preset : presets) {
         m_strategyPresetCombo->addItem(preset.name);
+    }
+
+    QSettings settings(QStringLiteral("StarQuant"), QStringLiteral("StarQuant"));
+    const int savedType = settings.value(QStringLiteral("strategy/currentType"), 0).toInt();
+    if (savedType >= 0 && savedType < presets.size()) {
+        m_strategyPresetCombo->setCurrentIndex(savedType);
     }
 
     m_strategyPresetDescLabel = new QLabel(presetGroup);
@@ -396,18 +493,25 @@ void StrategyPanel::setupCommonStrategyUi()
     presetLayout->addWidget(m_strategyPresetCombo);
     presetLayout->addWidget(m_strategyPresetDescLabel);
     presetLayout->addWidget(m_applyStrategyPresetBtn);
-    ui->verticalLayout_4->insertWidget(1, presetGroup);
+    presetGroup->setMinimumHeight(190);
+    presetGroup->setMaximumHeight(260);
+
+    ui->verticalLayout_4->removeWidget(ui->groupBox);
+    ui->verticalLayout_4->insertWidget(0, presetGroup);
+    ui->verticalLayout_4->insertWidget(1, ui->groupBox);
 
     setupCurrentStrategyConfigUi();
+    ui->verticalLayout_4->setStretch(0, 0);
+    ui->verticalLayout_4->setStretch(1, 0);
+    ui->verticalLayout_4->setStretch(2, 1);
 
     connect(m_strategyPresetCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &StrategyPanel::onStrategyPresetChanged);
     connect(m_applyStrategyPresetBtn, &QPushButton::clicked,
             this, &StrategyPanel::onApplyStrategyPresetClicked);
 
-    onStrategyPresetChanged(0);
+    onStrategyPresetChanged(m_strategyPresetCombo->currentIndex());
 }
-
 void StrategyPanel::setupCurrentStrategyConfigUi()
 {
     m_strategyConfigGroup = new QGroupBox(QStringLiteral("当前策略配置"), this);
@@ -419,7 +523,40 @@ void StrategyPanel::setupCurrentStrategyConfigUi()
     m_strategyConfigHintLabel->setWordWrap(true);
     configLayout->addWidget(m_strategyConfigHintLabel);
 
-    auto* trackGroup = new QGroupBox(QStringLiteral("适配主线"), m_strategyConfigGroup);
+    auto* autoGroup = new QGroupBox(QStringLiteral("可自动判断"), m_strategyConfigGroup);
+    auto* autoLayout = new QVBoxLayout(autoGroup);
+    m_ma60UpCheck = new QCheckBox(QStringLiteral("启用：60 日均线持续向上"), autoGroup);
+    m_volumePullbackCheck = new QCheckBox(QStringLiteral("启用：缩量回踩 20/60 日线"), autoGroup);
+    m_ma60UpCheck->setChecked(true);
+    m_volumePullbackCheck->setChecked(true);
+    autoLayout->addWidget(m_ma60UpCheck);
+    autoLayout->addWidget(m_volumePullbackCheck);
+    auto* autoHint = new QLabel(QStringLiteral("自动诊断还包括：板块连续回调窗口、短期涨幅止盈线、放量跌破 60 日线。当前先使用实时行情近似，接入日线/板块数据后会升级为日线判断。"), autoGroup);
+    autoHint->setWordWrap(true);
+    autoLayout->addWidget(autoHint);
+    configLayout->addWidget(autoGroup);
+    m_growthConfigWidgets.append(autoGroup);
+
+    auto* dataGroup = new QGroupBox(QStringLiteral("需要数据源 / 人工确认"), m_strategyConfigGroup);
+    auto* dataLayout = new QVBoxLayout(dataGroup);
+    m_profitGrowthCheck = new QCheckBox(QStringLiteral("人工确认：季度净利润增速为正"), dataGroup);
+    m_orderLandingCheck = new QCheckBox(QStringLiteral("人工确认：有落地订单"), dataGroup);
+    m_noPureConceptCheck = new QCheckBox(QStringLiteral("人工确认：剔除纯概念无业绩标的"), dataGroup);
+    for (QCheckBox* check : {m_profitGrowthCheck, m_orderLandingCheck, m_noPureConceptCheck}) {
+        check->setChecked(true);
+        dataLayout->addWidget(check);
+        connect(check, &QCheckBox::toggled, this, &StrategyPanel::onStrategyConfigChanged);
+    }
+    auto* dataHint = new QLabel(QStringLiteral("所属赛道识别、财报和公告语义当前尚未接入数据源；以上勾选代表用户已人工确认，后续可由财报/公告/行业分类自动校验。"), dataGroup);
+    dataHint->setWordWrap(true);
+    dataLayout->addWidget(dataHint);
+    configLayout->addWidget(dataGroup);
+    m_growthConfigWidgets.append(dataGroup);
+
+    auto* userGroup = new QGroupBox(QStringLiteral("用户配置"), m_strategyConfigGroup);
+    auto* userLayout = new QVBoxLayout(userGroup);
+
+    auto* trackGroup = new QGroupBox(QStringLiteral("适配主线"), userGroup);
     auto* trackLayout = new QGridLayout(trackGroup);
     const QStringList tracks = {
         QStringLiteral("AI 算力"),
@@ -434,24 +571,9 @@ void StrategyPanel::setupCurrentStrategyConfigUi()
         trackLayout->addWidget(check, i / 2, i % 2);
         connect(check, &QCheckBox::toggled, this, &StrategyPanel::onStrategyConfigChanged);
     }
-    configLayout->addWidget(trackGroup);
-    m_growthConfigWidgets.append(trackGroup);
+    userLayout->addWidget(trackGroup);
 
-    auto* conditionGroup = new QGroupBox(QStringLiteral("个股条件"), m_strategyConfigGroup);
-    auto* conditionLayout = new QVBoxLayout(conditionGroup);
-    m_ma60UpCheck = new QCheckBox(QStringLiteral("60 日均线持续向上"), conditionGroup);
-    m_profitGrowthCheck = new QCheckBox(QStringLiteral("季度净利润增速为正"), conditionGroup);
-    m_orderLandingCheck = new QCheckBox(QStringLiteral("有落地订单"), conditionGroup);
-    m_noPureConceptCheck = new QCheckBox(QStringLiteral("剔除纯概念无业绩标的"), conditionGroup);
-    for (QCheckBox* check : {m_ma60UpCheck, m_profitGrowthCheck, m_orderLandingCheck, m_noPureConceptCheck}) {
-        check->setChecked(true);
-        conditionLayout->addWidget(check);
-        connect(check, &QCheckBox::toggled, this, &StrategyPanel::onStrategyConfigChanged);
-    }
-    configLayout->addWidget(conditionGroup);
-    m_growthConfigWidgets.append(conditionGroup);
-
-    auto* ruleGroup = new QGroupBox(QStringLiteral("买点 / 仓位 / 风控"), m_strategyConfigGroup);
+    auto* ruleGroup = new QGroupBox(QStringLiteral("买点 / 仓位 / 风控"), userGroup);
     auto* ruleLayout = new QFormLayout(ruleGroup);
 
     m_pullbackMinSpin = new QSpinBox(ruleGroup);
@@ -465,11 +587,7 @@ void StrategyPanel::setupCurrentStrategyConfigUi()
     pullbackLayout->addWidget(new QLabel(QStringLiteral("至"), ruleGroup));
     pullbackLayout->addWidget(m_pullbackMaxSpin);
     pullbackLayout->addWidget(new QLabel(QStringLiteral("天"), ruleGroup));
-    ruleLayout->addRow(QStringLiteral("板块连续回调"), pullbackLayout);
-
-    m_volumePullbackCheck = new QCheckBox(QStringLiteral("缩量回踩 20/60 日线分批建仓"), ruleGroup);
-    m_volumePullbackCheck->setChecked(true);
-    ruleLayout->addRow(QStringLiteral("买点"), m_volumePullbackCheck);
+    ruleLayout->addRow(QStringLiteral("板块连续回调窗口"), pullbackLayout);
 
     m_sectorCapSpin = new QDoubleSpinBox(ruleGroup);
     m_sectorCapSpin->setRange(5.0, 50.0);
@@ -500,20 +618,22 @@ void StrategyPanel::setupCurrentStrategyConfigUi()
     m_breakMA60VolumeStopCheck->setChecked(true);
     ruleLayout->addRow(QStringLiteral("止损"), m_breakMA60VolumeStopCheck);
 
-    configLayout->addWidget(ruleGroup);
-    m_growthConfigWidgets.append(ruleGroup);
+    userLayout->addWidget(ruleGroup);
+    configLayout->addWidget(userGroup);
+    m_growthConfigWidgets.append(userGroup);
     ui->verticalLayout_4->insertWidget(2, m_strategyConfigGroup);
+    ui->verticalLayout_4->setStretch(2, 1);
 
+    connect(m_ma60UpCheck, &QCheckBox::toggled, this, &StrategyPanel::onStrategyConfigChanged);
+    connect(m_volumePullbackCheck, &QCheckBox::toggled, this, &StrategyPanel::onStrategyConfigChanged);
     connect(m_pullbackMinSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, &StrategyPanel::onStrategyConfigChanged);
     connect(m_pullbackMaxSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, &StrategyPanel::onStrategyConfigChanged);
-    connect(m_volumePullbackCheck, &QCheckBox::toggled, this, &StrategyPanel::onStrategyConfigChanged);
     connect(m_sectorCapSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &StrategyPanel::onStrategyConfigChanged);
     connect(m_diversifyMainlineSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, &StrategyPanel::onStrategyConfigChanged);
     connect(m_surgeTakeProfitSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &StrategyPanel::onStrategyConfigChanged);
     connect(m_partialTakeProfitCheck, &QCheckBox::toggled, this, &StrategyPanel::onStrategyConfigChanged);
     connect(m_breakMA60VolumeStopCheck, &QCheckBox::toggled, this, &StrategyPanel::onStrategyConfigChanged);
 }
-
 void StrategyPanel::updateCurrentStrategyConfigUi()
 {
     const StrategyKind kind = strategyKindAt(m_strategyPresetCombo ? m_strategyPresetCombo->currentIndex() : 0);
@@ -521,8 +641,8 @@ void StrategyPanel::updateCurrentStrategyConfigUi()
 
     if (m_strategyConfigHintLabel) {
         m_strategyConfigHintLabel->setText(growth
-            ? QStringLiteral("该策略以景气主线和业绩验证为前提，技术买点用于分批低吸。季度净利润、落地订单等条件当前作为人工确认项，后续可接入财报/公告数据源自动校验。")
-            : QStringLiteral("双均线策略使用下方基础参数：快 MA、慢 MA、止损、止盈和单笔数量。"));
+            ? QStringLiteral("景气成长策略分为三类：可自动判断、需要数据源/人工确认、用户配置。当前模拟交易使用真实行情，财报、公告和赛道识别先由人工确认。")
+            : QStringLiteral("双均线策略使用统一策略配置中的快 MA、慢 MA、止损、止盈和单笔数量，可直接进行实时模拟交易。"));
     }
 
     if (m_strategyConfigGroup) {
@@ -583,6 +703,19 @@ void StrategyPanel::setupStockSearchUi()
     connect(m_symbolCompleter, QOverload<const QString&>::of(&QCompleter::activated),
             this, &StrategyPanel::onCompleterActivated);
 
+    m_strategySearchModel = new QStringListModel(this);
+    m_strategySymbolCompleter = new QCompleter(m_strategySearchModel, this);
+    m_strategySymbolCompleter->setCaseSensitivity(Qt::CaseInsensitive);
+    m_strategySymbolCompleter->setCompletionMode(QCompleter::PopupCompletion);
+    m_strategySymbolCompleter->setFilterMode(Qt::MatchContains);
+    if (m_strategySymbolEdit) {
+        m_strategySymbolEdit->setCompleter(m_strategySymbolCompleter);
+        connect(m_strategySymbolEdit, &QLineEdit::textChanged, this, &StrategyPanel::onStrategySymbolTextChanged);
+        connect(m_strategySymbolEdit, &QLineEdit::editingFinished, this, &StrategyPanel::onStrategySymbolEditingFinished);
+    }
+    connect(m_strategySymbolCompleter, QOverload<const QString&>::of(&QCompleter::activated),
+            this, &StrategyPanel::onStrategyCompleterActivated);
+
     m_searchTimer = new QTimer(this);
     m_searchTimer->setSingleShot(true);
     m_searchTimer->setInterval(SearchDelayMs);
@@ -618,7 +751,6 @@ void StrategyPanel::setupStockSearchUi()
     connect(m_watchlistWidget, &QListWidget::itemDoubleClicked, this, &StrategyPanel::onFavoriteActivated);
     connect(m_watchlistWidget, &QListWidget::itemSelectionChanged, this, &StrategyPanel::onFavoriteSelectionChanged);
 }
-
 void StrategyPanel::loadWatchlist()
 {
     QSettings settings(QStringLiteral("StarQuant"), QStringLiteral("StarQuant"));
@@ -642,6 +774,90 @@ void StrategyPanel::loadWatchlist()
     refreshWatchlist();
 }
 
+void StrategyPanel::loadViewSymbol()
+{
+    QSettings settings(QStringLiteral("StarQuant"), QStringLiteral("StarQuant"));
+    const QString symbol = MarketDataSimulator::normalizeSymbol(
+        settings.value(QStringLiteral("market/viewSymbol"),
+                       settings.value(QStringLiteral("market/currentSymbol"), ui->symbolEdit->text())).toString());
+    const QString name = settings.value(QStringLiteral("market/viewName"),
+                                        settings.value(QStringLiteral("market/currentName"))).toString().trimmed();
+
+    if (!isValidMarketSymbol(symbol)) {
+        return;
+    }
+
+    if (!name.isEmpty()) {
+        m_stockNames[symbol] = name;
+    }
+
+    selectSymbol(symbol, name, false);
+}
+
+void StrategyPanel::saveViewSymbol() const
+{
+    const QString symbol = MarketDataSimulator::normalizeSymbol(ui->symbolEdit->text());
+    if (!isValidMarketSymbol(symbol)) {
+        return;
+    }
+
+    QSettings settings(QStringLiteral("StarQuant"), QStringLiteral("StarQuant"));
+    settings.setValue(QStringLiteral("market/viewSymbol"), symbol);
+    settings.setValue(QStringLiteral("market/viewName"), stockNameForSymbol(symbol));
+    settings.setValue(QStringLiteral("market/currentSymbol"), symbol);
+    settings.setValue(QStringLiteral("market/currentName"), stockNameForSymbol(symbol));
+    settings.sync();
+}
+
+void StrategyPanel::loadStrategySymbol()
+{
+    if (!m_strategySymbolEdit) {
+        return;
+    }
+
+    QSettings settings(QStringLiteral("StarQuant"), QStringLiteral("StarQuant"));
+    const QString symbol = MarketDataSimulator::normalizeSymbol(
+        settings.value(QStringLiteral("strategy/currentSymbol"), getViewSymbol()).toString());
+    const QString name = settings.value(QStringLiteral("strategy/currentName")).toString().trimmed();
+
+    if (!isValidMarketSymbol(symbol)) {
+        return;
+    }
+
+    if (!name.isEmpty()) {
+        m_stockNames[symbol] = name;
+    }
+
+    selectStrategySymbol(symbol, name, false);
+}
+
+void StrategyPanel::saveStrategySymbol() const
+{
+    if (!m_strategySymbolEdit) {
+        return;
+    }
+
+    const QString symbol = MarketDataSimulator::normalizeSymbol(m_strategySymbolEdit->text());
+    if (!isValidMarketSymbol(symbol)) {
+        return;
+    }
+
+    QSettings settings(QStringLiteral("StarQuant"), QStringLiteral("StarQuant"));
+    settings.setValue(QStringLiteral("strategy/currentSymbol"), symbol);
+    settings.setValue(QStringLiteral("strategy/currentName"), stockNameForSymbol(symbol));
+    settings.sync();
+}
+
+void StrategyPanel::saveCurrentStrategyType() const
+{
+    if (!m_strategyPresetCombo) {
+        return;
+    }
+
+    QSettings settings(QStringLiteral("StarQuant"), QStringLiteral("StarQuant"));
+    settings.setValue(QStringLiteral("strategy/currentType"), m_strategyPresetCombo->currentIndex());
+    settings.sync();
+}
 void StrategyPanel::saveWatchlist() const
 {
     QStringList entries;
@@ -687,12 +903,38 @@ void StrategyPanel::selectSymbol(const QString& symbol, const QString& name, boo
     ui->symbolEdit->setText(normalized);
     updateSearchSuggestions(normalized);
     m_updatingSymbol = false;
+    saveViewSymbol();
+
+    if (emitChange) {
+        emit viewSymbolChanged(normalized);
+    }
+}
+
+void StrategyPanel::selectStrategySymbol(const QString& symbol, const QString& name, bool emitChange)
+{
+    if (!m_strategySymbolEdit) {
+        return;
+    }
+
+    const QString normalized = MarketDataSimulator::normalizeSymbol(symbol);
+    if (!isValidMarketSymbol(normalized)) {
+        return;
+    }
+
+    if (!name.trimmed().isEmpty()) {
+        m_stockNames[normalized] = name.trimmed();
+    }
+
+    m_updatingSymbol = true;
+    m_strategySymbolEdit->setText(normalized);
+    updateSearchSuggestions(normalized);
+    m_updatingSymbol = false;
+    saveStrategySymbol();
 
     if (emitChange) {
         emit parametersChanged();
     }
 }
-
 void StrategyPanel::addFavoriteSymbol(const QString& symbol, const QString& name)
 {
     const QString normalized = MarketDataSimulator::normalizeSymbol(symbol);
@@ -890,8 +1132,16 @@ void StrategyPanel::showSearchCandidates(const QVector<StockCandidate>& candidat
     }
 
     m_searchModel->setStringList(displays);
-    if (!m_updatingSymbol && ui->symbolEdit->hasFocus() && !displays.isEmpty()) {
-        m_symbolCompleter->complete();
+    if (m_strategySearchModel) {
+        m_strategySearchModel->setStringList(displays);
+    }
+
+    if (!m_updatingSymbol && !displays.isEmpty()) {
+        if (ui->symbolEdit->hasFocus()) {
+            m_symbolCompleter->complete();
+        } else if (m_strategySymbolEdit && m_strategySymbolEdit->hasFocus() && m_strategySymbolCompleter) {
+            m_strategySymbolCompleter->complete();
+        }
     }
 }
 
@@ -1006,6 +1256,7 @@ void StrategyPanel::onSymbolTextChanged(const QString& text)
         return;
     }
 
+    m_activeSearchEdit = ui->symbolEdit;
     updateSearchSuggestions(text);
 
     const QString trimmed = text.trimmed();
@@ -1026,9 +1277,40 @@ void StrategyPanel::onSymbolEditingFinished()
     }
 }
 
+void StrategyPanel::onStrategySymbolTextChanged(const QString& text)
+{
+    if (m_updatingSymbol) {
+        return;
+    }
+
+    m_activeSearchEdit = m_strategySymbolEdit;
+    updateSearchSuggestions(text);
+
+    const QString trimmed = text.trimmed();
+    if (trimmed.isEmpty()) {
+        return;
+    }
+
+    if (trimmed.size() >= 2 || containsChinese(trimmed)) {
+        m_searchTimer->start();
+    }
+}
+
+void StrategyPanel::onStrategySymbolEditingFinished()
+{
+    if (!m_strategySymbolEdit) {
+        return;
+    }
+
+    const QString symbol = resolveSymbolText(m_strategySymbolEdit->text());
+    if (isValidMarketSymbol(symbol)) {
+        selectStrategySymbol(symbol, stockNameForSymbol(symbol), true);
+    }
+}
 void StrategyPanel::onSearchTimerTimeout()
 {
-    const QString keyword = ui->symbolEdit->text().trimmed();
+    QLineEdit* sourceEdit = m_activeSearchEdit ? m_activeSearchEdit : ui->symbolEdit;
+    const QString keyword = sourceEdit->text().trimmed();
     if (keyword.size() < 2 && !containsChinese(keyword)) {
         return;
     }
@@ -1072,7 +1354,8 @@ void StrategyPanel::onSearchReplyFinished()
         return;
     }
 
-    updateSearchSuggestions(ui->symbolEdit->text(), parseSearchResponse(payload));
+    QLineEdit* sourceEdit = m_activeSearchEdit ? m_activeSearchEdit : ui->symbolEdit;
+    updateSearchSuggestions(sourceEdit->text(), parseSearchResponse(payload));
 }
 
 void StrategyPanel::onCompleterActivated(const QString& text)
@@ -1083,6 +1366,16 @@ void StrategyPanel::onCompleterActivated(const QString& text)
     }
 
     selectSymbol(symbol, stockNameForSymbol(symbol), true);
+}
+
+void StrategyPanel::onStrategyCompleterActivated(const QString& text)
+{
+    const QString symbol = m_completionSymbols.value(text, resolveSymbolText(text));
+    if (!isValidMarketSymbol(symbol)) {
+        return;
+    }
+
+    selectStrategySymbol(symbol, stockNameForSymbol(symbol), true);
 }
 
 void StrategyPanel::onStrategyPresetChanged(int index)
@@ -1102,6 +1395,8 @@ void StrategyPanel::onStrategyPresetChanged(int index)
             .arg(preset.takeProfit, 0, 'f', 1));
 
     updateCurrentStrategyConfigUi();
+    saveCurrentStrategyType();
+    emit parametersChanged();
 }
 
 void StrategyPanel::onApplyStrategyPresetClicked()

@@ -43,6 +43,16 @@ SignalPanel::SignalPanel(QWidget *parent) :
     setLayout(mainLayout);
 }
 
+void SignalPanel::clearIndicators()
+{
+    m_rsiLabel->setText(QStringLiteral("--"));
+    m_rsiLabel->setStyleSheet("");
+    m_macdLabel->setText(QStringLiteral("--"));
+    m_macdLabel->setStyleSheet("");
+    m_bollStatusLabel->setText(QStringLiteral("--"));
+    m_bollStatusLabel->setStyleSheet("");
+}
+
 void SignalPanel::updateIndicators(double rsi, double macd, double bollUpper, double bollLower, double currentPrice)
 {
     m_rsiLabel->setText(QString("%1").arg(rsi, 0, 'f', 1));

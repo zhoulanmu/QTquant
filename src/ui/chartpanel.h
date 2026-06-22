@@ -20,6 +20,7 @@ public:
 
     void updateChartData(const MarketData& data);
     void updateIntradayData(const QVector<MarketData>& data);
+    void clearData();
 
 protected:
     void paintEvent(QPaintEvent* event) override;

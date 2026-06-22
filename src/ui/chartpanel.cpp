@@ -39,6 +39,13 @@ void ChartPanel::paintEvent(QPaintEvent *event)
     painter.drawRoundedRect(frame, 8.0, 8.0);
 }
 
+void ChartPanel::clearData()
+{
+    m_priceHistory.clear();
+    m_minPrice = 0.0;
+    m_maxPrice = 1.0;
+    m_candlestickWidget->updateData(m_priceHistory, m_minPrice, m_maxPrice);
+}
 void ChartPanel::updateChartData(const MarketData &data)
 {
     if (data.close <= 0.0 || !data.timestamp.isValid()) {

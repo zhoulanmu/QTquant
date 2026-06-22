@@ -12,6 +12,7 @@ class QCompleter;
 class QDoubleSpinBox;
 class QGroupBox;
 class QLabel;
+class QLineEdit;
 class QListWidget;
 class QListWidgetItem;
 class QNetworkAccessManager;
@@ -39,12 +40,16 @@ signals:
     void startClicked();
     void stopClicked();
     void parametersChanged();
+    void viewSymbolChanged(const QString& symbol);
 
 public:
     explicit StrategyPanel(QWidget *parent = nullptr);
     ~StrategyPanel();
 
     QString getSymbol() const;
+    QString getViewSymbol() const;
+    QString getStrategySymbol() const;
+    StrategyConfig strategyConfig() const;
     int getFastMA() const;
     int getSlowMA() const;
     double getStopLossPercent() const;
@@ -66,9 +71,12 @@ private slots:
     void on_paramChanged();
     void onSymbolTextChanged(const QString& text);
     void onSymbolEditingFinished();
+    void onStrategySymbolTextChanged(const QString& text);
+    void onStrategySymbolEditingFinished();
     void onSearchTimerTimeout();
     void onSearchReplyFinished();
     void onCompleterActivated(const QString& text);
+    void onStrategyCompleterActivated(const QString& text);
     void onStrategyPresetChanged(int index);
     void onApplyStrategyPresetClicked();
     void onStrategyConfigChanged();
@@ -84,10 +92,16 @@ private:
     void updateCurrentStrategyConfigUi();
     void setGrowthConfigEnabled(bool enabled);
     QString selectedGrowthTracks() const;
+    void loadViewSymbol();
+    void saveViewSymbol() const;
+    void loadStrategySymbol();
+    void saveStrategySymbol() const;
+    void saveCurrentStrategyType() const;
     void loadWatchlist();
     void saveWatchlist() const;
     void refreshWatchlist();
     void selectSymbol(const QString& symbol, const QString& name, bool emitChange);
+    void selectStrategySymbol(const QString& symbol, const QString& name, bool emitChange);
     void addFavoriteSymbol(const QString& symbol, const QString& name);
     QString resolveSymbolText(const QString& text) const;
     QString stockNameForSymbol(const QString& symbol) const;
@@ -105,10 +119,14 @@ private:
 private:
     Ui::StrategyPanel *ui;
     QCompleter* m_symbolCompleter;
+    QCompleter* m_strategySymbolCompleter;
     QStringListModel* m_searchModel;
+    QStringListModel* m_strategySearchModel;
     QTimer* m_searchTimer;
     QNetworkAccessManager* m_searchNetwork;
     QNetworkReply* m_searchReply;
+    QLineEdit* m_strategySymbolEdit;
+    QLineEdit* m_activeSearchEdit;
     QComboBox* m_strategyPresetCombo;
     QLabel* m_strategyPresetDescLabel;
     QPushButton* m_applyStrategyPresetBtn;

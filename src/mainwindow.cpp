@@ -1,5 +1,8 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include "indicator/indicators.h"
+#include "strategy/movingaveragestrategy.h"
+#include "strategy/prosperitygrowthstrategy.h"
 
 #include <QAbstractItemView>
 #include <QDateTime>
@@ -14,25 +17,31 @@
 #include <QTextEdit>
 #include <QVBoxLayout>
 
+#include <vector>
+
 MainWindow::MainWindow(bool guestMode, const QString& accountName, QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
     , m_marketData(nullptr)
+    , m_strategyMarketData(nullptr)
     , m_strategy(nullptr)
+    , m_activeStrategyType(StrategyType::DoubleMA)
     , m_accountPanel(nullptr)
     , m_statisticsPanel(nullptr)
     , m_signalPanel(nullptr)
+    , m_newsPanel(nullptr)
     , m_mainTabs(nullptr)
     , m_isRunning(false)
     , m_initialCapital(100000.0)
     , m_currentCash(100000.0)
     , m_currentPrice(10.78)
     , m_hasLastMarketData(false)
+    , m_hasLastStrategyMarketData(false)
     , m_guestMode(guestMode)
     , m_accountName(accountName)
 {
     ui->setupUi(this);
-    setWindowTitle(QStringLiteral("星策 StarQuant - 真实行情看盘"));
+    setWindowTitle(QStringLiteral("星策 StarQuant - 先以模拟谋方略，再持真仓逐行情"));
 
     const QString darkTheme =
         "QMainWindow { background-color: #253b6e; }"
@@ -72,15 +81,19 @@ MainWindow::MainWindow(bool guestMode, const QString& accountName, QWidget *pare
     setStyleSheet(darkTheme);
 
     m_marketData = new MarketDataSimulator(this);
-    m_strategy = new MovingAverageStrategy(this);
+    m_strategyMarketData = new MarketDataSimulator(this);
+    m_strategy = nullptr;
 
     connect(m_marketData, &MarketDataSimulator::dataUpdated, this, &MainWindow::onMarketDataUpdated);
     connect(m_marketData, &MarketDataSimulator::intradayDataUpdated, this, &MainWindow::onIntradayDataUpdated);
     connect(m_marketData, &MarketDataSimulator::errorOccurred, this, &MainWindow::onMarketDataError);
-    connect(m_strategy, &StrategyBase::signalGenerated, this, &MainWindow::onStrategySignal);
+    connect(m_strategyMarketData, &MarketDataSimulator::dataUpdated, this, &MainWindow::onStrategyMarketDataUpdated);
+    connect(m_strategyMarketData, &MarketDataSimulator::intradayDataUpdated, this, &MainWindow::onStrategyIntradayDataUpdated);
+    connect(m_strategyMarketData, &MarketDataSimulator::errorOccurred, this, &MainWindow::onStrategyMarketDataError);
     connect(ui->strategyPanel, &StrategyPanel::startClicked, this, &MainWindow::onStartStrategy);
     connect(ui->strategyPanel, &StrategyPanel::stopClicked, this, &MainWindow::onStopStrategy);
     connect(ui->strategyPanel, &StrategyPanel::parametersChanged, this, &MainWindow::onUpdateParameters);
+    connect(ui->strategyPanel, &StrategyPanel::viewSymbolChanged, this, &MainWindow::onViewSymbolChanged);
 
     m_accountPanel = new AccountPanel(this);
     ui->verticalLayout_3->replaceWidget(ui->accountPanel, m_accountPanel);
@@ -97,10 +110,13 @@ MainWindow::MainWindow(bool guestMode, const QString& accountName, QWidget *pare
     delete ui->signalPanel;
     ui->signalPanel = m_signalPanel;
 
+    m_newsPanel = new NewsPanel(this);
+
     buildTabbedLayout();
 
     ui->strategyPanel->setRunningState(false);
-    onUpdateParameters();
+    configureStrategy(ui->strategyPanel->strategyConfig());
+    m_marketData->setSymbol(ui->strategyPanel->getViewSymbol());
     updateAccountInfo();
 
     m_marketData->startSimulation();
@@ -112,6 +128,9 @@ MainWindow::MainWindow(bool guestMode, const QString& accountName, QWidget *pare
 MainWindow::~MainWindow()
 {
     m_marketData->stopSimulation();
+    if (m_strategyMarketData) {
+        m_strategyMarketData->stopSimulation();
+    }
     delete ui;
 }
 
@@ -232,42 +251,10 @@ QWidget* MainWindow::createNewsTab()
     rootLayout->setContentsMargins(10, 10, 10, 10);
     rootLayout->setSpacing(12);
 
-    auto* newsGroup = new QGroupBox(QStringLiteral("市场快讯"), tab);
-    auto* newsLayout = new QVBoxLayout(newsGroup);
-    auto* newsTable = new QTableWidget(newsGroup);
-    newsTable->setColumnCount(4);
-    newsTable->setHorizontalHeaderLabels({QStringLiteral("时间"), QStringLiteral("来源"), QStringLiteral("标题"), QStringLiteral("相关")});
-    newsTable->horizontalHeader()->setStretchLastSection(true);
-    newsTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
-    newsTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    newsTable->setSelectionBehavior(QAbstractItemView::SelectRows);
-    newsTable->setSelectionMode(QAbstractItemView::SingleSelection);
-    newsTable->setRowCount(3);
-
-    const QList<QStringList> rows = {
-        {QStringLiteral("--:--"), QStringLiteral("系统"), QStringLiteral("市场快讯源等待接入"), QStringLiteral("全市场")},
-        {QStringLiteral("--:--"), QStringLiteral("自选"), QStringLiteral("自选股公告等待接入"), QStringLiteral("自选股")},
-        {QStringLiteral("--:--"), QStringLiteral("日历"), QStringLiteral("宏观事件与财报日历等待接入"), QStringLiteral("日历")}
-    };
-    for (int row = 0; row < rows.size(); ++row) {
-        for (int col = 0; col < rows[row].size(); ++col) {
-            newsTable->setItem(row, col, new QTableWidgetItem(rows[row][col]));
-        }
-    }
-    newsLayout->addWidget(newsTable);
-
-    auto* detailGroup = new QGroupBox(QStringLiteral("新闻详情"), tab);
-    auto* detailLayout = new QVBoxLayout(detailGroup);
-    auto* detailText = new QTextEdit(detailGroup);
-    detailText->setReadOnly(true);
-    detailText->setText(QStringLiteral("新闻 tab 已预留市场快讯、自选股新闻、公告和宏观日历位置。"));
-    detailLayout->addWidget(detailText);
-
-    rootLayout->addWidget(newsGroup, 2);
-    rootLayout->addWidget(detailGroup, 1);
+    m_newsPanel->setParent(tab);
+    rootLayout->addWidget(m_newsPanel);
     return tab;
-}
-void MainWindow::onMarketDataUpdated(const MarketData &data)
+}void MainWindow::onMarketDataUpdated(const MarketData &data)
 {
     m_currentPrice = data.close;
     m_lastMarketData = data;
@@ -283,10 +270,6 @@ void MainWindow::onMarketDataUpdated(const MarketData &data)
     }
 
     updateAccountInfo();
-
-    if (m_isRunning) {
-        m_strategy->processMarketData(data);
-    }
 }
 
 void MainWindow::onIntradayDataUpdated(const QVector<MarketData>& data)
@@ -294,14 +277,94 @@ void MainWindow::onIntradayDataUpdated(const QVector<MarketData>& data)
     ui->chartPanel->updateIntradayData(data);
 }
 
-void MainWindow::onMarketDataError(const QString &message)
+void MainWindow::onStrategyMarketDataUpdated(const MarketData& data)
 {
-    ui->statusbar->showMessage(message, 5000);
-    if (m_isRunning) {
-        ui->strategyPanel->addSystemLog(QStringLiteral("行情错误：%1").arg(message));
+    m_lastStrategyMarketData = data;
+    m_hasLastStrategyMarketData = true;
+
+    ui->strategyPanel->rememberStockName(data.symbol, data.name);
+    if (m_positions.contains(data.symbol)) {
+        m_positions[data.symbol].currentPrice = data.close;
+    }
+    updateSignalIndicators();
+    updateAccountInfo();
+
+    if (m_isRunning && m_strategy) {
+        m_strategy->processMarketData(data);
     }
 }
 
+void MainWindow::onStrategyIntradayDataUpdated(const QVector<MarketData>& data)
+{
+    m_indicatorHistory = data;
+    updateSignalIndicators();
+}
+
+void MainWindow::updateSignalIndicators()
+{
+    if (!m_signalPanel) {
+        return;
+    }
+
+    QVector<MarketData> points = m_indicatorHistory;
+    if (m_hasLastStrategyMarketData && m_lastStrategyMarketData.close > 0.0) {
+        if (!points.isEmpty() && points.last().symbol != m_lastStrategyMarketData.symbol) {
+            points.clear();
+        }
+
+        if (points.isEmpty()) {
+            points.append(m_lastStrategyMarketData);
+        } else {
+            const QDateTime lastTime = points.last().timestamp;
+            const QDateTime quoteTime = m_lastStrategyMarketData.timestamp;
+            const bool sameMinute = lastTime.isValid() && quoteTime.isValid()
+                && lastTime.date() == quoteTime.date()
+                && lastTime.time().hour() == quoteTime.time().hour()
+                && lastTime.time().minute() == quoteTime.time().minute();
+
+            if (sameMinute) {
+                points.last() = m_lastStrategyMarketData;
+            } else if (!quoteTime.isValid() || !lastTime.isValid() || quoteTime > lastTime) {
+                points.append(m_lastStrategyMarketData);
+            }
+        }
+    }
+
+    std::vector<double> closes;
+    closes.reserve(static_cast<size_t>(points.size()));
+    for (const MarketData& point : points) {
+        if (point.close > 0.0) {
+            closes.push_back(point.close);
+        }
+    }
+
+    constexpr size_t RequiredPeriods = 26;
+    if (closes.size() < RequiredPeriods) {
+        m_signalPanel->clearIndicators();
+        return;
+    }
+
+    const double rsi = TechnicalIndicators::calculateRSI(closes, 14);
+    const auto macdValues = TechnicalIndicators::calculateMACD(closes, 12, 26, 9);
+    const auto bollValues = TechnicalIndicators::calculateBollingerBands(closes, 20, 2.0);
+    const double currentPrice = m_hasLastStrategyMarketData && m_lastStrategyMarketData.close > 0.0
+        ? m_lastStrategyMarketData.close
+        : closes.back();
+
+    m_signalPanel->updateIndicators(rsi, macdValues.first, bollValues.second, bollValues.first, currentPrice);
+}
+void MainWindow::onMarketDataError(const QString &message)
+{
+    ui->statusbar->showMessage(message, 5000);
+}
+
+void MainWindow::onStrategyMarketDataError(const QString& message)
+{
+    ui->statusbar->showMessage(message, 5000);
+    if (m_isRunning) {
+        ui->strategyPanel->addSystemLog(QStringLiteral("策略行情错误：%1").arg(message));
+    }
+}
 void MainWindow::onStrategySignal(const StrategySignal &signal)
 {
     ui->strategyPanel->addSignalLog(signal);
@@ -332,7 +395,7 @@ void MainWindow::onStrategySignal(const StrategySignal &signal)
 void MainWindow::executeOrder(const StrategySignal& signal)
 {
     const double price = signal.price;
-    const double lotSize = ui->strategyPanel->getLotSize();
+    const double lotSize = signal.volume;
     const QString symbol = signal.symbol;
     const bool isBuy = signal.type == SignalType::BUY;
     const QString typeStr = isBuy ? QStringLiteral("买入") : QStringLiteral("卖出");
@@ -416,40 +479,86 @@ void MainWindow::updateAccountInfo()
     m_accountPanel->updatePositions(accountPositions);
 }
 
+void MainWindow::configureStrategy(const StrategyConfig& config)
+{
+    const bool needsNewStrategy = !m_strategy || m_activeStrategyType != config.strategyType;
+    if (needsNewStrategy) {
+        if (m_strategy) {
+            disconnect(m_strategy, nullptr, this, nullptr);
+            delete m_strategy;
+            m_strategy = nullptr;
+        }
+
+        m_activeStrategyType = config.strategyType;
+        if (config.strategyType == StrategyType::ProsperityGrowth) {
+            m_strategy = new ProsperityGrowthStrategy(this);
+        } else {
+            m_strategy = new MovingAverageStrategy(this);
+        }
+        connect(m_strategy, &StrategyBase::signalGenerated, this, &MainWindow::onStrategySignal);
+    }
+
+    if (m_strategy) {
+        m_strategy->setConfig(config);
+    }
+
+    if (!m_isRunning && m_strategyMarketData) {
+        m_strategyMarketData->setSymbol(config.symbol);
+    }
+}
+
+void MainWindow::onViewSymbolChanged(const QString& symbol)
+{
+    const QString normalized = MarketDataSimulator::normalizeSymbol(symbol);
+    m_marketData->setSymbol(normalized);
+    m_hasLastMarketData = false;
+    ui->chartPanel->clearData();
+}
 void MainWindow::onStartStrategy()
 {
     if (m_isRunning) {
         return;
     }
 
-    onUpdateParameters();
+    const StrategyConfig config = ui->strategyPanel->strategyConfig();
+    configureStrategy(config);
+    m_strategyMarketData->setSymbol(config.symbol);
 
     m_isRunning = true;
-    m_strategy->reset();
+    if (m_strategy) {
+        m_strategy->reset();
+        m_strategy->setConfig(config);
+    }
     ui->strategyPanel->setRunningState(true);
-    m_marketData->startSimulation();
+    m_hasLastStrategyMarketData = false;
+    m_indicatorHistory.clear();
+    if (m_signalPanel) {
+        m_signalPanel->clearIndicators();
+    }
+    m_strategyMarketData->startSimulation();
 
+    const QString strategyMode = config.strategyType == StrategyType::ProsperityGrowth
+        ? QStringLiteral("景气成长分批低吸")
+        : QStringLiteral("双均线");
     ui->strategyPanel->addSystemLog(
-        QStringLiteral("策略已启动：%1，等待至少 %2 条行情计算慢速 MA。")
-            .arg(m_marketData->getSymbol())
-            .arg(ui->strategyPanel->getSlowMA()));
+        QStringLiteral("实时模拟策略已启动：%1，策略标的 %2。")
+            .arg(strategyMode, config.symbol));
     ui->strategyPanel->addSystemLog(
         QStringLiteral("当前策略：%1").arg(ui->strategyPanel->currentStrategyName()));
     ui->strategyPanel->addSystemLog(ui->strategyPanel->currentStrategyConfigurationSummary());
 
-    if (m_hasLastMarketData && m_lastMarketData.symbol == m_marketData->getSymbol()) {
-        m_strategy->processMarketData(m_lastMarketData);
+    if (m_hasLastStrategyMarketData && m_lastStrategyMarketData.symbol == config.symbol && m_strategy) {
+        m_strategy->processMarketData(m_lastStrategyMarketData);
         ui->strategyPanel->addSystemLog(
-            QStringLiteral("已载入当前行情：%1 @ %2")
-                .arg(m_lastMarketData.symbol)
-                .arg(m_lastMarketData.close, 0, 'f', 2));
+            QStringLiteral("已载入策略行情：%1 @ %2")
+                .arg(m_lastStrategyMarketData.symbol)
+                .arg(m_lastStrategyMarketData.close, 0, 'f', 2));
     } else {
-        ui->strategyPanel->addSystemLog(QStringLiteral("正在等待第一笔实时行情..."));
+        ui->strategyPanel->addSystemLog(QStringLiteral("正在等待策略标的第一笔实时行情..."));
     }
 
-    ui->statusbar->showMessage(QStringLiteral("策略已启动：使用真实行情"), 2000);
+    ui->statusbar->showMessage(QStringLiteral("实时模拟策略已启动"), 2000);
 }
-
 void MainWindow::onStopStrategy()
 {
     if (!m_isRunning) {
@@ -457,22 +566,24 @@ void MainWindow::onStopStrategy()
     }
 
     m_isRunning = false;
+    if (m_strategyMarketData) {
+        m_strategyMarketData->stopSimulation();
+    }
     ui->strategyPanel->setRunningState(false);
-    ui->strategyPanel->addSystemLog(QStringLiteral("策略已停止，行情继续刷新。"));
+    ui->strategyPanel->addSystemLog(QStringLiteral("实时模拟策略已停止，主页看盘行情继续刷新。"));
 
-    ui->statusbar->showMessage(QStringLiteral("策略已停止，行情继续刷新"), 2000);
+    ui->statusbar->showMessage(QStringLiteral("实时模拟策略已停止"), 2000);
 }
-
 void MainWindow::onUpdateParameters()
 {
-    StrategyParameters params;
-    params.symbol = MarketDataSimulator::normalizeSymbol(ui->strategyPanel->getSymbol());
-    params.fastMA = ui->strategyPanel->getFastMA();
-    params.slowMA = ui->strategyPanel->getSlowMA();
-    params.stopLossPercent = ui->strategyPanel->getStopLossPercent();
-    params.takeProfitPercent = ui->strategyPanel->getTakeProfitPercent();
-    params.lotSize = ui->strategyPanel->getLotSize();
-
-    m_strategy->setParameters(params);
-    m_marketData->setSymbol(params.symbol);
+    const StrategyConfig config = ui->strategyPanel->strategyConfig();
+    configureStrategy(config);
+    if (!m_isRunning && m_strategyMarketData) {
+        m_strategyMarketData->setSymbol(config.symbol);
+        m_indicatorHistory.clear();
+        m_hasLastStrategyMarketData = false;
+        if (m_signalPanel) {
+            m_signalPanel->clearIndicators();
+        }
+    }
 }

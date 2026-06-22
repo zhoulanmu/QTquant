@@ -80,6 +80,7 @@ private:
     QString m_symbol;
     QString m_secid;
     double m_lastPrice;
+    QDateTime m_lastSuccessfulDataAt;
     QNetworkAccessManager* m_network;
     QNetworkReply* m_activeReply;
     QNetworkReply* m_trendReply;

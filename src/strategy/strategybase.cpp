@@ -7,18 +7,32 @@ StrategyBase::StrategyBase(QObject *parent)
     , m_stopLossPrice(0.0)
     , m_takeProfitPrice(0.0)
 {
-    m_params.symbol = "000001.SH";
-    m_params.fastMA = 5;
-    m_params.slowMA = 20;
-    m_params.stopLossPercent = 2.0;
-    m_params.takeProfitPercent = 5.0;
-    m_params.lotSize = 100.0;
+    setConfig(StrategyConfig{});
 }
 
 void StrategyBase::setParameters(const StrategyParameters &params)
 {
     m_params = params;
     m_symbol = params.symbol;
+    m_config.symbol = params.symbol;
+    m_config.doubleMAConfig.fastMA = params.fastMA;
+    m_config.doubleMAConfig.slowMA = params.slowMA;
+    m_config.riskConfig.stopLossPercent = params.stopLossPercent;
+    m_config.riskConfig.takeProfitPercent = params.takeProfitPercent;
+    m_config.positionConfig.lotSize = params.lotSize;
+}
+
+void StrategyBase::setConfig(const StrategyConfig& config)
+{
+    m_config = config;
+    m_symbol = config.symbol;
+
+    m_params.symbol = config.symbol;
+    m_params.fastMA = config.doubleMAConfig.fastMA;
+    m_params.slowMA = config.doubleMAConfig.slowMA;
+    m_params.stopLossPercent = config.riskConfig.stopLossPercent;
+    m_params.takeProfitPercent = config.riskConfig.takeProfitPercent;
+    m_params.lotSize = config.positionConfig.lotSize;
 }
 
 void StrategyBase::reset()

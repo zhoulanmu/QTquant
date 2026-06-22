@@ -2,6 +2,7 @@
 
 #include <QObject>
 #include <QString>
+#include <QStringList>
 #include <QDateTime>
 #include "../market/marketdata.h"
 
@@ -13,6 +14,11 @@ enum class SignalType {
     TAKE_PROFIT = 4
 };
 
+enum class StrategyType {
+    DoubleMA = 0,
+    ProsperityGrowth = 1
+};
+
 struct StrategySignal {
     SignalType type;
     QString symbol;
@@ -20,6 +26,46 @@ struct StrategySignal {
     double volume;
     QDateTime timestamp;
     QString comment;
+};
+
+struct DoubleMAConfig {
+    int fastMA = 5;
+    int slowMA = 20;
+};
+
+struct GrowthBuyConfig {
+    QStringList enabledTracks;
+    bool requireMA60Up = true;
+    bool requireVolumePullback = true;
+    bool requirePullbackToMA20OrMA60 = true;
+    bool profitGrowthConfirmed = true;
+    bool orderLandingConfirmed = true;
+    bool noPureConceptConfirmed = true;
+    int pullbackMinDays = 3;
+    int pullbackMaxDays = 5;
+};
+
+struct RiskConfig {
+    double stopLossPercent = 2.0;
+    double takeProfitPercent = 5.0;
+    double surgeTakeProfitPercent = 25.0;
+    bool partialTakeProfitEnabled = true;
+    bool breakMA60VolumeStopEnabled = true;
+};
+
+struct PositionConfig {
+    double lotSize = 1000.0;
+    double maxSingleTrackPercent = 20.0;
+    int diversifyTrackCount = 3;
+};
+
+struct StrategyConfig {
+    StrategyType strategyType = StrategyType::DoubleMA;
+    QString symbol = QStringLiteral("000001.SH");
+    DoubleMAConfig doubleMAConfig;
+    GrowthBuyConfig growthBuyConfig;
+    RiskConfig riskConfig;
+    PositionConfig positionConfig;
 };
 
 struct StrategyParameters {
@@ -43,6 +89,8 @@ public:
     virtual ~StrategyBase() = default;
 
     virtual void setParameters(const StrategyParameters& params);
+    virtual void setConfig(const StrategyConfig& config);
+    const StrategyConfig& config() const { return m_config; }
     virtual void processMarketData(const MarketData& data) = 0;
     virtual void reset();
 
@@ -50,6 +98,7 @@ protected:
     void emitSignal(SignalType type, double price, double volume, const QString& comment = "");
 
 protected:
+    StrategyConfig m_config;
     StrategyParameters m_params;
     QString m_symbol;
     bool m_hasPosition;

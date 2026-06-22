@@ -28,6 +28,7 @@ MarketDataSimulator::MarketDataSimulator(QObject *parent)
     , m_symbol(normalizeSymbol("000001.SH"))
     , m_secid(secIdForSymbol(m_symbol))
     , m_lastPrice(0.0)
+    , m_lastSuccessfulDataAt()
     , m_network(new QNetworkAccessManager(this))
     , m_activeReply(nullptr)
     , m_trendReply(nullptr)
@@ -225,6 +226,7 @@ void MarketDataSimulator::fetchIntradayTrend()
     m_trendReply = m_network->get(request);
     connect(m_trendReply, &QNetworkReply::finished, this, &MarketDataSimulator::onTrendReplyFinished);
 }
+
 void MarketDataSimulator::onQuoteReplyFinished()
 {
     QNetworkReply* reply = qobject_cast<QNetworkReply*>(sender());
@@ -241,20 +243,31 @@ void MarketDataSimulator::onQuoteReplyFinished()
     const QByteArray payload = reply->readAll();
     reply->deleteLater();
 
+    MarketData data;
+    QString parseError;
+    if (parseQuoteResponse(payload, &data, &parseError)) {
+        m_lastPrice = data.close;
+        m_lastSuccessfulDataAt = QDateTime::currentDateTime();
+        emit dataUpdated(data);
+        return;
+    }
+
+    if (networkError == QNetworkReply::RemoteHostClosedError
+        || networkErrorText.contains(QStringLiteral("Connection closed"), Qt::CaseInsensitive)) {
+        return;
+    }
+
+    if (m_lastSuccessfulDataAt.isValid()
+        && m_lastSuccessfulDataAt.secsTo(QDateTime::currentDateTime()) <= 15) {
+        return;
+    }
+
     if (networkError != QNetworkReply::NoError) {
         emit errorOccurred(QStringLiteral("Market quote request failed: %1").arg(networkErrorText));
         return;
     }
 
-    MarketData data;
-    QString parseError;
-    if (!parseQuoteResponse(payload, &data, &parseError)) {
-        emit errorOccurred(parseError);
-        return;
-    }
-
-    m_lastPrice = data.close;
-    emit dataUpdated(data);
+    emit errorOccurred(parseError);
 }
 
 void MarketDataSimulator::onTrendReplyFinished()
@@ -273,22 +286,34 @@ void MarketDataSimulator::onTrendReplyFinished()
     const QByteArray payload = reply->readAll();
     reply->deleteLater();
 
+    QVector<MarketData> points;
+    QString parseError;
+    if (parseTrendResponse(payload, &points, &parseError)) {
+        if (!points.isEmpty()) {
+            m_lastSuccessfulDataAt = QDateTime::currentDateTime();
+            emit intradayDataUpdated(points);
+        }
+        return;
+    }
+
+    if (networkError == QNetworkReply::RemoteHostClosedError
+        || networkErrorText.contains(QStringLiteral("Connection closed"), Qt::CaseInsensitive)) {
+        return;
+    }
+
+    if (m_lastSuccessfulDataAt.isValid()
+        && m_lastSuccessfulDataAt.secsTo(QDateTime::currentDateTime()) <= 15) {
+        return;
+    }
+
     if (networkError != QNetworkReply::NoError) {
         emit errorOccurred(QStringLiteral("Market trend request failed: %1").arg(networkErrorText));
         return;
     }
 
-    QVector<MarketData> points;
-    QString parseError;
-    if (!parseTrendResponse(payload, &points, &parseError)) {
-        emit errorOccurred(parseError);
-        return;
-    }
-
-    if (!points.isEmpty()) {
-        emit intradayDataUpdated(points);
-    }
+    emit errorOccurred(parseError);
 }
+
 QUrl MarketDataSimulator::buildQuoteUrl() const
 {
     QUrl url(QString::fromLatin1(QuoteEndpoint));
@@ -473,6 +498,7 @@ bool MarketDataSimulator::parseTrendResponse(const QByteArray& payload, QVector<
 
     return true;
 }
+
 QString MarketDataSimulator::secIdForSymbol(const QString &symbol)
 {
     const QString normalized = normalizeSymbol(symbol);
