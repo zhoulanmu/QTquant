@@ -266,7 +266,7 @@ MainWindow::MainWindow(bool guestMode, const QString& accountName, QWidget *pare
     , m_accountName(accountName)
 {
     ui->setupUi(this);
-    setWindowTitle(QStringLiteral("StarQuant"));
+    setWindowTitle(QStringLiteral("星策 StarQuant - 先以模拟谋方略，再持真仓逐行情"));
 
     const QString darkTheme =
         "QMainWindow { background-color: #253b6e; }"

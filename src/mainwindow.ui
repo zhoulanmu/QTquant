@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>星策 StarQuant</string>
+   <string>星策 StarQuant - 先以模拟谋方略，再持真仓逐行情</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QHBoxLayout" name="horizontalLayout">
