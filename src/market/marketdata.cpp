@@ -352,20 +352,19 @@ void MarketDataSimulator::onQuoteReplyFinished()
         return;
     }
 
-    if (networkError == QNetworkReply::OperationCanceledError
-        || networkError == QNetworkReply::RemoteHostClosedError
-        || networkErrorText.contains(QStringLiteral("Operation canceled"), Qt::CaseInsensitive)
-        || networkErrorText.contains(QStringLiteral("Connection closed"), Qt::CaseInsensitive)) {
-        return;
-    }
-
     if (m_lastSuccessfulDataAt.isValid()
         && m_lastSuccessfulDataAt.secsTo(QDateTime::currentDateTime()) <= 15) {
         return;
     }
 
-    if (networkError != QNetworkReply::NoError) {
-        emit errorOccurred(QStringLiteral("Market quote request failed: %1").arg(networkErrorText));
+    const bool connectionClosed = networkError == QNetworkReply::OperationCanceledError
+        || networkError == QNetworkReply::RemoteHostClosedError
+        || networkErrorText.contains(QStringLiteral("Operation canceled"), Qt::CaseInsensitive)
+        || networkErrorText.contains(QStringLiteral("Connection closed"), Qt::CaseInsensitive);
+
+    if (networkError != QNetworkReply::NoError || connectionClosed) {
+        const QString reason = networkErrorText.isEmpty() ? parseError : networkErrorText;
+        emit errorOccurred(QStringLiteral("Market quote request failed: %1").arg(reason));
         return;
     }
 
@@ -422,10 +421,6 @@ void MarketDataSimulator::onTrendReplyFinished()
         && !isAShareContinuousTradingTime()
         && m_activeReply) {
         m_pendingTrendFallbackReason = failureReason;
-        return;
-    }
-
-    if (connectionClosed) {
         return;
     }
 

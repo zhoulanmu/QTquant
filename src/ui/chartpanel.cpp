@@ -44,7 +44,13 @@ void ChartPanel::clearData()
     m_priceHistory.clear();
     m_minPrice = 0.0;
     m_maxPrice = 1.0;
+    m_candlestickWidget->setEmptyMessage(QStringLiteral("正在加载行情数据..."));
     m_candlestickWidget->updateData(m_priceHistory, m_minPrice, m_maxPrice);
+}
+
+void ChartPanel::setEmptyMessage(const QString& message)
+{
+    m_candlestickWidget->setEmptyMessage(message);
 }
 void ChartPanel::updateChartData(const MarketData &data)
 {

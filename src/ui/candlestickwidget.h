@@ -2,6 +2,7 @@
 
 #include <QWidget>
 #include <QRectF>
+#include <QString>
 #include <deque>
 #include "../market/marketdata.h"
 
@@ -14,6 +15,7 @@ public:
     ~CandlestickWidget() override = default;
 
     void updateData(const std::deque<MarketData>& history, double minPrice, double maxPrice);
+    void setEmptyMessage(const QString& message);
 
 protected:
     void paintEvent(QPaintEvent *event) override;
@@ -24,6 +26,7 @@ private:
     double m_minPrice;
     double m_maxPrice;
     double m_zoomFactor;
+    QString m_emptyMessage;
     const int MAX_POINTS = 50;
 
     QRectF chartArea() const;

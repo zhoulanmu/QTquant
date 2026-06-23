@@ -98,6 +98,8 @@ private:
     MarketData m_lastStrategyMarketData;
     bool m_hasLastStrategyMarketData;
     QVector<MarketData> m_indicatorHistory;
+    QDateTime m_lastMarketDataErrorLoggedAt;
+    QString m_lastMarketDataErrorMessage;
     QVector<double> m_strategyCloseSamples;
     int m_lastStrategyProgressSampleLogged;
     int m_lastStrategyMonitorSampleLogged;

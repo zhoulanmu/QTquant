@@ -2,6 +2,7 @@
 
 #include <QWidget>
 #include <QPainter>
+#include <QString>
 #include <deque>
 #include "../market/marketdata.h"
 #include "candlestickwidget.h"
@@ -21,6 +22,7 @@ public:
     void updateChartData(const MarketData& data);
     void updateIntradayData(const QVector<MarketData>& data);
     void clearData();
+    void setEmptyMessage(const QString& message);
 
 protected:
     void paintEvent(QPaintEvent* event) override;

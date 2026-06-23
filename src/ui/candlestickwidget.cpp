@@ -70,7 +70,8 @@ CandlestickWidget::CandlestickWidget(QWidget *parent) :
     QWidget(parent),
     m_minPrice(0.0),
     m_maxPrice(1.0),
-    m_zoomFactor(1.0)
+    m_zoomFactor(1.0),
+    m_emptyMessage(QStringLiteral("正在加载行情数据..."))
 {
     setStyleSheet("background-color: #1a1a2e;");
     setMouseTracking(true);
@@ -89,6 +90,13 @@ void CandlestickWidget::updateData(const std::deque<MarketData> &history, double
     update();
 }
 
+void CandlestickWidget::setEmptyMessage(const QString& message)
+{
+    m_emptyMessage = message.isEmpty() ? QStringLiteral("正在加载行情数据...") : message;
+    if (m_priceHistory.empty()) {
+        update();
+    }
+}
 void CandlestickWidget::paintEvent(QPaintEvent *event)
 {
     Q_UNUSED(event);
@@ -99,7 +107,7 @@ void CandlestickWidget::paintEvent(QPaintEvent *event)
 
     if (m_priceHistory.empty()) {
         painter.setPen(Qt::white);
-        painter.drawText(rect(), Qt::AlignCenter, QStringLiteral("正在加载行情数据..."));
+        painter.drawText(rect(), Qt::AlignCenter, m_emptyMessage);
         return;
     }
 

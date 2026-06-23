@@ -198,6 +198,7 @@ MainWindow::MainWindow(bool guestMode, const QString& accountName, QWidget *pare
     , m_currentPrice(10.78)
     , m_hasLastMarketData(false)
     , m_hasLastStrategyMarketData(false)
+    , m_lastMarketDataErrorLoggedAt()
     , m_lastStrategyProgressSampleLogged(0)
     , m_lastStrategyMonitorSampleLogged(0)
     , m_strategyFirstQuoteLogged(false)
@@ -656,6 +657,21 @@ void MainWindow::updateSignalIndicators()
 void MainWindow::onMarketDataError(const QString &message)
 {
     ui->statusbar->showMessage(message, 5000);
+    ui->chartPanel->setEmptyMessage(QStringLiteral("行情接口暂不可用，正在重试..."));
+
+    const QDateTime now = QDateTime::currentDateTime();
+    const bool shouldLog = !m_lastMarketDataErrorLoggedAt.isValid()
+        || m_lastMarketDataErrorLoggedAt.secsTo(now) >= 30
+        || m_lastMarketDataErrorMessage != message;
+    if (!shouldLog) {
+        return;
+    }
+
+    m_lastMarketDataErrorLoggedAt = now;
+    m_lastMarketDataErrorMessage = message;
+    ui->strategyPanel->addSystemLog(
+        QStringLiteral("看盘行情异常：%1，正在重试；当前没有可画行情数据。")
+            .arg(message));
 }
 
 void MainWindow::onStrategyMarketDataError(const QString& message)
