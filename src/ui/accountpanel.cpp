@@ -37,6 +37,16 @@ AccountPanel::~AccountPanel()
     delete ui;
 }
 
+void AccountPanel::insertFundsControlWidget(QWidget* widget)
+{
+    if (!widget) {
+        return;
+    }
+
+    widget->setParent(this);
+    ui->verticalLayout_3->insertWidget(1, widget, 0);
+}
+
 void AccountPanel::updateAccount(double totalAssets, double availableCash, double marketValue, double totalProfit, double profitPercent)
 {
     ui->totalAssetsLabel->setText(QString::number(totalAssets, 'f', 2));

@@ -522,7 +522,10 @@ QWidget* MainWindow::createPersonalTab()
         pageLayout->setContentsMargins(0, 0, 0, 0);
         pageLayout->setSpacing(8);
 
-        auto* controls = new QGroupBox(QStringLiteral("账户资金"), accountPage);
+        AccountPanel* accountPanel = m_accountPanels.at(i);
+        accountPanel->setParent(accountPage);
+
+        auto* controls = new QGroupBox(QStringLiteral("账户资金转入转出"), accountPanel);
         auto* controlsLayout = new QHBoxLayout(controls);
         controlsLayout->setContentsMargins(10, 12, 10, 10);
         controlsLayout->setSpacing(8);
@@ -571,9 +574,8 @@ QWidget* MainWindow::createPersonalTab()
             resetAccountAssets(i);
         });
 
-        pageLayout->addWidget(controls, 0);
-        m_accountPanels.at(i)->setParent(accountPage);
-        pageLayout->addWidget(m_accountPanels.at(i), 1);
+        accountPanel->insertFundsControlWidget(controls);
+        pageLayout->addWidget(accountPanel, 1);
         m_accountTabs->addTab(accountPage, i < m_accounts.size() ? m_accounts.at(i).name : QStringLiteral("账户 %1").arg(i + 1));
     }
 
@@ -858,6 +860,22 @@ void MainWindow::onStrategyMarketDataError(int strategyId, const QString& messag
     }
 
     const QString label = strategyRuntimeLogLabel(runtime);
+    if (!MarketDataSimulator::isAShareContinuousTradingTime()) {
+        runtime->running = false;
+        runtime->waiting = true;
+        runtime->hasLastMarketData = false;
+        runtime->indicatorHistory.clear();
+        if (runtime->marketData) {
+            runtime->marketData->stopSimulation();
+            runtime->marketData->setSymbol(runtime->config.symbol);
+        }
+        ui->strategyPanel->setStrategyInstanceRunning(strategyId, false, true);
+        refreshStrategyRunningState();
+        ui->strategyPanel->addStrategyLog(label, QStringLiteral("已收盘，切换为等待；连续竞价时自动启动。"));
+        ui->statusbar->showMessage(QStringLiteral("策略 %1 已切换为等待，连续竞价时自动启动").arg(strategyId), 3000);
+        return;
+    }
+
     ui->strategyPanel->addStrategyLog(label, QStringLiteral("行情错误：%1").arg(message));
     showThemedWarning(this,
                       QStringLiteral("策略已停止"),

@@ -28,6 +28,7 @@ public:
     void updateAccount(double totalAssets, double availableCash, double marketValue, double totalProfit, double profitPercent);
     void updatePositions(const QMap<QString, PositionInfo>& positions);
     void addTradeRecord(const QString& symbol, const QString& type, double price, double volume, double amount, double fee, const QString& time);
+    void insertFundsControlWidget(QWidget* widget);
 
 private:
     Ui::AccountPanel *ui;
