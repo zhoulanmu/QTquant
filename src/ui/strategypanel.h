@@ -67,6 +67,7 @@ public:
     StrategyConfig strategyConfig() const;
     int getFastMA() const;
     int getSlowMA() const;
+    int getMABarPeriodMinutes() const;
     double getStopLossPercent() const;
     double getTakeProfitPercent() const;
     double getLotSize() const;
@@ -192,6 +193,7 @@ private:
     QPushButton* m_stopStrategyInstanceBtn;
     QGroupBox* m_strategyConfigGroup;
     QLabel* m_strategyConfigHintLabel;
+    QComboBox* m_maBarPeriodCombo;
     QVector<QWidget*> m_growthConfigWidgets;
     QVector<QCheckBox*> m_growthTrackChecks;
     QCheckBox* m_ma60UpCheck;

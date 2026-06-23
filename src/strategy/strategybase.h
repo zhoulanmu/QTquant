@@ -31,6 +31,7 @@ struct StrategySignal {
 struct DoubleMAConfig {
     int fastMA = 5;
     int slowMA = 20;
+    int barPeriodMinutes = 5;
 };
 
 struct GrowthBuyConfig {
@@ -72,6 +73,7 @@ struct StrategyParameters {
     QString symbol;
     int fastMA;
     int slowMA;
+    int barPeriodMinutes = 5;
     double stopLossPercent;
     double takeProfitPercent;
     double lotSize;

@@ -4,6 +4,7 @@
 
 MovingAverageStrategy::MovingAverageStrategy(QObject *parent)
     : StrategyBase(parent)
+    , m_hasCurrentBar(false)
     , m_fastMA(0.0)
     , m_slowMA(0.0)
     , m_rsi(50.0)
@@ -16,6 +17,9 @@ MovingAverageStrategy::MovingAverageStrategy(QObject *parent)
 void MovingAverageStrategy::reset()
 {
     StrategyBase::reset();
+    m_hasCurrentBar = false;
+    m_currentBarStart = QDateTime();
+    m_currentBar = MarketData();
     m_priceHistory.clear();
     m_closePrices.clear();
     m_highPrices.clear();
@@ -25,15 +29,92 @@ void MovingAverageStrategy::reset()
     m_slowMA = 0.0;
 }
 
+int MovingAverageStrategy::closedBarCount() const
+{
+    return static_cast<int>(m_closePrices.size());
+}
+
+double MovingAverageStrategy::fastMA() const
+{
+    return m_fastMA;
+}
+
+double MovingAverageStrategy::slowMA() const
+{
+    return m_slowMA;
+}
+
 void MovingAverageStrategy::processMarketData(const MarketData &data)
 {
-    if (data.symbol != m_symbol) return;
+    if (data.symbol != m_symbol || data.close <= 0.0) {
+        return;
+    }
 
-    m_priceHistory.push_back(data);
-    m_closePrices.push_back(data.close);
-    m_highPrices.push_back(data.high);
-    m_lowPrices.push_back(data.low);
-    m_volumes.push_back(data.volume);
+    const QDateTime timestamp = data.timestamp.isValid() ? data.timestamp : QDateTime::currentDateTime();
+    const QDateTime barStart = barStartFor(timestamp);
+    if (!m_hasCurrentBar) {
+        startBar(data, barStart);
+        return;
+    }
+
+    if (barStart <= m_currentBarStart) {
+        updateCurrentBar(data);
+        return;
+    }
+
+    processClosedBar(m_currentBar);
+    startBar(data, barStart);
+}
+
+int MovingAverageStrategy::barPeriodMinutes() const
+{
+    const int minutes = m_config.doubleMAConfig.barPeriodMinutes;
+    return (minutes == 1 || minutes == 3 || minutes == 5) ? minutes : 5;
+}
+
+QDateTime MovingAverageStrategy::barStartFor(const QDateTime& timestamp) const
+{
+    const QDateTime current = timestamp.isValid() ? timestamp : QDateTime::currentDateTime();
+    const QTime time = current.time();
+    const int period = barPeriodMinutes();
+    const int minute = (time.minute() / period) * period;
+    return QDateTime(current.date(), QTime(time.hour(), minute, 0));
+}
+
+void MovingAverageStrategy::startBar(const MarketData& data, const QDateTime& barStart)
+{
+    m_hasCurrentBar = true;
+    m_currentBarStart = barStart;
+    m_currentBar = data;
+    m_currentBar.timestamp = barStart;
+    m_currentBar.open = data.close;
+    m_currentBar.high = data.close;
+    m_currentBar.low = data.close;
+    m_currentBar.close = data.close;
+}
+
+void MovingAverageStrategy::updateCurrentBar(const MarketData& data)
+{
+    if (!m_hasCurrentBar || data.close <= 0.0) {
+        return;
+    }
+
+    m_currentBar.high = qMax(m_currentBar.high, data.close);
+    m_currentBar.low = qMin(m_currentBar.low, data.close);
+    m_currentBar.close = data.close;
+    m_currentBar.volume = data.volume;
+    m_currentBar.turnover = data.turnover;
+    m_currentBar.averagePrice = data.averagePrice > 0.0 ? data.averagePrice : m_currentBar.averagePrice;
+    m_currentBar.tradeCount = data.tradeCount;
+}
+
+void MovingAverageStrategy::processClosedBar(const MarketData& bar)
+{
+    m_priceHistory.push_back(bar);
+    m_closePrices.push_back(bar.close);
+    m_highPrices.push_back(bar.high);
+    m_lowPrices.push_back(bar.low);
+    m_volumes.push_back(bar.volume);
 
     const int maxHistory = 100;
     if (m_priceHistory.size() > maxHistory) {
@@ -47,10 +128,10 @@ void MovingAverageStrategy::processMarketData(const MarketData &data)
     calculateIndicators();
 
     if (m_hasPosition) {
-        updateStopLossTakeProfit(data.close);
+        updateStopLossTakeProfit(bar.close);
     }
 
-    checkTradingSignal(data.close);
+    checkTradingSignal(bar.close);
 }
 
 void MovingAverageStrategy::calculateIndicators()
@@ -93,13 +174,19 @@ void MovingAverageStrategy::checkTradingSignal(double price)
             m_takeProfitPrice = m_entryPrice * (1 + m_params.takeProfitPercent / 100.0);
 
             emitSignal(SignalType::BUY, price, m_params.lotSize,
-                       QString("金叉信号: 快速MA(%1)上穿慢速MA(%2)").arg(m_params.fastMA).arg(m_params.slowMA));
+                       QString("%1分钟K线金叉: 快速MA(%2)上穿慢速MA(%3)")
+                           .arg(barPeriodMinutes())
+                           .arg(m_params.fastMA)
+                           .arg(m_params.slowMA));
         }
     } else {
         if (deathCross) {
             m_hasPosition = false;
             emitSignal(SignalType::SELL, price, m_params.lotSize,
-                       QString("死叉信号: 快速MA(%1)下穿慢速MA(%2)").arg(m_params.fastMA).arg(m_params.slowMA));
+                       QString("%1分钟K线死叉: 快速MA(%2)下穿慢速MA(%3)")
+                           .arg(barPeriodMinutes())
+                           .arg(m_params.fastMA)
+                           .arg(m_params.slowMA));
         } else if (price <= m_stopLossPrice) {
             m_hasPosition = false;
             emitSignal(SignalType::STOP_LOSS, price, m_params.lotSize,

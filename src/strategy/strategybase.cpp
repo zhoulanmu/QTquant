@@ -17,6 +17,7 @@ void StrategyBase::setParameters(const StrategyParameters &params)
     m_config.symbol = params.symbol;
     m_config.doubleMAConfig.fastMA = params.fastMA;
     m_config.doubleMAConfig.slowMA = params.slowMA;
+    m_config.doubleMAConfig.barPeriodMinutes = params.barPeriodMinutes;
     m_config.riskConfig.stopLossPercent = params.stopLossPercent;
     m_config.riskConfig.takeProfitPercent = params.takeProfitPercent;
     m_config.positionConfig.lotSize = params.lotSize;
@@ -30,6 +31,7 @@ void StrategyBase::setConfig(const StrategyConfig& config)
     m_params.symbol = config.symbol;
     m_params.fastMA = config.doubleMAConfig.fastMA;
     m_params.slowMA = config.doubleMAConfig.slowMA;
+    m_params.barPeriodMinutes = config.doubleMAConfig.barPeriodMinutes;
     m_params.stopLossPercent = config.riskConfig.stopLossPercent;
     m_params.takeProfitPercent = config.riskConfig.takeProfitPercent;
     m_params.lotSize = config.positionConfig.lotSize;

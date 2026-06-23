@@ -157,6 +157,7 @@ QJsonObject strategyConfigToJson(const StrategyConfig& config)
     QJsonObject doubleMA;
     doubleMA.insert(QStringLiteral("fastMA"), config.doubleMAConfig.fastMA);
     doubleMA.insert(QStringLiteral("slowMA"), config.doubleMAConfig.slowMA);
+    doubleMA.insert(QStringLiteral("barPeriodMinutes"), normalizedMABarPeriodMinutes(config.doubleMAConfig.barPeriodMinutes));
     object.insert(QStringLiteral("doubleMA"), doubleMA);
 
     QJsonObject risk;
@@ -199,6 +200,7 @@ StrategyConfig strategyConfigFromJson(const QJsonObject& object, const StrategyC
     const QJsonObject doubleMA = object.value(QStringLiteral("doubleMA")).toObject();
     config.doubleMAConfig.fastMA = doubleMA.value(QStringLiteral("fastMA")).toInt(config.doubleMAConfig.fastMA);
     config.doubleMAConfig.slowMA = doubleMA.value(QStringLiteral("slowMA")).toInt(config.doubleMAConfig.slowMA);
+    config.doubleMAConfig.barPeriodMinutes = normalizedMABarPeriodMinutes(doubleMA.value(QStringLiteral("barPeriodMinutes")).toInt(config.doubleMAConfig.barPeriodMinutes));
 
     const QJsonObject risk = object.value(QStringLiteral("risk")).toObject();
     config.riskConfig.stopLossPercent = risk.value(QStringLiteral("stopLossPercent")).toDouble(config.riskConfig.stopLossPercent);
@@ -279,6 +281,11 @@ QString strategyTypeDisplayName(StrategyType type)
         : QStringLiteral("双均线");
 }
 
+int normalizedMABarPeriodMinutes(int minutes)
+{
+    return (minutes == 1 || minutes == 3 || minutes == 5) ? minutes : 5;
+}
+
 QString strategyDetailTooltip(StrategyKind kind)
 {
     if (kind == StrategyKind::ProsperityGrowth) {
@@ -311,8 +318,9 @@ QString strategyDetailTooltip(StrategyKind kind)
         "快线向上穿过慢线时买入，跌破或触发风控信号时卖出。<br><br>"
         "<b>基础交易参数</b><br>"
         "策略标的：当前策略实例运行的股票。<br>"
-        "快速MA周期：计算快线均价使用的行情样本数量，越小越敏感。<br>"
-        "慢速MA周期：计算慢线均价使用的行情样本数量，越大越平滑。<br>"
+        "快速MA周期：使用最近几根K线收盘价计算快线，越小越敏感。<br>"
+        "慢速MA周期：使用最近几根K线收盘价计算慢线，越大越平滑。<br>"
+        "均线计算周期：把实时价格聚合成1/3/5分钟K线，只在K线收盘后判断金叉/死叉。<br>"
         "买入：快线从下向上穿过慢线，且 RSI 未过热时触发。<br>"
         "卖出：快线跌回慢线下方，或触发止损/止盈时卖出。<br>"
         "止损(%)：买入后相对成本价下跌达到该比例时卖出。<br>"
@@ -349,6 +357,7 @@ StrategyPanel::StrategyPanel(QWidget *parent) :
     m_stopStrategyInstanceBtn(nullptr),
     m_strategyConfigGroup(nullptr),
     m_strategyConfigHintLabel(nullptr),
+    m_maBarPeriodCombo(nullptr),
     m_ma60UpCheck(nullptr),
     m_profitGrowthCheck(nullptr),
     m_orderLandingCheck(nullptr),
@@ -383,7 +392,7 @@ StrategyPanel::StrategyPanel(QWidget *parent) :
     ui->setupUi(this);
     ui->groupBox->setTitle(QStringLiteral("基础交易参数"));
     ui->groupBox->setMinimumHeight(170);
-    ui->groupBox->setMaximumHeight(230);
+    ui->groupBox->setMaximumHeight(270);
     ui->logTextEdit->setReadOnly(true);
 
     ui->label->setBuddy(nullptr);
@@ -395,14 +404,24 @@ StrategyPanel::StrategyPanel(QWidget *parent) :
     ui->label_6->hide();
     ui->lotSizeSpin->hide();
 
-    const QString fastMATip = QStringLiteral("快速MA周期：计算快线均价使用的行情样本数量，越小越敏感。");
-    const QString slowMATip = QStringLiteral("慢速MA周期：计算慢线均价使用的行情样本数量，越大越平滑。");
+    const QString fastMATip = QStringLiteral("快速MA周期：使用最近几根K线收盘价计算快线，越小越敏感。");
+    const QString slowMATip = QStringLiteral("慢速MA周期：使用最近几根K线收盘价计算慢线，越大越平滑。");
+    const QString maBarPeriodTip = QStringLiteral("均线计算周期：把实时价格聚合成 1/3/5 分钟K线，只在K线收盘后更新快慢MA并判断交易。");
     const QString stopLossTip = QStringLiteral("止损(%)：买入后相对成本价下跌达到该比例时卖出。");
     const QString takeProfitTip = QStringLiteral("止盈(%)：买入后相对成本价上涨达到该比例时卖出。");
     ui->label_2->setToolTip(fastMATip);
     ui->fastMASpin->setToolTip(fastMATip);
     ui->label_3->setToolTip(slowMATip);
     ui->slowMASpin->setToolTip(slowMATip);
+    auto* maBarPeriodLabel = new QLabel(QStringLiteral("均线计算周期"), ui->groupBox);
+    m_maBarPeriodCombo = new QComboBox(ui->groupBox);
+    m_maBarPeriodCombo->addItem(QStringLiteral("1分钟"), 1);
+    m_maBarPeriodCombo->addItem(QStringLiteral("3分钟"), 3);
+    m_maBarPeriodCombo->addItem(QStringLiteral("5分钟"), 5);
+    m_maBarPeriodCombo->setCurrentIndex(m_maBarPeriodCombo->findData(5));
+    maBarPeriodLabel->setToolTip(maBarPeriodTip);
+    m_maBarPeriodCombo->setToolTip(maBarPeriodTip);
+    ui->formLayout->insertRow(3, maBarPeriodLabel, m_maBarPeriodCombo);
     ui->label_4->setToolTip(stopLossTip);
     ui->stopLossSpin->setToolTip(stopLossTip);
     ui->label_5->setToolTip(takeProfitTip);
@@ -429,6 +448,9 @@ StrategyPanel::StrategyPanel(QWidget *parent) :
     connect(ui->symbolEdit, &QLineEdit::editingFinished, this, &StrategyPanel::onSymbolEditingFinished);
     connect(ui->fastMASpin, QOverload<int>::of(&QSpinBox::valueChanged), this, &StrategyPanel::on_paramChanged);
     connect(ui->slowMASpin, QOverload<int>::of(&QSpinBox::valueChanged), this, &StrategyPanel::on_paramChanged);
+    if (m_maBarPeriodCombo) {
+        connect(m_maBarPeriodCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &StrategyPanel::on_paramChanged);
+    }
     connect(ui->stopLossSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &StrategyPanel::on_paramChanged);
     connect(ui->takeProfitSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &StrategyPanel::on_paramChanged);
 }
@@ -471,6 +493,7 @@ StrategyConfig StrategyPanel::strategyConfig() const
 
     config.doubleMAConfig.fastMA = getFastMA();
     config.doubleMAConfig.slowMA = getSlowMA();
+    config.doubleMAConfig.barPeriodMinutes = getMABarPeriodMinutes();
 
     config.riskConfig.stopLossPercent = getStopLossPercent();
     config.riskConfig.takeProfitPercent = getTakeProfitPercent();
@@ -507,6 +530,13 @@ int StrategyPanel::getSlowMA() const
     return ui->slowMASpin->value();
 }
 
+int StrategyPanel::getMABarPeriodMinutes() const
+{
+    if (!m_maBarPeriodCombo) {
+        return 5;
+    }
+    return normalizedMABarPeriodMinutes(m_maBarPeriodCombo->currentData().toInt(5));
+}
 double StrategyPanel::getStopLossPercent() const
 {
     return ui->stopLossSpin->value();
@@ -543,8 +573,9 @@ QString StrategyPanel::currentStrategyConfigurationSummary() const
             .arg(config.riskConfig.surgeTakeProfitPercent, 0, 'f', 1);
     }
 
-    return QStringLiteral("%1；标的:%2；快MA:%3 慢MA:%4 止损:%5% 止盈:%6%；数量:自动")
+    return QStringLiteral("%1；标的:%2；周期:%3分钟；快MA:%4 慢MA:%5 止损:%6% 止盈:%7%；数量:自动")
         .arg(currentStrategyName(), config.symbol)
+        .arg(config.doubleMAConfig.barPeriodMinutes)
         .arg(config.doubleMAConfig.fastMA)
         .arg(config.doubleMAConfig.slowMA)
         .arg(config.riskConfig.stopLossPercent, 0, 'f', 1)
@@ -944,6 +975,12 @@ void StrategyPanel::loadStrategyInstanceIntoEditor(int index)
     }
     ui->fastMASpin->setValue(instance.config.doubleMAConfig.fastMA);
     ui->slowMASpin->setValue(instance.config.doubleMAConfig.slowMA);
+    if (m_maBarPeriodCombo) {
+        const int periodIndex = m_maBarPeriodCombo->findData(normalizedMABarPeriodMinutes(instance.config.doubleMAConfig.barPeriodMinutes));
+        if (periodIndex >= 0) {
+            m_maBarPeriodCombo->setCurrentIndex(periodIndex);
+        }
+    }
     ui->stopLossSpin->setValue(instance.config.riskConfig.stopLossPercent);
     ui->takeProfitSpin->setValue(instance.config.riskConfig.takeProfitPercent);
 
@@ -1310,7 +1347,7 @@ void StrategyPanel::updateCurrentStrategyConfigUi()
     if (m_strategyConfigHintLabel) {
         m_strategyConfigHintLabel->setText(growth
             ? QStringLiteral("景气成长策略：使用自动过滤、人工确认和用户风控规则。")
-            : QStringLiteral("双均线策略使用快慢均线、止损和止盈；下单数量按账户资产计算。"));
+            : QStringLiteral("双均线策略先聚合1/3/5分钟K线，再用K线收盘价计算快慢均线；下单数量按账户资产计算。"));
     }
 
     if (m_strategyConfigGroup) {
@@ -1603,6 +1640,13 @@ void StrategyPanel::loadStrategySettings()
     if (settings.contains(QStringLiteral("strategy/basic/slowMA"))) {
         ui->slowMASpin->setValue(settings.value(QStringLiteral("strategy/basic/slowMA")).toInt());
     }
+    if (m_maBarPeriodCombo && settings.contains(QStringLiteral("strategy/basic/barPeriodMinutes"))) {
+        const int period = normalizedMABarPeriodMinutes(settings.value(QStringLiteral("strategy/basic/barPeriodMinutes")).toInt(5));
+        const int index = m_maBarPeriodCombo->findData(period);
+        if (index >= 0) {
+            m_maBarPeriodCombo->setCurrentIndex(index);
+        }
+    }
     if (settings.contains(QStringLiteral("strategy/basic/stopLossPercent"))) {
         ui->stopLossSpin->setValue(settings.value(QStringLiteral("strategy/basic/stopLossPercent")).toDouble());
     }
@@ -1667,6 +1711,7 @@ void StrategyPanel::saveStrategySettings() const
 
     settings.setValue(QStringLiteral("strategy/basic/fastMA"), ui->fastMASpin->value());
     settings.setValue(QStringLiteral("strategy/basic/slowMA"), ui->slowMASpin->value());
+    settings.setValue(QStringLiteral("strategy/basic/barPeriodMinutes"), getMABarPeriodMinutes());
     settings.setValue(QStringLiteral("strategy/basic/stopLossPercent"), ui->stopLossSpin->value());
     settings.setValue(QStringLiteral("strategy/basic/takeProfitPercent"), ui->takeProfitSpin->value());
     settings.remove(QStringLiteral("strategy/basic/lotSize"));
@@ -2365,13 +2410,24 @@ void StrategyPanel::onStrategyPresetChanged(int index)
     }
 
     const StrategyPreset& preset = presets[index];
-    m_strategyPresetDescLabel->setText(
-        QStringLiteral("%1  快MA:%2 慢MA:%3 止损:%4% 止盈:%5%")
-            .arg(preset.description)
-            .arg(preset.fastMA)
-            .arg(preset.slowMA)
-            .arg(preset.stopLoss, 0, 'f', 1)
-            .arg(preset.takeProfit, 0, 'f', 1));
+    if (preset.kind == StrategyKind::DoubleMA) {
+        m_strategyPresetDescLabel->setText(
+            QStringLiteral("%1  周期:%2分钟 快MA:%3 慢MA:%4 止损:%5% 止盈:%6%")
+                .arg(preset.description)
+                .arg(getMABarPeriodMinutes())
+                .arg(preset.fastMA)
+                .arg(preset.slowMA)
+                .arg(preset.stopLoss, 0, 'f', 1)
+                .arg(preset.takeProfit, 0, 'f', 1));
+    } else {
+        m_strategyPresetDescLabel->setText(
+            QStringLiteral("%1  快MA:%2 慢MA:%3 止损:%4% 止盈:%5%")
+                .arg(preset.description)
+                .arg(preset.fastMA)
+                .arg(preset.slowMA)
+                .arg(preset.stopLoss, 0, 'f', 1)
+                .arg(preset.takeProfit, 0, 'f', 1));
+    }
     if (m_strategyDetailButton) {
         m_strategyDetailButton->setToolTip(strategyDetailTooltip(preset.kind));
     }
@@ -2396,6 +2452,12 @@ void StrategyPanel::onApplyStrategyPresetClicked()
     const StrategyPreset& preset = presets[index];
     ui->fastMASpin->setValue(preset.fastMA);
     ui->slowMASpin->setValue(preset.slowMA);
+    if (preset.kind == StrategyKind::DoubleMA && m_maBarPeriodCombo) {
+        const int periodIndex = m_maBarPeriodCombo->findData(5);
+        if (periodIndex >= 0) {
+            m_maBarPeriodCombo->setCurrentIndex(periodIndex);
+        }
+    }
     ui->stopLossSpin->setValue(preset.stopLoss);
     ui->takeProfitSpin->setValue(preset.takeProfit);
 

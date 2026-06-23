@@ -14,13 +14,24 @@ public:
 
     void processMarketData(const MarketData& data) override;
     void reset() override;
+    int closedBarCount() const;
+    double fastMA() const;
+    double slowMA() const;
 
 private:
+    int barPeriodMinutes() const;
+    QDateTime barStartFor(const QDateTime& timestamp) const;
+    void startBar(const MarketData& data, const QDateTime& barStart);
+    void updateCurrentBar(const MarketData& data);
+    void processClosedBar(const MarketData& bar);
     void checkTradingSignal(double price);
     void updateStopLossTakeProfit(double price);
     void calculateIndicators();
 
 private:
+    bool m_hasCurrentBar;
+    QDateTime m_currentBarStart;
+    MarketData m_currentBar;
     std::deque<MarketData> m_priceHistory;
     std::vector<double> m_closePrices;
     std::vector<double> m_highPrices;

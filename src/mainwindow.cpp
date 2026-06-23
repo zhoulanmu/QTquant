@@ -716,12 +716,19 @@ void MainWindow::appendStrategyProgressLog(StrategyRuntime* runtime)
     const int requiredSamples = doubleMA
         ? qMax(config.doubleMAConfig.fastMA, config.doubleMAConfig.slowMA)
         : ProsperityGrowthRequiredSamples;
-    const int sampleCount = runtime->closeSamples.size();
+    auto* movingAverage = doubleMA ? qobject_cast<MovingAverageStrategy*>(runtime->strategy) : nullptr;
+    const int sampleCount = movingAverage
+        ? movingAverage->closedBarCount()
+        : runtime->closeSamples.size();
+    const QString sampleName = doubleMA
+        ? QStringLiteral("%1分钟K线").arg(config.doubleMAConfig.barPeriodMinutes)
+        : QStringLiteral("样本");
 
     if (sampleCount < requiredSamples) {
         if (sampleCount != runtime->lastProgressSampleLogged
             && shouldLogStrategyProgressSample(sampleCount, requiredSamples)) {
-            ui->strategyPanel->addStrategyLog(label, QStringLiteral("样本收集中：%1/%2")
+            ui->strategyPanel->addStrategyLog(label, QStringLiteral("%1收集中：%2/%3")
+                .arg(sampleName)
                 .arg(sampleCount)
                 .arg(requiredSamples));
             runtime->lastProgressSampleLogged = sampleCount;
@@ -730,9 +737,10 @@ void MainWindow::appendStrategyProgressLog(StrategyRuntime* runtime)
     }
 
     if (!runtime->monitorEntered) {
-        ui->strategyPanel->addStrategyLog(label, QStringLiteral("进入监控：%1/%2 个样本已就绪")
+        ui->strategyPanel->addStrategyLog(label, QStringLiteral("进入监控：%1/%2 个%3已就绪")
             .arg(sampleCount)
-            .arg(requiredSamples));
+            .arg(requiredSamples)
+            .arg(sampleName));
         runtime->monitorEntered = true;
         runtime->lastProgressSampleLogged = sampleCount;
     }
@@ -744,8 +752,12 @@ void MainWindow::appendStrategyProgressLog(StrategyRuntime* runtime)
     if (doubleMA) {
         if (sampleCount != runtime->lastMonitorSampleLogged
             && (sampleCount == requiredSamples || sampleCount % 5 == 0)) {
-            const double fastMA = simpleAverageOfLast(runtime->closeSamples, config.doubleMAConfig.fastMA);
-            const double slowMA = simpleAverageOfLast(runtime->closeSamples, config.doubleMAConfig.slowMA);
+            const double fastMA = movingAverage
+                ? movingAverage->fastMA()
+                : simpleAverageOfLast(runtime->closeSamples, config.doubleMAConfig.fastMA);
+            const double slowMA = movingAverage
+                ? movingAverage->slowMA()
+                : simpleAverageOfLast(runtime->closeSamples, config.doubleMAConfig.slowMA);
             ui->strategyPanel->addStrategyLog(label, QStringLiteral("当前快MA:%1，慢MA:%2，暂无交易")
                 .arg(fastMA, 0, 'f', 3)
                 .arg(slowMA, 0, 'f', 3));
@@ -762,6 +774,7 @@ void MainWindow::appendStrategyProgressLog(StrategyRuntime* runtime)
         runtime->lastMonitorSampleLogged = sampleCount;
     }
 }
+
 void MainWindow::updateSignalIndicators()
 {
     if (!m_signalPanel) {
