@@ -58,6 +58,8 @@ struct StrategyPreset
     double takeProfit;
 };
 
+int normalizedMABarPeriodMinutes(int minutes);
+
 QString displayGrowthTrackName(const QString& value)
 {
     const QString text = value.trimmed();
@@ -535,8 +537,9 @@ int StrategyPanel::getMABarPeriodMinutes() const
     if (!m_maBarPeriodCombo) {
         return 5;
     }
-    return normalizedMABarPeriodMinutes(m_maBarPeriodCombo->currentData().toInt(5));
+    return normalizedMABarPeriodMinutes(m_maBarPeriodCombo->currentData().toInt());
 }
+
 double StrategyPanel::getStopLossPercent() const
 {
     return ui->stopLossSpin->value();
@@ -1641,7 +1644,7 @@ void StrategyPanel::loadStrategySettings()
         ui->slowMASpin->setValue(settings.value(QStringLiteral("strategy/basic/slowMA")).toInt());
     }
     if (m_maBarPeriodCombo && settings.contains(QStringLiteral("strategy/basic/barPeriodMinutes"))) {
-        const int period = normalizedMABarPeriodMinutes(settings.value(QStringLiteral("strategy/basic/barPeriodMinutes")).toInt(5));
+        const int period = normalizedMABarPeriodMinutes(settings.value(QStringLiteral("strategy/basic/barPeriodMinutes"), 5).toInt());
         const int index = m_maBarPeriodCombo->findData(period);
         if (index >= 0) {
             m_maBarPeriodCombo->setCurrentIndex(index);
