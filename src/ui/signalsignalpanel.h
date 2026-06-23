@@ -16,6 +16,7 @@ public:
     ~SignalPanel() override = default;
 
     void clearIndicators();
+    void showIndicatorWarmup(int sampleCount, int requiredCount);
     void updateIndicators(double rsi, double macd, double bollUpper, double bollLower, double currentPrice);
     void addSignal(const QString& time, const QString& type, const QString& indicator, double value);
 

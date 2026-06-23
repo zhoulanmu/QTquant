@@ -4,6 +4,7 @@
 #include <QDateTime>
 #include <QJsonValue>
 #include <QString>
+#include <QStringList>
 #include <QTimer>
 #include <QUrl>
 #include <QVector>
@@ -76,15 +77,29 @@ private slots:
     void onTrendReplyFinished();
 
 private:
+    enum class QuoteSource {
+        EastMoney,
+        Sina,
+        Tencent
+    };
+
     void fetchLatestQuote();
+    void fetchQuote(QuoteSource source);
+    bool fetchNextQuoteSource(QuoteSource source, const QString& failureReason);
     void fetchIntradayTrend();
-    QUrl buildQuoteUrl() const;
+    QUrl buildQuoteUrl(QuoteSource source) const;
     QUrl buildTrendUrl() const;
     bool emitQuoteFallbackTrend(const QString& reason);
-    bool parseQuoteResponse(const QByteArray& payload, MarketData* data, QString* errorMessage) const;
+    bool parseQuoteResponse(QuoteSource source, const QByteArray& payload, MarketData* data, QString* errorMessage) const;
+    bool parseEastMoneyQuoteResponse(const QByteArray& payload, MarketData* data, QString* errorMessage) const;
+    bool parseSinaQuoteResponse(const QByteArray& payload, MarketData* data, QString* errorMessage) const;
+    bool parseTencentQuoteResponse(const QByteArray& payload, MarketData* data, QString* errorMessage) const;
     bool parseTrendResponse(const QByteArray& payload, QVector<MarketData>* points, QString* errorMessage) const;
+    static QString sourceName(QuoteSource source);
+    static QString prefixedMarketSymbol(const QString& symbol);
     static QString secIdForSymbol(const QString& symbol);
     static double valueToDouble(const QJsonValue& value);
+    static double textToDouble(QString text);
 
 private:
     QTimer* m_timer;
@@ -95,8 +110,11 @@ private:
     QNetworkAccessManager* m_network;
     QNetworkReply* m_activeReply;
     QNetworkReply* m_trendReply;
+    QuoteSource m_activeQuoteSource;
+    QStringList m_quoteFailureReasons;
     MarketData m_lastQuoteData;
     bool m_hasLastQuoteData;
+    QDateTime m_lastTrendFetchAt;
     QString m_pendingTrendFallbackReason;
     bool m_isUsingQuoteFallbackTrend;
     MarketDataFeedMode m_feedMode;

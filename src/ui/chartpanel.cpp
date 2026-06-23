@@ -124,24 +124,21 @@ void ChartPanel::updatePriceRange()
         }
     }
 
-    if (previousClose > 0.0) {
-        const double upperDistance = qAbs(m_maxPrice - previousClose);
-        const double lowerDistance = qAbs(previousClose - m_minPrice);
-        const double distance = qMax(qMax(upperDistance, lowerDistance), previousClose * 0.003);
-        m_minPrice = qMax(0.0, previousClose - distance);
-        m_maxPrice = previousClose + distance;
-    }
-
     if (m_minPrice == std::numeric_limits<double>::max() || m_maxPrice == std::numeric_limits<double>::lowest()) {
         m_minPrice = 0.0;
         m_maxPrice = 1.0;
         return;
     }
 
+    if (previousClose > 0.0) {
+        m_minPrice = qMin(m_minPrice, previousClose);
+        m_maxPrice = qMax(m_maxPrice, previousClose);
+    }
+
     const double range = m_maxPrice - m_minPrice;
     const double padding = range < 0.001
         ? qMax(0.01, m_maxPrice * 0.0005)
-        : qMax(0.01, range * 0.25);
+        : qMax(0.01, range * 0.12);
 
     m_minPrice = qMax(0.0, m_minPrice - padding);
     m_maxPrice += padding;

@@ -3,6 +3,7 @@
 #include <QMainWindow>
 #include <QMap>
 #include <QString>
+#include <QStringList>
 #include <QVector>
 #include "market/marketdata.h"
 #include "strategy/strategybase.h"
@@ -13,6 +14,9 @@
 
 class QTabWidget;
 class QWidget;
+class QDoubleSpinBox;
+class QTimer;
+struct StrategyInstanceInfo;
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -31,12 +35,15 @@ private slots:
     void onIntradayDataUpdated(const QVector<MarketData>& data);
     void onFallbackIntradayDataUsed(const QString& symbol, const QString& reason);
     void onMarketDataError(const QString& message);
-    void onStrategyMarketDataUpdated(const MarketData& data);
-    void onStrategyIntradayDataUpdated(const QVector<MarketData>& data);
-    void onStrategyMarketDataError(const QString& message);
-    void onStrategySignal(const StrategySignal& signal);
+    void onStrategyMarketDataUpdated(int strategyId, const MarketData& data);
+    void onStrategyIntradayDataUpdated(int strategyId, const QVector<MarketData>& data);
+    void onStrategyMarketDataError(int strategyId, const QString& message);
+    void onStrategySignal(int strategyId, const StrategySignal& signal);
     void onStartStrategy();
     void onStopStrategy();
+    void onStartStrategyInstance(int strategyId);
+    void onStopStrategyInstance(int strategyId);
+    void onStrategyInstanceSelectionChanged(int strategyId);
     void onUpdateParameters();
     void onViewSymbolChanged(const QString& symbol);
     void onFavoriteSelected(const QString& symbol);
@@ -46,20 +53,36 @@ private slots:
     void onManualTradeQuoteError(const QString& message);
 
 private:
+    struct StrategyRuntime;
     void updateAccountInfo();
+    void updateAccountInfo(int accountIndex);
     void loadAccountState();
     void saveAccountState() const;
-    void appendTradeRecord(const QString& symbol, const QString& type, double price, double volume, double amount, const QString& time);
-    void executeOrder(const StrategySignal& signal);
+    void appendTradeRecord(int accountIndex, const QString& symbol, const QString& type, double price, double volume, double amount, double fee, const QString& time);
+    void executeOrder(int strategyId, const StrategySignal& signal);
     void buildTabbedLayout();
     QWidget* createMainTab();
     QWidget* createStrategyTab();
     QWidget* createPersonalTab();
     QWidget* createNewsTab();
-    void configureStrategy(const StrategyConfig& config);
+    void configureStrategyRuntime(StrategyRuntime* runtime, const StrategyConfig& config);
     void updateSignalIndicators();
-    void resetStrategyProgressTracking(const StrategyConfig& config);
-    void appendStrategyProgressLog();
+    void resetStrategyProgressTracking(StrategyRuntime* runtime, const StrategyConfig& config);
+    void appendStrategyProgressLog(StrategyRuntime* runtime);
+    void updatePositionsPrice(const QString& symbol, double price);
+    StrategyRuntime* runtimeForStrategy(int strategyId) const;
+    QString strategyRuntimeLogLabel(const StrategyRuntime* runtime) const;
+    QString strategyInstanceLogLabel(const StrategyInstanceInfo& instance) const;
+    StrategyRuntime* ensureRuntime(const StrategyInstanceInfo& instance);
+    void startStrategyRuntimeNow(StrategyRuntime* runtime, bool fromBatch);
+    void startStrategyInstance(const StrategyInstanceInfo& instance, bool fromBatch);
+    void stopStrategyRuntime(int strategyId);
+    bool hasRunningStrategyForAccount(int accountIndex, int exceptStrategyId = 0) const;
+    void refreshStrategyRunningState();
+    void startWaitingStrategiesIfReady();
+    void transferAccountCash(int accountIndex, double amount);
+    void resetAccountAssets(int accountIndex);
+    QStringList accountNames() const;
     double latestPriceForSymbol(const QString& symbol) const;
     void requestManualTrade(const QString& symbol, SignalType type, double price, double volume);
     void executeManualTrade(const QString& symbol, SignalType type, double price, double volume);
@@ -67,20 +90,15 @@ private:
 private:
     Ui::MainWindow *ui;
     MarketDataSimulator* m_marketData;
-    MarketDataSimulator* m_strategyMarketData;
     MarketDataSimulator* m_manualTradeMarketData;
-    StrategyBase* m_strategy;
-    StrategyType m_activeStrategyType;
-    StrategyConfig m_runningStrategyConfig;
     AccountPanel* m_accountPanel;
     StatisticsPanel* m_statisticsPanel;
     SignalPanel* m_signalPanel;
     NewsPanel* m_newsPanel;
     QTabWidget* m_mainTabs;
+    QTabWidget* m_accountTabs;
+    QTimer* m_strategyStartTimer;
     bool m_isRunning;
-
-    double m_initialCapital;
-    double m_currentCash;
     struct TradeRecordInfo {
         QString time;
         QString symbol;
@@ -88,19 +106,49 @@ private:
         double price = 0.0;
         double volume = 0.0;
         double amount = 0.0;
+        double fee = 0.0;
     };
 
-    QMap<QString, PositionInfo> m_positions;
-    QVector<TradeRecordInfo> m_tradeRecords;
+    struct AccountState {
+        QString name;
+        double initialCapital = 100000.0;
+        double currentCash = 100000.0;
+        QMap<QString, PositionInfo> positions;
+        QVector<TradeRecordInfo> tradeRecords;
+    };
+
+    struct StrategyRuntime {
+        int id = 0;
+        int accountIndex = -1;
+        StrategyConfig config;
+        MarketDataSimulator* marketData = nullptr;
+        StrategyBase* strategy = nullptr;
+        StrategyType activeStrategyType = StrategyType::DoubleMA;
+        bool running = false;
+        bool waiting = false;
+        MarketData lastMarketData;
+        bool hasLastMarketData = false;
+        QVector<MarketData> indicatorHistory;
+        QVector<double> closeSamples;
+        int lastProgressSampleLogged = 0;
+        int lastMonitorSampleLogged = 0;
+        bool firstQuoteLogged = false;
+        bool monitorEntered = false;
+        bool tradeTriggeredOnTick = false;
+    };
+
+    QVector<AccountState> m_accounts;
+    QVector<AccountPanel*> m_accountPanels;
+    QVector<StrategyRuntime*> m_strategyRuntimes;
+    int m_activeAccountIndex;
+    int m_activeRuntimeId;
     double m_currentPrice;
     MarketData m_lastMarketData;
     bool m_hasLastMarketData;
     MarketData m_lastStrategyMarketData;
     bool m_hasLastStrategyMarketData;
-    QVector<MarketData> m_indicatorHistory;
     QDateTime m_lastMarketDataErrorLoggedAt;
     QString m_lastMarketDataErrorMessage;
-    QVector<double> m_strategyCloseSamples;
     int m_lastStrategyProgressSampleLogged;
     int m_lastStrategyMonitorSampleLogged;
     bool m_strategyFirstQuoteLogged;

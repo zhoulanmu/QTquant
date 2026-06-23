@@ -28,6 +28,15 @@ struct StockCandidate
     QString name;
 };
 
+struct StrategyInstanceInfo
+{
+    int id = 0;
+    QString name;
+    int accountIndex = -1;
+    StrategyConfig config;
+    bool running = false;
+    bool waiting = false;
+};
 namespace Ui {
 class StrategyPanel;
 }
@@ -39,6 +48,9 @@ class StrategyPanel : public QWidget
 signals:
     void startClicked();
     void stopClicked();
+    void strategyInstanceStartRequested(int strategyId);
+    void strategyInstanceStopRequested(int strategyId);
+    void strategyInstanceSelectionChanged(int strategyId);
     void parametersChanged();
     void viewSymbolChanged(const QString& symbol);
     void favoriteSelected(const QString& symbol);
@@ -60,11 +72,17 @@ public:
     double getLotSize() const;
     QString currentStrategyName() const;
     QString currentStrategyConfigurationSummary() const;
+    QVector<StrategyInstanceInfo> strategyInstances();
+    StrategyInstanceInfo strategyInstance(int strategyId);
+    int currentStrategyInstanceId() const;
 
     void setRunningState(bool running);
+    void setAccountNames(const QStringList& names);
+    void setStrategyInstanceRunning(int strategyId, bool running, bool waiting = false);
     void rememberStockName(const QString& symbol, const QString& name);
     void addSystemLog(const QString& message);
-    void addSignalLog(const StrategySignal& signal);
+    void addStrategyLog(const QString& context, const QString& message);
+    void addSignalLog(const StrategySignal& signal, const QString& context = QString());
     QWidget* takeSymbolSelectorWidget(QWidget* parent);
     QWidget* takeStrategyControlWidget(QWidget* parent);
     QWidget* takeTradeLogWidget(QWidget* parent);
@@ -87,6 +105,12 @@ private slots:
     void onStrategyPresetChanged(int index);
     void onApplyStrategyPresetClicked();
     void onStrategyConfigChanged();
+    void onStrategyInstanceSelectionChanged();
+    void onAddStrategyInstanceClicked();
+    void onRemoveStrategyInstanceClicked();
+    void onStrategyAccountChanged(int index);
+    void onStrategyInstanceStartClicked();
+    void onStrategyInstanceStopClicked();
     void onAddFavoriteClicked();
     void onRemoveFavoriteClicked();
     void onFavoriteActivated(QListWidgetItem* item);
@@ -96,6 +120,7 @@ private slots:
 
 private:
     void setupStockSearchUi();
+    void setupStrategyInstanceUi();
     void setupCommonStrategyUi();
     void setupCurrentStrategyConfigUi();
     void updateCurrentStrategyConfigUi();
@@ -108,6 +133,17 @@ private:
     void saveCurrentStrategyType() const;
     void loadStrategySettings();
     void saveStrategySettings() const;
+    void loadStrategyInstances();
+    void saveStrategyInstances() const;
+    void saveCurrentStrategyInstanceFromEditor();
+    void saveStrategyInstanceFromEditor(int index);
+    void loadStrategyInstanceIntoEditor(int index);
+    void refreshStrategyInstanceList();
+    void refreshStrategyInstanceControls();
+    int selectedStrategyInstanceIndex() const;
+    int selectedStrategyAccountIndex() const;
+    int nextAvailableAccountIndex() const;
+    QString strategyInstanceDisplayText(const StrategyInstanceInfo& instance) const;
     void loadPersonalSettings();
     void savePersonalSettings() const;
     void loadWatchlist();
@@ -147,6 +183,13 @@ private:
     QLabel* m_strategyPresetDescLabel;
     QPushButton* m_strategyDetailButton;
     QPushButton* m_applyStrategyPresetBtn;
+    QGroupBox* m_strategyInstanceGroup;
+    QListWidget* m_strategyInstanceList;
+    QComboBox* m_strategyAccountCombo;
+    QPushButton* m_addStrategyInstanceBtn;
+    QPushButton* m_removeStrategyInstanceBtn;
+    QPushButton* m_startStrategyInstanceBtn;
+    QPushButton* m_stopStrategyInstanceBtn;
     QGroupBox* m_strategyConfigGroup;
     QLabel* m_strategyConfigHintLabel;
     QVector<QWidget*> m_growthConfigWidgets;
@@ -179,6 +222,11 @@ private:
     QMap<QString, QString> m_stockNames;
     QMap<QString, QString> m_completionSymbols;
     QStringList m_favorites;
+    QVector<StrategyInstanceInfo> m_strategyInstances;
+    QStringList m_accountNames;
+    int m_nextStrategyInstanceId;
+    int m_currentStrategyInstanceIndex;
     bool m_updatingSymbol;
     bool m_loadingSettings;
+    bool m_loadingStrategyInstance;
 };

@@ -1,5 +1,6 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include "ui/strategypanel.h"
 #include "indicator/indicators.h"
 #include "strategy/movingaveragestrategy.h"
 #include "strategy/prosperitygrowthstrategy.h"
@@ -7,6 +8,7 @@
 #include <QAbstractItemView>
 #include <QDateTime>
 #include <QDialog>
+#include <QDoubleSpinBox>
 #include <QGridLayout>
 #include <QGroupBox>
 #include <QHBoxLayout>
@@ -14,22 +16,83 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QHeaderView>
+#include <QInputDialog>
 #include <QLabel>
+#include <QMessageBox>
 #include <QPushButton>
 #include <QSettings>
+#include <QSet>
 #include <QSizePolicy>
 #include <QTableWidget>
 #include <QTableWidgetItem>
 #include <QTabWidget>
 #include <QTextEdit>
+#include <QTimer>
 #include <QVBoxLayout>
 
+#include <cmath>
 #include <vector>
 
 namespace {
 constexpr int MaxStoredTradeRecords = 50;
 constexpr int ProsperityGrowthRequiredSamples = 60;
+constexpr double BoardLotSize = 100.0;
+constexpr double CommissionRate = 0.0002;
+constexpr double MinCommission = 5.0;
+constexpr double StampDutyRate = 0.001;
+constexpr double TransferFeeRate = 0.00001;
 
+struct TradeFeeBreakdown
+{
+    double commission = 0.0;
+    double stampDuty = 0.0;
+    double transferFee = 0.0;
+    double total = 0.0;
+};
+
+double roundDownToBoardLot(double shares)
+{
+    if (shares <= 0.0) {
+        return 0.0;
+    }
+    return std::floor(shares / BoardLotSize) * BoardLotSize;
+}
+
+TradeFeeBreakdown calculateStockFees(double amount, bool sell)
+{
+    TradeFeeBreakdown fees;
+    if (amount <= 0.0) {
+        return fees;
+    }
+
+    fees.commission = qMax(amount * CommissionRate, MinCommission);
+    fees.stampDuty = sell ? amount * StampDutyRate : 0.0;
+    fees.transferFee = amount * TransferFeeRate;
+    fees.total = fees.commission + fees.stampDuty + fees.transferFee;
+    return fees;
+}
+
+QString feeSummary(const TradeFeeBreakdown& fees)
+{
+    return QStringLiteral("费用 %1（佣金 %2，印花税 %3，过户费 %4）")
+        .arg(fees.total, 0, 'f', 2)
+        .arg(fees.commission, 0, 'f', 2)
+        .arg(fees.stampDuty, 0, 'f', 2)
+        .arg(fees.transferFee, 0, 'f', 2);
+}
+
+double affordableBoardLot(double price, double budget)
+{
+    double lotSize = roundDownToBoardLot(budget / price);
+    while (lotSize >= BoardLotSize) {
+        const double amount = price * lotSize;
+        if (amount + calculateStockFees(amount, false).total <= budget) {
+            return lotSize;
+        }
+        lotSize -= BoardLotSize;
+    }
+    return 0.0;
+}
 bool shouldLogStrategyProgressSample(int sampleCount, int requiredSamples)
 {
     if (sampleCount <= 0 || requiredSamples <= 0) {
@@ -134,7 +197,7 @@ void showThemedWarning(QWidget* parent, const QString& title, const QString& mes
     auto* titleLabel = new QLabel(title, &dialog);
     titleLabel->setObjectName(QStringLiteral("dialogTitle"));
 
-    auto* closeButton = new QPushButton(QStringLiteral("×"), &dialog);
+    auto* closeButton = new QPushButton(QStringLiteral("X"), &dialog);
     closeButton->setObjectName(QStringLiteral("dialogCloseButton"));
     closeButton->setCursor(Qt::PointingHandCursor);
 
@@ -182,35 +245,28 @@ MainWindow::MainWindow(bool guestMode, const QString& accountName, QWidget *pare
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
     , m_marketData(nullptr)
-    , m_strategyMarketData(nullptr)
     , m_manualTradeMarketData(nullptr)
-    , m_strategy(nullptr)
-    , m_activeStrategyType(StrategyType::DoubleMA)
-    , m_runningStrategyConfig()
     , m_accountPanel(nullptr)
     , m_statisticsPanel(nullptr)
     , m_signalPanel(nullptr)
     , m_newsPanel(nullptr)
     , m_mainTabs(nullptr)
+    , m_accountTabs(nullptr)
+    , m_strategyStartTimer(nullptr)
     , m_isRunning(false)
-    , m_initialCapital(100000.0)
-    , m_currentCash(100000.0)
+    , m_activeAccountIndex(0)
+    , m_activeRuntimeId(0)
     , m_currentPrice(10.78)
     , m_hasLastMarketData(false)
     , m_hasLastStrategyMarketData(false)
     , m_lastMarketDataErrorLoggedAt()
-    , m_lastStrategyProgressSampleLogged(0)
-    , m_lastStrategyMonitorSampleLogged(0)
-    , m_strategyFirstQuoteLogged(false)
-    , m_strategyMonitorEntered(false)
-    , m_strategyTradeTriggeredOnTick(false)
     , m_pendingManualTradeType(SignalType::NONE)
     , m_pendingManualTradeVolume(0.0)
     , m_guestMode(guestMode)
     , m_accountName(accountName)
 {
     ui->setupUi(this);
-    setWindowTitle(QStringLiteral("星策 StarQuant - 先以模拟谋方略，再持真仓逐行情"));
+    setWindowTitle(QStringLiteral("StarQuant"));
 
     const QString darkTheme =
         "QMainWindow { background-color: #253b6e; }"
@@ -265,22 +321,22 @@ MainWindow::MainWindow(bool guestMode, const QString& accountName, QWidget *pare
     setStyleSheet(darkTheme);
 
     m_marketData = new MarketDataSimulator(this);
-    m_strategyMarketData = new MarketDataSimulator(this);
     m_manualTradeMarketData = new MarketDataSimulator(this);
     m_marketData->setFeedMode(MarketDataFeedMode::QuoteWhenOpenTrendWhenClosed);
-    m_strategyMarketData->setFeedMode(MarketDataFeedMode::RealtimeQuoteOnly);
     m_manualTradeMarketData->setFeedMode(MarketDataFeedMode::QuoteOnly);
-    m_strategy = nullptr;
+    m_strategyStartTimer = new QTimer(this);
+    m_strategyStartTimer->setInterval(30000);
+    connect(m_strategyStartTimer, &QTimer::timeout, this, &MainWindow::startWaitingStrategiesIfReady);
 
     connect(m_marketData, &MarketDataSimulator::dataUpdated, this, &MainWindow::onMarketDataUpdated);
     connect(m_marketData, &MarketDataSimulator::intradayDataUpdated, this, &MainWindow::onIntradayDataUpdated);
     connect(m_marketData, &MarketDataSimulator::fallbackIntradayDataUsed, this, &MainWindow::onFallbackIntradayDataUsed);
     connect(m_marketData, &MarketDataSimulator::errorOccurred, this, &MainWindow::onMarketDataError);
-    connect(m_strategyMarketData, &MarketDataSimulator::dataUpdated, this, &MainWindow::onStrategyMarketDataUpdated);
-    connect(m_strategyMarketData, &MarketDataSimulator::intradayDataUpdated, this, &MainWindow::onStrategyIntradayDataUpdated);
-    connect(m_strategyMarketData, &MarketDataSimulator::errorOccurred, this, &MainWindow::onStrategyMarketDataError);
     connect(ui->strategyPanel, &StrategyPanel::startClicked, this, &MainWindow::onStartStrategy);
     connect(ui->strategyPanel, &StrategyPanel::stopClicked, this, &MainWindow::onStopStrategy);
+    connect(ui->strategyPanel, &StrategyPanel::strategyInstanceStartRequested, this, &MainWindow::onStartStrategyInstance);
+    connect(ui->strategyPanel, &StrategyPanel::strategyInstanceStopRequested, this, &MainWindow::onStopStrategyInstance);
+    connect(ui->strategyPanel, &StrategyPanel::strategyInstanceSelectionChanged, this, &MainWindow::onStrategyInstanceSelectionChanged);
     connect(ui->strategyPanel, &StrategyPanel::parametersChanged, this, &MainWindow::onUpdateParameters);
     connect(ui->strategyPanel, &StrategyPanel::viewSymbolChanged, this, &MainWindow::onViewSymbolChanged);
     connect(ui->strategyPanel, &StrategyPanel::favoriteSelected, this, &MainWindow::onFavoriteSelected);
@@ -293,6 +349,10 @@ MainWindow::MainWindow(bool guestMode, const QString& accountName, QWidget *pare
     ui->verticalLayout_3->replaceWidget(ui->accountPanel, m_accountPanel);
     delete ui->accountPanel;
     ui->accountPanel = m_accountPanel;
+    m_accountPanels.append(m_accountPanel);
+    for (int i = 1; i < 6; ++i) {
+        m_accountPanels.append(new AccountPanel(this));
+    }
 
     m_statisticsPanel = new StatisticsPanel(this);
     ui->horizontalLayout_2->replaceWidget(ui->statisticsPanel, m_statisticsPanel);
@@ -306,11 +366,11 @@ MainWindow::MainWindow(bool guestMode, const QString& accountName, QWidget *pare
 
     m_newsPanel = new NewsPanel(this);
     loadAccountState();
+    ui->strategyPanel->setAccountNames(accountNames());
 
     buildTabbedLayout();
 
     ui->strategyPanel->setRunningState(false);
-    configureStrategy(ui->strategyPanel->strategyConfig());
     m_marketData->setSymbol(ui->strategyPanel->getViewSymbol());
     updateAccountInfo();
 
@@ -323,13 +383,24 @@ MainWindow::MainWindow(bool guestMode, const QString& accountName, QWidget *pare
 MainWindow::~MainWindow()
 {
     m_marketData->stopSimulation();
-    if (m_strategyMarketData) {
-        m_strategyMarketData->stopSimulation();
+    for (StrategyRuntime* runtime : m_strategyRuntimes) {
+        if (runtime && runtime->marketData) {
+            runtime->marketData->stopSimulation();
+        }
     }
     if (m_manualTradeMarketData) {
         m_manualTradeMarketData->stopSimulation();
     }
     saveAccountState();
+    for (StrategyRuntime* runtime : m_strategyRuntimes) {
+        if (!runtime) {
+            continue;
+        }
+        delete runtime->marketData;
+        delete runtime->strategy;
+        delete runtime;
+    }
+    m_strategyRuntimes.clear();
     delete ui;
 }
 
@@ -362,9 +433,9 @@ void MainWindow::buildTabbedLayout()
     m_mainTabs->setTabPosition(QTabWidget::North);
     m_mainTabs->setElideMode(Qt::ElideNone);
     m_mainTabs->setUsesScrollButtons(false);
-    m_mainTabs->addTab(createMainTab(), QStringLiteral("主"));
+    m_mainTabs->addTab(createMainTab(), QStringLiteral("主页"));
     m_mainTabs->addTab(createStrategyTab(), QStringLiteral("策略"));
-    m_mainTabs->addTab(createPersonalTab(), QStringLiteral("个人"));
+    m_mainTabs->addTab(createPersonalTab(), QStringLiteral("账户"));
     m_mainTabs->addTab(createNewsTab(), QStringLiteral("新闻"));
 
     ui->horizontalLayout->setContentsMargins(8, 8, 8, 8);
@@ -440,8 +511,79 @@ QWidget* MainWindow::createPersonalTab()
         rootLayout->addWidget(watchlist, 1);
     }
 
-    m_accountPanel->setMinimumWidth(620);
-    rootLayout->addWidget(m_accountPanel, 3);
+    m_accountTabs = new QTabWidget(tab);
+    m_accountTabs->setObjectName(QStringLiteral("accountTabs"));
+    m_accountTabs->setMinimumWidth(620);
+    m_accountTabs->setUsesScrollButtons(false);
+
+    for (int i = 0; i < m_accountPanels.size(); ++i) {
+        auto* accountPage = new QWidget(m_accountTabs);
+        auto* pageLayout = new QVBoxLayout(accountPage);
+        pageLayout->setContentsMargins(0, 0, 0, 0);
+        pageLayout->setSpacing(8);
+
+        auto* controls = new QGroupBox(QStringLiteral("账户资金"), accountPage);
+        auto* controlsLayout = new QHBoxLayout(controls);
+        controlsLayout->setContentsMargins(10, 12, 10, 10);
+        controlsLayout->setSpacing(8);
+
+        auto* amountSpin = new QDoubleSpinBox(controls);
+        amountSpin->setRange(0.0, 100000000.0);
+        amountSpin->setDecimals(2);
+        amountSpin->setSingleStep(1000.0);
+        amountSpin->setValue(10000.0);
+        amountSpin->setMinimumWidth(130);
+        auto* transferInBtn = new QPushButton(QStringLiteral("转入"), controls);
+        auto* transferOutBtn = new QPushButton(QStringLiteral("转出"), controls);
+        auto* quick10kBtn = new QPushButton(QStringLiteral("1万"), controls);
+        auto* quick50kBtn = new QPushButton(QStringLiteral("5万"), controls);
+        auto* quick100kBtn = new QPushButton(QStringLiteral("10万"), controls);
+        auto* customBtn = new QPushButton(QStringLiteral("自定义"), controls);
+        auto* resetBtn = new QPushButton(QStringLiteral("归零"), controls);
+
+        controlsLayout->addWidget(amountSpin);
+        controlsLayout->addWidget(transferInBtn);
+        controlsLayout->addWidget(transferOutBtn);
+        controlsLayout->addWidget(quick10kBtn);
+        controlsLayout->addWidget(quick50kBtn);
+        controlsLayout->addWidget(quick100kBtn);
+        controlsLayout->addWidget(customBtn);
+        controlsLayout->addWidget(resetBtn);
+        controlsLayout->addStretch();
+
+        connect(quick10kBtn, &QPushButton::clicked, amountSpin, [amountSpin]() { amountSpin->setValue(10000.0); });
+        connect(quick50kBtn, &QPushButton::clicked, amountSpin, [amountSpin]() { amountSpin->setValue(50000.0); });
+        connect(quick100kBtn, &QPushButton::clicked, amountSpin, [amountSpin]() { amountSpin->setValue(100000.0); });
+        connect(customBtn, &QPushButton::clicked, this, [this, amountSpin]() {
+            bool ok = false;
+            const double value = QInputDialog::getDouble(this, QStringLiteral("自定义金额"), QStringLiteral("金额"), amountSpin->value(), 0.0, 100000000.0, 2, &ok);
+            if (ok) {
+                amountSpin->setValue(value);
+            }
+        });
+        connect(transferInBtn, &QPushButton::clicked, this, [this, i, amountSpin]() {
+            transferAccountCash(i, amountSpin->value());
+        });
+        connect(transferOutBtn, &QPushButton::clicked, this, [this, i, amountSpin]() {
+            transferAccountCash(i, -amountSpin->value());
+        });
+        connect(resetBtn, &QPushButton::clicked, this, [this, i]() {
+            resetAccountAssets(i);
+        });
+
+        pageLayout->addWidget(controls, 0);
+        m_accountPanels.at(i)->setParent(accountPage);
+        pageLayout->addWidget(m_accountPanels.at(i), 1);
+        m_accountTabs->addTab(accountPage, i < m_accounts.size() ? m_accounts.at(i).name : QStringLiteral("账户 %1").arg(i + 1));
+    }
+
+    connect(m_accountTabs, &QTabWidget::currentChanged, this, [this](int index) {
+        if (index >= 0 && index < m_accounts.size()) {
+            m_activeAccountIndex = index;
+        }
+    });
+
+    rootLayout->addWidget(m_accountTabs, 3);
     return tab;
 }
 
@@ -455,7 +597,9 @@ QWidget* MainWindow::createNewsTab()
     m_newsPanel->setParent(tab);
     rootLayout->addWidget(m_newsPanel);
     return tab;
-}void MainWindow::onMarketDataUpdated(const MarketData &data)
+}
+
+void MainWindow::onMarketDataUpdated(const MarketData &data)
 {
     m_currentPrice = data.close;
     m_lastMarketData = data;
@@ -466,9 +610,7 @@ QWidget* MainWindow::createNewsTab()
     ui->chartPanel->updateChartData(data);
     m_statisticsPanel->setData(data.turnover, data.volume, data.volume, 0.0, 0.0, 0);
 
-    if (m_positions.contains(data.symbol)) {
-        m_positions[data.symbol].currentPrice = data.close;
-    }
+    updatePositionsPrice(data.symbol, data.close);
 
     updateAccountInfo();
 }
@@ -481,124 +623,141 @@ void MainWindow::onIntradayDataUpdated(const QVector<MarketData>& data)
 void MainWindow::onFallbackIntradayDataUsed(const QString& symbol, const QString& reason)
 {
     const QString detail = reason.isEmpty() ? QStringLiteral("分时接口未返回可用数据") : reason;
-    ui->strategyPanel->addSystemLog(
-        QStringLiteral("离线分时行情获取失败，已使用 %1 的开盘/最高/最低/收盘 4 点摘要兜底绘图；这不是完整分时行情。原因：%2")
-            .arg(symbol, detail));
+    ui->strategyPanel->addSystemLog(QStringLiteral("分时行情获取失败，已使用 %1 的摘要数据兜底。原因：%2").arg(symbol, detail));
 }
 
-void MainWindow::onStrategyMarketDataUpdated(const MarketData& data)
+void MainWindow::onStrategyMarketDataUpdated(int strategyId, const MarketData& data)
 {
+    StrategyRuntime* runtime = runtimeForStrategy(strategyId);
+    if (!runtime) {
+        return;
+    }
+
+    runtime->lastMarketData = data;
+    runtime->hasLastMarketData = true;
     m_lastStrategyMarketData = data;
     m_hasLastStrategyMarketData = true;
 
     ui->strategyPanel->rememberStockName(data.symbol, data.name);
-    if (m_positions.contains(data.symbol)) {
-        m_positions[data.symbol].currentPrice = data.close;
+    updatePositionsPrice(data.symbol, data.close);
+    if (m_activeRuntimeId == strategyId) {
+        updateSignalIndicators();
     }
-    updateSignalIndicators();
     updateAccountInfo();
 
-    if (!m_isRunning || !m_strategy) {
+    if (!runtime->running || !runtime->strategy) {
         return;
     }
 
-    if (!m_strategyFirstQuoteLogged) {
-        m_strategyFirstQuoteLogged = true;
-        ui->strategyPanel->addSystemLog(
-            QStringLiteral("已收到策略行情：%1 @ %2")
-                .arg(data.symbol)
-                .arg(data.close, 0, 'f', 2));
+    if (!runtime->firstQuoteLogged) {
+        runtime->firstQuoteLogged = true;
+        ui->strategyPanel->addStrategyLog(strategyRuntimeLogLabel(runtime), QStringLiteral("行情就绪：%1 @ %2")
+            .arg(data.symbol)
+            .arg(data.close, 0, 'f', 2));
     }
 
-    m_strategyCloseSamples.append(data.close);
-    while (m_strategyCloseSamples.size() > 240) {
-        m_strategyCloseSamples.removeFirst();
+    runtime->closeSamples.append(data.close);
+    while (runtime->closeSamples.size() > 240) {
+        runtime->closeSamples.removeFirst();
     }
 
-    m_strategyTradeTriggeredOnTick = false;
-    m_strategy->processMarketData(data);
-    appendStrategyProgressLog();
-    m_strategyTradeTriggeredOnTick = false;
+    bool hasAccountPosition = false;
+    double avgCost = 0.0;
+    if (runtime->accountIndex >= 0 && runtime->accountIndex < m_accounts.size()) {
+        const AccountState& account = m_accounts.at(runtime->accountIndex);
+        const auto posIt = account.positions.constFind(data.symbol);
+        hasAccountPosition = posIt != account.positions.cend() && posIt.value().quantity > 0.0;
+        avgCost = hasAccountPosition ? posIt.value().avgCost : 0.0;
+    }
+    runtime->strategy->syncPositionState(hasAccountPosition, avgCost);
+
+    runtime->tradeTriggeredOnTick = false;
+    runtime->strategy->processMarketData(data);
+    appendStrategyProgressLog(runtime);
+    runtime->tradeTriggeredOnTick = false;
+}
+void MainWindow::onStrategyIntradayDataUpdated(int strategyId, const QVector<MarketData>& data)
+{
+    StrategyRuntime* runtime = runtimeForStrategy(strategyId);
+    if (!runtime) {
+        return;
+    }
+    runtime->indicatorHistory = data;
+    if (m_activeRuntimeId == strategyId) {
+        updateSignalIndicators();
+    }
 }
 
-void MainWindow::onStrategyIntradayDataUpdated(const QVector<MarketData>& data)
+void MainWindow::resetStrategyProgressTracking(StrategyRuntime* runtime, const StrategyConfig& config)
 {
-    m_indicatorHistory = data;
-    updateSignalIndicators();
+    if (!runtime) {
+        return;
+    }
+    runtime->config = config;
+    runtime->closeSamples.clear();
+    runtime->lastProgressSampleLogged = 0;
+    runtime->lastMonitorSampleLogged = 0;
+    runtime->firstQuoteLogged = false;
+    runtime->monitorEntered = false;
+    runtime->tradeTriggeredOnTick = false;
 }
 
-void MainWindow::resetStrategyProgressTracking(const StrategyConfig& config)
+void MainWindow::appendStrategyProgressLog(StrategyRuntime* runtime)
 {
-    m_runningStrategyConfig = config;
-    m_strategyCloseSamples.clear();
-    m_lastStrategyProgressSampleLogged = 0;
-    m_lastStrategyMonitorSampleLogged = 0;
-    m_strategyFirstQuoteLogged = false;
-    m_strategyMonitorEntered = false;
-    m_strategyTradeTriggeredOnTick = false;
-}
-
-void MainWindow::appendStrategyProgressLog()
-{
-    if (!m_isRunning || m_strategyCloseSamples.isEmpty()) {
+    if (!runtime || !runtime->running || runtime->closeSamples.isEmpty()) {
         return;
     }
 
-    const bool doubleMA = m_runningStrategyConfig.strategyType == StrategyType::DoubleMA;
-    const QString strategyName = doubleMA ? QStringLiteral("双均线") : QStringLiteral("景气成长");
+    const StrategyConfig& config = runtime->config;
+    const bool doubleMA = config.strategyType == StrategyType::DoubleMA;
+    const QString label = strategyRuntimeLogLabel(runtime);
     const int requiredSamples = doubleMA
-        ? qMax(m_runningStrategyConfig.doubleMAConfig.fastMA, m_runningStrategyConfig.doubleMAConfig.slowMA)
+        ? qMax(config.doubleMAConfig.fastMA, config.doubleMAConfig.slowMA)
         : ProsperityGrowthRequiredSamples;
-    const int sampleCount = m_strategyCloseSamples.size();
+    const int sampleCount = runtime->closeSamples.size();
 
     if (sampleCount < requiredSamples) {
-        if (sampleCount != m_lastStrategyProgressSampleLogged
+        if (sampleCount != runtime->lastProgressSampleLogged
             && shouldLogStrategyProgressSample(sampleCount, requiredSamples)) {
-            ui->strategyPanel->addSystemLog(
-                QStringLiteral("%1样本累计中：%2/%3，暂不计算信号")
-                    .arg(strategyName)
-                    .arg(sampleCount)
-                    .arg(requiredSamples));
-            m_lastStrategyProgressSampleLogged = sampleCount;
+            ui->strategyPanel->addStrategyLog(label, QStringLiteral("样本收集中：%1/%2")
+                .arg(sampleCount)
+                .arg(requiredSamples));
+            runtime->lastProgressSampleLogged = sampleCount;
         }
         return;
     }
 
-    if (!m_strategyMonitorEntered) {
-        ui->strategyPanel->addSystemLog(
-            QStringLiteral("%1样本累计中：%2/%3，进入信号监控")
-                .arg(strategyName)
-                .arg(sampleCount)
-                .arg(requiredSamples));
-        m_strategyMonitorEntered = true;
-        m_lastStrategyProgressSampleLogged = sampleCount;
+    if (!runtime->monitorEntered) {
+        ui->strategyPanel->addStrategyLog(label, QStringLiteral("进入监控：%1/%2 个样本已就绪")
+            .arg(sampleCount)
+            .arg(requiredSamples));
+        runtime->monitorEntered = true;
+        runtime->lastProgressSampleLogged = sampleCount;
     }
 
-    if (m_strategyTradeTriggeredOnTick) {
+    if (runtime->tradeTriggeredOnTick) {
         return;
     }
 
     if (doubleMA) {
-        if (sampleCount != m_lastStrategyMonitorSampleLogged
+        if (sampleCount != runtime->lastMonitorSampleLogged
             && (sampleCount == requiredSamples || sampleCount % 5 == 0)) {
-            const double fastMA = simpleAverageOfLast(m_strategyCloseSamples, m_runningStrategyConfig.doubleMAConfig.fastMA);
-            const double slowMA = simpleAverageOfLast(m_strategyCloseSamples, m_runningStrategyConfig.doubleMAConfig.slowMA);
-            ui->strategyPanel->addSystemLog(
-                QStringLiteral("当前快MA: %1，慢MA: %2，未触发交易")
-                    .arg(fastMA, 0, 'f', 3)
-                    .arg(slowMA, 0, 'f', 3));
-            m_lastStrategyMonitorSampleLogged = sampleCount;
+            const double fastMA = simpleAverageOfLast(runtime->closeSamples, config.doubleMAConfig.fastMA);
+            const double slowMA = simpleAverageOfLast(runtime->closeSamples, config.doubleMAConfig.slowMA);
+            ui->strategyPanel->addStrategyLog(label, QStringLiteral("当前快MA:%1，慢MA:%2，暂无交易")
+                .arg(fastMA, 0, 'f', 3)
+                .arg(slowMA, 0, 'f', 3));
+            runtime->lastMonitorSampleLogged = sampleCount;
         }
         return;
     }
 
-    if (sampleCount != m_lastStrategyMonitorSampleLogged
+    if (sampleCount != runtime->lastMonitorSampleLogged
         && (sampleCount == requiredSamples || sampleCount % 5 == 0)) {
-        ui->strategyPanel->addSystemLog(
-            QStringLiteral("景气成长样本累计中：%1/%2，监控回调/均线/缩量条件中，未触发交易")
-                .arg(sampleCount)
-                .arg(requiredSamples));
-        m_lastStrategyMonitorSampleLogged = sampleCount;
+        ui->strategyPanel->addStrategyLog(label, QStringLiteral("成长监控：%1/%2 个样本，暂无交易")
+            .arg(sampleCount)
+            .arg(requiredSamples));
+        runtime->lastMonitorSampleLogged = sampleCount;
     }
 }
 void MainWindow::updateSignalIndicators()
@@ -607,29 +766,43 @@ void MainWindow::updateSignalIndicators()
         return;
     }
 
-    QVector<MarketData> points = m_indicatorHistory;
-    if (m_hasLastStrategyMarketData && m_lastStrategyMarketData.close > 0.0) {
-        if (!points.isEmpty() && points.last().symbol != m_lastStrategyMarketData.symbol) {
+    StrategyRuntime* runtime = runtimeForStrategy(m_activeRuntimeId);
+    if (!runtime && !m_strategyRuntimes.isEmpty()) {
+        runtime = m_strategyRuntimes.first();
+    }
+    if (!runtime) {
+        m_signalPanel->clearIndicators();
+        return;
+    }
+
+    QVector<MarketData> points = runtime->indicatorHistory;
+    if (runtime->hasLastMarketData && runtime->lastMarketData.close > 0.0) {
+        if (!points.isEmpty() && points.last().symbol != runtime->lastMarketData.symbol) {
             points.clear();
         }
 
         if (points.isEmpty()) {
-            points.append(m_lastStrategyMarketData);
+            points.append(runtime->lastMarketData);
         } else {
             const QDateTime lastTime = points.last().timestamp;
-            const QDateTime quoteTime = m_lastStrategyMarketData.timestamp;
+            const QDateTime quoteTime = runtime->lastMarketData.timestamp;
             const bool sameMinute = lastTime.isValid() && quoteTime.isValid()
                 && lastTime.date() == quoteTime.date()
                 && lastTime.time().hour() == quoteTime.time().hour()
                 && lastTime.time().minute() == quoteTime.time().minute();
 
             if (sameMinute) {
-                points.last() = m_lastStrategyMarketData;
+                points.last() = runtime->lastMarketData;
             } else if (!quoteTime.isValid() || !lastTime.isValid() || quoteTime > lastTime) {
-                points.append(m_lastStrategyMarketData);
+                points.append(runtime->lastMarketData);
             }
         }
     }
+
+    while (points.size() > 240) {
+        points.removeFirst();
+    }
+    runtime->indicatorHistory = points;
 
     std::vector<double> closes;
     closes.reserve(static_cast<size_t>(points.size()));
@@ -639,17 +812,21 @@ void MainWindow::updateSignalIndicators()
         }
     }
 
-    constexpr size_t RequiredPeriods = 26;
-    if (closes.size() < RequiredPeriods) {
+    constexpr int RequiredPeriods = 26;
+    if (closes.empty()) {
         m_signalPanel->clearIndicators();
+        return;
+    }
+    if (static_cast<int>(closes.size()) < RequiredPeriods) {
+        m_signalPanel->showIndicatorWarmup(static_cast<int>(closes.size()), RequiredPeriods);
         return;
     }
 
     const double rsi = TechnicalIndicators::calculateRSI(closes, 14);
     const auto macdValues = TechnicalIndicators::calculateMACD(closes, 12, 26, 9);
     const auto bollValues = TechnicalIndicators::calculateBollingerBands(closes, 20, 2.0);
-    const double currentPrice = m_hasLastStrategyMarketData && m_lastStrategyMarketData.close > 0.0
-        ? m_lastStrategyMarketData.close
+    const double currentPrice = runtime->hasLastMarketData && runtime->lastMarketData.close > 0.0
+        ? runtime->lastMarketData.close
         : closes.back();
 
     m_signalPanel->updateIndicators(rsi, macdValues.first, bollValues.second, bollValues.first, currentPrice);
@@ -669,26 +846,34 @@ void MainWindow::onMarketDataError(const QString &message)
 
     m_lastMarketDataErrorLoggedAt = now;
     m_lastMarketDataErrorMessage = message;
-    ui->strategyPanel->addSystemLog(
-        QStringLiteral("看盘行情异常：%1，正在重试；当前没有可画行情数据。")
-            .arg(message));
+    ui->strategyPanel->addSystemLog(QStringLiteral("行情错误：%1").arg(message));
 }
 
-void MainWindow::onStrategyMarketDataError(const QString& message)
+void MainWindow::onStrategyMarketDataError(int strategyId, const QString& message)
 {
     ui->statusbar->showMessage(message, 5000);
-    if (m_isRunning) {
-        ui->strategyPanel->addSystemLog(QStringLiteral("策略行情错误：%1").arg(message));
-        showThemedWarning(this,
-                          QStringLiteral("策略已停止"),
-                          QStringLiteral("未获取到可用于策略执行的实时行情。\n\n%1").arg(message));
-        onStopStrategy();
+    StrategyRuntime* runtime = runtimeForStrategy(strategyId);
+    if (!runtime || !runtime->running) {
+        return;
     }
+
+    const QString label = strategyRuntimeLogLabel(runtime);
+    ui->strategyPanel->addStrategyLog(label, QStringLiteral("行情错误：%1").arg(message));
+    showThemedWarning(this,
+                      QStringLiteral("策略已停止"),
+                      QStringLiteral("%1 因实时行情不可用已停止。\n\n%2")
+                          .arg(label, message));
+    stopStrategyRuntime(strategyId);
 }
-void MainWindow::onStrategySignal(const StrategySignal &signal)
+
+void MainWindow::onStrategySignal(int strategyId, const StrategySignal &signal)
 {
-    m_strategyTradeTriggeredOnTick = true;
-    ui->strategyPanel->addSignalLog(signal);
+    StrategyRuntime* runtime = runtimeForStrategy(strategyId);
+    if (runtime) {
+        runtime->tradeTriggeredOnTick = true;
+    }
+    const QString label = runtime ? strategyRuntimeLogLabel(runtime) : QStringLiteral("策略 %1").arg(strategyId);
+    ui->strategyPanel->addSignalLog(signal, label);
 
     QString signalText;
     switch (signal.type) {
@@ -710,85 +895,138 @@ void MainWindow::onStrategySignal(const StrategySignal &signal)
     }
 
     ui->statusbar->showMessage(signalText, 3000);
-    executeOrder(signal);
+    executeOrder(strategyId, signal);
 }
-
 void MainWindow::loadAccountState()
 {
     QSettings settings(QStringLiteral("StarQuant"), QStringLiteral("StarQuant"));
-    m_initialCapital = settings.value(QStringLiteral("account/initialCapital"), 100000.0).toDouble();
-    if (m_initialCapital <= 0.0) {
-        m_initialCapital = 100000.0;
+    m_accounts.clear();
+    for (int i = 0; i < 6; ++i) {
+        AccountState account;
+        account.name = QStringLiteral("账户 %1").arg(i + 1);
+        account.initialCapital = 100000.0;
+        account.currentCash = 100000.0;
+        m_accounts.append(account);
     }
-    m_currentCash = settings.value(QStringLiteral("account/currentCash"), m_initialCapital).toDouble();
 
-    m_positions.clear();
-    const QByteArray positionsPayload = settings.value(QStringLiteral("account/positions")).toString().toUtf8();
-    if (!positionsPayload.isEmpty()) {
+    auto loadPositions = [](const QJsonArray& positions, AccountState* account) {
+        if (!account) {
+            return;
+        }
+        account->positions.clear();
+        for (const QJsonValue& value : positions) {
+            if (!value.isObject()) {
+                continue;
+            }
+            const QJsonObject object = value.toObject();
+            const QString symbol = MarketDataSimulator::normalizeSymbol(object.value(QStringLiteral("symbol")).toString());
+            const double quantity = object.value(QStringLiteral("quantity")).toDouble();
+            if (symbol.isEmpty() || quantity <= 0.0) {
+                continue;
+            }
+
+            PositionInfo position;
+            position.symbol = symbol;
+            position.quantity = quantity;
+            position.avgCost = object.value(QStringLiteral("avgCost")).toDouble();
+            position.currentPrice = object.value(QStringLiteral("currentPrice")).toDouble(position.avgCost);
+            position.marketValue = position.quantity * position.currentPrice;
+            position.profit = (position.currentPrice - position.avgCost) * position.quantity;
+            position.profitPercent = position.avgCost > 0.0 ? (position.currentPrice / position.avgCost - 1.0) * 100.0 : 0.0;
+            account->positions[symbol] = position;
+        }
+    };
+
+    auto loadTrades = [](const QJsonArray& trades, AccountState* account) {
+        if (!account) {
+            return;
+        }
+        account->tradeRecords.clear();
+        for (const QJsonValue& value : trades) {
+            if (!value.isObject()) {
+                continue;
+            }
+            const QJsonObject object = value.toObject();
+            TradeRecordInfo record;
+            record.time = object.value(QStringLiteral("time")).toString();
+            record.symbol = MarketDataSimulator::normalizeSymbol(object.value(QStringLiteral("symbol")).toString());
+            if (record.symbol.isEmpty()) {
+                record.symbol = object.value(QStringLiteral("symbol")).toString();
+            }
+            record.type = object.value(QStringLiteral("type")).toString();
+            record.price = object.value(QStringLiteral("price")).toDouble();
+            record.volume = object.value(QStringLiteral("volume")).toDouble();
+            record.amount = object.value(QStringLiteral("amount")).toDouble();
+            record.fee = object.value(QStringLiteral("fee")).toDouble();
+            if (record.symbol.isEmpty() || record.type.isEmpty()) {
+                continue;
+            }
+            account->tradeRecords.append(record);
+            while (account->tradeRecords.size() > MaxStoredTradeRecords) {
+                account->tradeRecords.removeFirst();
+            }
+        }
+    };
+
+    bool loadedNewAccounts = false;
+    const QByteArray accountsPayload = settings.value(QStringLiteral("accounts/v1")).toString().toUtf8();
+    if (!accountsPayload.isEmpty()) {
         QJsonParseError error;
-        const QJsonDocument document = QJsonDocument::fromJson(positionsPayload, &error);
+        const QJsonDocument document = QJsonDocument::fromJson(accountsPayload, &error);
         if (error.error == QJsonParseError::NoError && document.isArray()) {
-            const QJsonArray positions = document.array();
-            for (const QJsonValue& value : positions) {
-                if (!value.isObject()) {
+            const QJsonArray accounts = document.array();
+            for (int i = 0; i < qMin(6, accounts.size()); ++i) {
+                if (!accounts.at(i).isObject()) {
                     continue;
                 }
-
-                const QJsonObject object = value.toObject();
-                const QString symbol = MarketDataSimulator::normalizeSymbol(object.value(QStringLiteral("symbol")).toString());
-                const double quantity = object.value(QStringLiteral("quantity")).toDouble();
-                if (symbol.isEmpty() || quantity <= 0.0) {
-                    continue;
+                const QJsonObject object = accounts.at(i).toObject();
+                AccountState& account = m_accounts[i];
+                account.name = object.value(QStringLiteral("name")).toString(account.name);
+                if (account.name == QStringLiteral("Account %1").arg(i + 1) || account.name.trimmed().isEmpty()) {
+                    account.name = QStringLiteral("账户 %1").arg(i + 1);
                 }
-
-                PositionInfo position;
-                position.symbol = symbol;
-                position.quantity = quantity;
-                position.avgCost = object.value(QStringLiteral("avgCost")).toDouble();
-                position.currentPrice = object.value(QStringLiteral("currentPrice")).toDouble(position.avgCost);
-                position.marketValue = position.quantity * position.currentPrice;
-                position.profit = (position.currentPrice - position.avgCost) * position.quantity;
-                position.profitPercent = position.avgCost > 0.0 ? (position.currentPrice / position.avgCost - 1.0) * 100.0 : 0.0;
-                m_positions[symbol] = position;
+                account.initialCapital = object.value(QStringLiteral("initialCapital")).toDouble(account.initialCapital);
+                if (account.initialCapital < 0.0) {
+                    account.initialCapital = 100000.0;
+                }
+                account.currentCash = object.value(QStringLiteral("currentCash")).toDouble(account.initialCapital);
+                loadPositions(object.value(QStringLiteral("positions")).toArray(), &account);
+                loadTrades(object.value(QStringLiteral("trades")).toArray(), &account);
+                loadedNewAccounts = true;
             }
         }
     }
 
-    m_tradeRecords.clear();
-    const QByteArray tradesPayload = settings.value(QStringLiteral("account/trades")).toString().toUtf8();
-    if (!tradesPayload.isEmpty()) {
-        QJsonParseError error;
-        const QJsonDocument document = QJsonDocument::fromJson(tradesPayload, &error);
-        if (error.error == QJsonParseError::NoError && document.isArray()) {
-            const QJsonArray trades = document.array();
-            for (const QJsonValue& value : trades) {
-                if (!value.isObject()) {
-                    continue;
-                }
+    if (!loadedNewAccounts) {
+        AccountState& account = m_accounts[0];
+        account.initialCapital = settings.value(QStringLiteral("account/initialCapital"), 100000.0).toDouble();
+        if (account.initialCapital < 0.0) {
+            account.initialCapital = 100000.0;
+        }
+        account.currentCash = settings.value(QStringLiteral("account/currentCash"), account.initialCapital).toDouble();
 
-                const QJsonObject object = value.toObject();
-                TradeRecordInfo record;
-                record.time = object.value(QStringLiteral("time")).toString();
-                record.symbol = MarketDataSimulator::normalizeSymbol(object.value(QStringLiteral("symbol")).toString());
-                record.type = object.value(QStringLiteral("type")).toString();
-                record.price = object.value(QStringLiteral("price")).toDouble();
-                record.volume = object.value(QStringLiteral("volume")).toDouble();
-                record.amount = object.value(QStringLiteral("amount")).toDouble();
-                if (record.symbol.isEmpty() || record.type.isEmpty()) {
-                    continue;
-                }
+        const QByteArray positionsPayload = settings.value(QStringLiteral("account/positions")).toString().toUtf8();
+        if (!positionsPayload.isEmpty()) {
+            QJsonParseError error;
+            const QJsonDocument document = QJsonDocument::fromJson(positionsPayload, &error);
+            if (error.error == QJsonParseError::NoError && document.isArray()) {
+                loadPositions(document.array(), &account);
+            }
+        }
 
-                m_tradeRecords.append(record);
-                while (m_tradeRecords.size() > MaxStoredTradeRecords) {
-                    m_tradeRecords.removeFirst();
-                }
+        const QByteArray tradesPayload = settings.value(QStringLiteral("account/trades")).toString().toUtf8();
+        if (!tradesPayload.isEmpty()) {
+            QJsonParseError error;
+            const QJsonDocument document = QJsonDocument::fromJson(tradesPayload, &error);
+            if (error.error == QJsonParseError::NoError && document.isArray()) {
+                loadTrades(document.array(), &account);
             }
         }
     }
 
-    if (m_accountPanel) {
-        for (const TradeRecordInfo& record : m_tradeRecords) {
-            m_accountPanel->addTradeRecord(record.symbol, record.type, record.price, record.volume, record.amount, record.time);
+    for (int accountIndex = 0; accountIndex < m_accounts.size() && accountIndex < m_accountPanels.size(); ++accountIndex) {
+        for (const TradeRecordInfo& record : m_accounts.at(accountIndex).tradeRecords) {
+            m_accountPanels.at(accountIndex)->addTradeRecord(record.symbol, record.type, record.price, record.volume, record.amount, record.fee, record.time);
         }
     }
 }
@@ -796,44 +1034,70 @@ void MainWindow::loadAccountState()
 void MainWindow::saveAccountState() const
 {
     QSettings settings(QStringLiteral("StarQuant"), QStringLiteral("StarQuant"));
-    settings.setValue(QStringLiteral("account/initialCapital"), m_initialCapital);
-    settings.setValue(QStringLiteral("account/currentCash"), m_currentCash);
     settings.setValue(QStringLiteral("account/guestMode"), m_guestMode);
     settings.setValue(QStringLiteral("account/accountName"), m_accountName);
 
-    QJsonArray positions;
-    for (auto it = m_positions.cbegin(); it != m_positions.cend(); ++it) {
-        const PositionInfo& position = it.value();
-        if (position.quantity <= 0.0) {
-            continue;
+    auto positionsToJson = [](const QMap<QString, PositionInfo>& positions) {
+        QJsonArray array;
+        for (auto it = positions.cbegin(); it != positions.cend(); ++it) {
+            const PositionInfo& position = it.value();
+            if (position.quantity <= 0.0) {
+                continue;
+            }
+            QJsonObject object;
+            object.insert(QStringLiteral("symbol"), position.symbol.isEmpty() ? it.key() : position.symbol);
+            object.insert(QStringLiteral("quantity"), position.quantity);
+            object.insert(QStringLiteral("avgCost"), position.avgCost);
+            object.insert(QStringLiteral("currentPrice"), position.currentPrice);
+            array.append(object);
         }
+        return array;
+    };
 
-        QJsonObject object;
-        object.insert(QStringLiteral("symbol"), position.symbol.isEmpty() ? it.key() : position.symbol);
-        object.insert(QStringLiteral("quantity"), position.quantity);
-        object.insert(QStringLiteral("avgCost"), position.avgCost);
-        object.insert(QStringLiteral("currentPrice"), position.currentPrice);
-        positions.append(object);
-    }
-    settings.setValue(QStringLiteral("account/positions"), QString::fromUtf8(QJsonDocument(positions).toJson(QJsonDocument::Compact)));
+    auto tradesToJson = [](const QVector<TradeRecordInfo>& trades) {
+        QJsonArray array;
+        for (const TradeRecordInfo& record : trades) {
+            QJsonObject object;
+            object.insert(QStringLiteral("time"), record.time);
+            object.insert(QStringLiteral("symbol"), record.symbol);
+            object.insert(QStringLiteral("type"), record.type);
+            object.insert(QStringLiteral("price"), record.price);
+            object.insert(QStringLiteral("volume"), record.volume);
+            object.insert(QStringLiteral("amount"), record.amount);
+            object.insert(QStringLiteral("fee"), record.fee);
+            array.append(object);
+        }
+        return array;
+    };
 
-    QJsonArray trades;
-    for (const TradeRecordInfo& record : m_tradeRecords) {
+    QJsonArray accounts;
+    for (const AccountState& account : m_accounts) {
         QJsonObject object;
-        object.insert(QStringLiteral("time"), record.time);
-        object.insert(QStringLiteral("symbol"), record.symbol);
-        object.insert(QStringLiteral("type"), record.type);
-        object.insert(QStringLiteral("price"), record.price);
-        object.insert(QStringLiteral("volume"), record.volume);
-        object.insert(QStringLiteral("amount"), record.amount);
-        trades.append(object);
+        object.insert(QStringLiteral("name"), account.name);
+        object.insert(QStringLiteral("initialCapital"), account.initialCapital);
+        object.insert(QStringLiteral("currentCash"), account.currentCash);
+        object.insert(QStringLiteral("positions"), positionsToJson(account.positions));
+        object.insert(QStringLiteral("trades"), tradesToJson(account.tradeRecords));
+        accounts.append(object);
     }
-    settings.setValue(QStringLiteral("account/trades"), QString::fromUtf8(QJsonDocument(trades).toJson(QJsonDocument::Compact)));
+    settings.setValue(QStringLiteral("accounts/v1"), QString::fromUtf8(QJsonDocument(accounts).toJson(QJsonDocument::Compact)));
+
+    if (!m_accounts.isEmpty()) {
+        const AccountState& account = m_accounts.first();
+        settings.setValue(QStringLiteral("account/initialCapital"), account.initialCapital);
+        settings.setValue(QStringLiteral("account/currentCash"), account.currentCash);
+        settings.setValue(QStringLiteral("account/positions"), QString::fromUtf8(QJsonDocument(positionsToJson(account.positions)).toJson(QJsonDocument::Compact)));
+        settings.setValue(QStringLiteral("account/trades"), QString::fromUtf8(QJsonDocument(tradesToJson(account.tradeRecords)).toJson(QJsonDocument::Compact)));
+    }
     settings.sync();
 }
 
-void MainWindow::appendTradeRecord(const QString& symbol, const QString& type, double price, double volume, double amount, const QString& time)
+void MainWindow::appendTradeRecord(int accountIndex, const QString& symbol, const QString& type, double price, double volume, double amount, double fee, const QString& time)
 {
+    if (accountIndex < 0 || accountIndex >= m_accounts.size()) {
+        return;
+    }
+
     TradeRecordInfo record;
     record.time = time;
     record.symbol = symbol;
@@ -841,76 +1105,149 @@ void MainWindow::appendTradeRecord(const QString& symbol, const QString& type, d
     record.price = price;
     record.volume = volume;
     record.amount = amount;
+    record.fee = fee;
 
-    m_tradeRecords.append(record);
-    while (m_tradeRecords.size() > MaxStoredTradeRecords) {
-        m_tradeRecords.removeFirst();
+    AccountState& account = m_accounts[accountIndex];
+    account.tradeRecords.append(record);
+    while (account.tradeRecords.size() > MaxStoredTradeRecords) {
+        account.tradeRecords.removeFirst();
     }
 
-    if (m_accountPanel) {
-        m_accountPanel->addTradeRecord(symbol, type, price, volume, amount, time);
+    if (accountIndex < m_accountPanels.size() && m_accountPanels.at(accountIndex)) {
+        m_accountPanels.at(accountIndex)->addTradeRecord(symbol, type, price, volume, amount, fee, time);
     }
 }
 
-void MainWindow::executeOrder(const StrategySignal& signal)
+void MainWindow::executeOrder(int strategyId, const StrategySignal& signal)
 {
+    StrategyRuntime* runtime = runtimeForStrategy(strategyId);
+    const QString label = runtime ? strategyRuntimeLogLabel(runtime) : QStringLiteral("策略 %1").arg(strategyId);
+    if (!runtime || runtime->accountIndex < 0 || runtime->accountIndex >= m_accounts.size()) {
+        ui->strategyPanel->addStrategyLog(label, QStringLiteral("订单跳过：未绑定账户。"));
+        return;
+    }
+
     const double price = signal.price;
-    const double lotSize = signal.volume;
-    const QString symbol = signal.symbol;
+    const QString symbol = MarketDataSimulator::normalizeSymbol(signal.symbol);
     const bool isBuy = signal.type == SignalType::BUY;
     const QString typeStr = isBuy ? QStringLiteral("买入") : QStringLiteral("卖出");
 
+    if (price <= 0.0 || symbol.isEmpty()) {
+        return;
+    }
+
+    AccountState& account = m_accounts[runtime->accountIndex];
+    const StrategyConfig& config = runtime->config;
+
     if (isBuy) {
-        const double totalCost = price * lotSize;
-        if (totalCost <= m_currentCash) {
-            m_currentCash -= totalCost;
-
-            if (m_positions.contains(symbol)) {
-                PositionInfo& pos = m_positions[symbol];
-                const double totalQty = pos.quantity + lotSize;
-                pos.avgCost = (pos.avgCost * pos.quantity + price * lotSize) / totalQty;
-                pos.quantity = totalQty;
-                pos.currentPrice = price;
-            } else {
-                PositionInfo pos;
-                pos.symbol = symbol;
-                pos.quantity = lotSize;
-                pos.avgCost = price;
-                pos.currentPrice = price;
-                m_positions[symbol] = pos;
-            }
-
-            appendTradeRecord(symbol, typeStr, price, lotSize, totalCost,
-                              QDateTime::currentDateTime().toString("HH:mm:ss"));
-            updateAccountInfo();
-            saveAccountState();
+        double marketValue = 0.0;
+        for (const auto& position : account.positions) {
+            const double markPrice = position.currentPrice > 0.0 ? position.currentPrice : price;
+            marketValue += position.quantity * markPrice;
         }
+
+        const double totalAssets = account.currentCash + marketValue;
+        const double maxPercent = qBound(0.0, config.positionConfig.maxSingleTrackPercent, 100.0);
+        const double targetValue = totalAssets * maxPercent / 100.0;
+        const double currentPositionValue = account.positions.contains(symbol)
+            ? account.positions.value(symbol).quantity * price
+            : 0.0;
+        const double budget = qMin(account.currentCash, qMax(0.0, targetValue - currentPositionValue));
+        const double lotSize = affordableBoardLot(price, budget);
+
+        if (lotSize < BoardLotSize) {
+            const double minTradeAmount = price * BoardLotSize;
+            const double minTradeCashOut = minTradeAmount + calculateStockFees(minTradeAmount, false).total;
+            const QString reason = budget < minTradeCashOut
+                ? QStringLiteral("买入跳过：现金或目标仓位不足一手（含费用）。")
+                : QStringLiteral("买入跳过：当前持仓已达到或超过目标仓位。");
+            ui->statusbar->showMessage(reason, 5000);
+            ui->strategyPanel->addStrategyLog(label, reason);
+            return;
+        }
+
+        const double tradeAmount = price * lotSize;
+        const TradeFeeBreakdown fees = calculateStockFees(tradeAmount, false);
+        const double cashOut = tradeAmount + fees.total;
+        if (cashOut > account.currentCash) {
+            const QString reason = QStringLiteral("买入跳过：可用资金不足。");
+            ui->statusbar->showMessage(reason, 5000);
+            ui->strategyPanel->addStrategyLog(label, reason);
+            return;
+        }
+
+        account.currentCash -= cashOut;
+        if (account.positions.contains(symbol)) {
+            PositionInfo& pos = account.positions[symbol];
+            const double totalQty = pos.quantity + lotSize;
+            pos.avgCost = (pos.avgCost * pos.quantity + cashOut) / totalQty;
+            pos.quantity = totalQty;
+            pos.currentPrice = price;
+        } else {
+            PositionInfo pos;
+            pos.symbol = symbol;
+            pos.quantity = lotSize;
+            pos.avgCost = cashOut / lotSize;
+            pos.currentPrice = price;
+            account.positions[symbol] = pos;
+        }
+
+        appendTradeRecord(runtime->accountIndex, symbol, typeStr, price, lotSize, tradeAmount, fees.total,
+                          QDateTime::currentDateTime().toString("HH:mm:ss"));
+        ui->strategyPanel->addStrategyLog(label, QStringLiteral("已成交：买入 %1 股 @ %2，%3")
+            .arg(lotSize, 0, 'f', 0)
+            .arg(price, 0, 'f', 2)
+            .arg(feeSummary(fees)));
+        updateAccountInfo(runtime->accountIndex);
+        saveAccountState();
         return;
     }
 
-    if (!m_positions.contains(symbol)) {
+    if (!account.positions.contains(symbol) || account.positions.value(symbol).quantity <= 0.0) {
+        const QString reason = QStringLiteral("卖出跳过：没有可用持仓。");
+        ui->statusbar->showMessage(reason, 5000);
+        ui->strategyPanel->addStrategyLog(label, reason);
         return;
     }
 
-    PositionInfo& pos = m_positions[symbol];
-    if (pos.quantity < lotSize) {
+    PositionInfo& pos = account.positions[symbol];
+    pos.currentPrice = price;
+
+    double lotSize = pos.quantity;
+    if (signal.type == SignalType::TAKE_PROFIT
+        && config.strategyType == StrategyType::ProsperityGrowth
+        && config.riskConfig.partialTakeProfitEnabled
+        && pos.quantity > BoardLotSize) {
+        lotSize = qMax(BoardLotSize, roundDownToBoardLot(pos.quantity / 2.0));
+    }
+    lotSize = qMin(lotSize, pos.quantity);
+
+    if (lotSize <= 0.0) {
+        const QString reason = QStringLiteral("卖出跳过：计算数量为 0。");
+        ui->statusbar->showMessage(reason, 5000);
+        ui->strategyPanel->addStrategyLog(label, reason);
         return;
     }
 
-    const double totalRevenue = price * lotSize;
-    m_currentCash += totalRevenue;
+    const double tradeAmount = price * lotSize;
+    const TradeFeeBreakdown fees = calculateStockFees(tradeAmount, true);
+    const double cashIn = tradeAmount - fees.total;
+    account.currentCash += cashIn;
     pos.quantity -= lotSize;
 
     if (pos.quantity <= 0) {
-        m_positions.remove(symbol);
+        account.positions.remove(symbol);
     }
 
-    appendTradeRecord(symbol, typeStr, price, lotSize, totalRevenue,
+    appendTradeRecord(runtime->accountIndex, symbol, typeStr, price, lotSize, tradeAmount, fees.total,
                       QDateTime::currentDateTime().toString("HH:mm:ss"));
-    updateAccountInfo();
+    ui->strategyPanel->addStrategyLog(label, QStringLiteral("已成交：卖出 %1 股 @ %2，%3")
+        .arg(lotSize, 0, 'f', 0)
+        .arg(price, 0, 'f', 2)
+        .arg(feeSummary(fees)));
+    updateAccountInfo(runtime->accountIndex);
     saveAccountState();
 }
-
 double MainWindow::latestPriceForSymbol(const QString& symbol) const
 {
     const QString normalized = MarketDataSimulator::normalizeSymbol(symbol);
@@ -930,8 +1267,21 @@ double MainWindow::latestPriceForSymbol(const QString& symbol) const
             return m_lastStrategyMarketData.previousClose;
         }
     }
-    if (m_positions.contains(normalized) && m_positions.value(normalized).currentPrice > 0.0) {
-        return m_positions.value(normalized).currentPrice;
+    for (const StrategyRuntime* runtime : m_strategyRuntimes) {
+        if (!runtime || !runtime->hasLastMarketData || MarketDataSimulator::normalizeSymbol(runtime->lastMarketData.symbol) != normalized) {
+            continue;
+        }
+        if (runtime->lastMarketData.close > 0.0) {
+            return runtime->lastMarketData.close;
+        }
+        if (runtime->lastMarketData.previousClose > 0.0) {
+            return runtime->lastMarketData.previousClose;
+        }
+    }
+    for (const AccountState& account : m_accounts) {
+        if (account.positions.contains(normalized) && account.positions.value(normalized).currentPrice > 0.0) {
+            return account.positions.value(normalized).currentPrice;
+        }
     }
     return 0.0;
 }
@@ -974,8 +1324,7 @@ void MainWindow::requestManualTrade(const QString& symbol, SignalType type, doub
     m_pendingManualTradeVolume = volume;
     m_manualTradeMarketData->setSymbol(normalized);
     m_manualTradeMarketData->startSimulation();
-    ui->statusbar->showMessage(QStringLiteral("正在获取 %1 最新行情，获取后执行模拟%2...")
-        .arg(normalized, type == SignalType::BUY ? QStringLiteral("买入") : QStringLiteral("卖出")), 3000);
+    ui->statusbar->showMessage(QStringLiteral("正在获取手动委托最新行情..."), 3000);
 }
 
 void MainWindow::onManualTradeQuoteUpdated(const MarketData& data)
@@ -1016,62 +1365,112 @@ void MainWindow::onManualTradeQuoteError(const QString& message)
     m_pendingManualTradeType = SignalType::NONE;
     m_pendingManualTradeVolume = 0.0;
     m_manualTradeMarketData->stopSimulation();
-    ui->statusbar->showMessage(QStringLiteral("手动模拟交易行情获取失败：%1").arg(message), 5000);
+    ui->statusbar->showMessage(QStringLiteral("手动委托行情失败：%1").arg(message), 5000);
 }
 
 void MainWindow::executeManualTrade(const QString& symbol, SignalType type, double price, double volume)
 {
     const QString normalized = MarketDataSimulator::normalizeSymbol(symbol);
-    if (volume <= 0.0 || price <= 0.0) {
+    if (volume <= 0.0 || price <= 0.0 || m_activeAccountIndex < 0 || m_activeAccountIndex >= m_accounts.size()) {
         return;
     }
 
-    if (type == SignalType::BUY) {
+    AccountState& account = m_accounts[m_activeAccountIndex];
+    const bool isBuy = type == SignalType::BUY;
+    const QString typeStr = isBuy ? QStringLiteral("买入") : QStringLiteral("卖出");
+
+    if (isBuy) {
         const double amount = price * volume;
-        if (amount > m_currentCash) {
-            ui->statusbar->showMessage(QStringLiteral("模拟买入失败：可用资金不足"), 4000);
+        const TradeFeeBreakdown fees = calculateStockFees(amount, false);
+        const double cashOut = amount + fees.total;
+        if (cashOut > account.currentCash) {
+            ui->statusbar->showMessage(QStringLiteral("手动买入跳过：可用资金不足。"), 4000);
             return;
         }
+
+        account.currentCash -= cashOut;
+        if (account.positions.contains(normalized)) {
+            PositionInfo& pos = account.positions[normalized];
+            const double totalQty = pos.quantity + volume;
+            pos.avgCost = (pos.avgCost * pos.quantity + cashOut) / totalQty;
+            pos.quantity = totalQty;
+            pos.currentPrice = price;
+        } else {
+            PositionInfo pos;
+            pos.symbol = normalized;
+            pos.quantity = volume;
+            pos.avgCost = cashOut / volume;
+            pos.currentPrice = price;
+            account.positions[normalized] = pos;
+        }
+
+        appendTradeRecord(m_activeAccountIndex, normalized, typeStr, price, volume, amount, fees.total,
+                          QDateTime::currentDateTime().toString("HH:mm:ss"));
     } else if (type == SignalType::SELL) {
-        if (!m_positions.contains(normalized) || m_positions.value(normalized).quantity <= 0.0) {
-            ui->statusbar->showMessage(QStringLiteral("模拟卖出失败：当前没有 %1 持仓").arg(normalized), 4000);
+        if (!account.positions.contains(normalized) || account.positions.value(normalized).quantity <= 0.0) {
+            ui->statusbar->showMessage(QStringLiteral("手动卖出跳过：没有可用持仓。"), 4000);
             return;
         }
-        volume = qMin(volume, m_positions.value(normalized).quantity);
-        m_positions[normalized].currentPrice = price;
+
+        PositionInfo& pos = account.positions[normalized];
+        volume = qMin(volume, pos.quantity);
+        pos.currentPrice = price;
+        const double amount = price * volume;
+        const TradeFeeBreakdown fees = calculateStockFees(amount, true);
+        account.currentCash += amount - fees.total;
+        pos.quantity -= volume;
+        if (pos.quantity <= 0.0) {
+            account.positions.remove(normalized);
+        }
+
+        appendTradeRecord(m_activeAccountIndex, normalized, typeStr, price, volume, amount, fees.total,
+                          QDateTime::currentDateTime().toString("HH:mm:ss"));
     } else {
         return;
     }
 
-    StrategySignal signal;
-    signal.type = type;
-    signal.symbol = normalized;
-    signal.price = price;
-    signal.volume = volume;
-    signal.timestamp = QDateTime::currentDateTime();
-    signal.comment = type == SignalType::BUY ? QStringLiteral("手动模拟买入") : QStringLiteral("手动模拟卖出");
-    executeOrder(signal);
-
-    ui->statusbar->showMessage(QStringLiteral("已%1 %2 %3 股 @ %4")
-        .arg(type == SignalType::BUY ? QStringLiteral("买入") : QStringLiteral("卖出"), normalized)
+    updateAccountInfo(m_activeAccountIndex);
+    saveAccountState();
+    ui->statusbar->showMessage(QStringLiteral("手动委托已成交：%1 %2 股 @ %3，账户 %4")
+        .arg(isBuy ? QStringLiteral("买入") : QStringLiteral("卖出"))
         .arg(volume, 0, 'f', 0)
-        .arg(price, 0, 'f', 2), 4000);
+        .arg(price, 0, 'f', 2)
+        .arg(m_activeAccountIndex + 1), 4000);
 }
+
 void MainWindow::updateAccountInfo()
 {
-    double marketValue = 0.0;
-    for (const auto& pos : m_positions) {
-        marketValue += pos.quantity * pos.currentPrice;
+    for (int i = 0; i < m_accounts.size(); ++i) {
+        updateAccountInfo(i);
+    }
+}
+
+void MainWindow::updateAccountInfo(int accountIndex)
+{
+    if (accountIndex < 0 || accountIndex >= m_accounts.size() || accountIndex >= m_accountPanels.size()) {
+        return;
     }
 
-    const double totalAssets = m_currentCash + marketValue;
-    const double totalProfit = totalAssets - m_initialCapital;
-    const double profitPercent = (totalAssets / m_initialCapital - 1) * 100;
+    AccountState& account = m_accounts[accountIndex];
+    double marketValue = 0.0;
+    for (auto it = account.positions.begin(); it != account.positions.end(); ++it) {
+        PositionInfo& pos = it.value();
+        pos.marketValue = pos.quantity * pos.currentPrice;
+        pos.profit = (pos.currentPrice - pos.avgCost) * pos.quantity;
+        pos.profitPercent = pos.avgCost > 0.0 ? (pos.currentPrice / pos.avgCost - 1) * 100.0 : 0.0;
+        marketValue += pos.marketValue;
+    }
 
-    m_accountPanel->updateAccount(totalAssets, m_currentCash, marketValue, totalProfit, profitPercent);
+    const double totalAssets = account.currentCash + marketValue;
+    const double totalProfit = totalAssets - account.initialCapital;
+    const double profitPercent = account.initialCapital > 0.0
+        ? (totalAssets / account.initialCapital - 1.0) * 100.0
+        : 0.0;
+
+    m_accountPanels.at(accountIndex)->updateAccount(totalAssets, account.currentCash, marketValue, totalProfit, profitPercent);
 
     QMap<QString, ::PositionInfo> accountPositions;
-    for (auto it = m_positions.cbegin(); it != m_positions.cend(); ++it) {
+    for (auto it = account.positions.cbegin(); it != account.positions.cend(); ++it) {
         const PositionInfo& pos = it.value();
         ::PositionInfo info;
         info.symbol = pos.symbol;
@@ -1080,41 +1479,384 @@ void MainWindow::updateAccountInfo()
         info.currentPrice = pos.currentPrice;
         info.marketValue = pos.quantity * pos.currentPrice;
         info.profit = (pos.currentPrice - pos.avgCost) * pos.quantity;
-        info.profitPercent = pos.avgCost > 0.0 ? (pos.currentPrice / pos.avgCost - 1) * 100 : 0.0;
+        info.profitPercent = pos.avgCost > 0.0 ? (pos.currentPrice / pos.avgCost - 1) * 100.0 : 0.0;
         accountPositions[it.key()] = info;
     }
-
-    m_accountPanel->updatePositions(accountPositions);
+    m_accountPanels.at(accountIndex)->updatePositions(accountPositions);
 }
 
-void MainWindow::configureStrategy(const StrategyConfig& config)
+void MainWindow::updatePositionsPrice(const QString& symbol, double price)
 {
-    const bool needsNewStrategy = !m_strategy || m_activeStrategyType != config.strategyType;
-    if (needsNewStrategy) {
-        if (m_strategy) {
-            disconnect(m_strategy, nullptr, this, nullptr);
-            delete m_strategy;
-            m_strategy = nullptr;
-        }
-
-        m_activeStrategyType = config.strategyType;
-        if (config.strategyType == StrategyType::ProsperityGrowth) {
-            m_strategy = new ProsperityGrowthStrategy(this);
-        } else {
-            m_strategy = new MovingAverageStrategy(this);
-        }
-        connect(m_strategy, &StrategyBase::signalGenerated, this, &MainWindow::onStrategySignal);
+    const QString normalized = MarketDataSimulator::normalizeSymbol(symbol);
+    if (normalized.isEmpty() || price <= 0.0) {
+        return;
     }
-
-    if (m_strategy) {
-        m_strategy->setConfig(config);
-    }
-
-    if (!m_isRunning && m_strategyMarketData) {
-        m_strategyMarketData->setSymbol(config.symbol);
+    for (AccountState& account : m_accounts) {
+        if (account.positions.contains(normalized)) {
+            account.positions[normalized].currentPrice = price;
+        }
     }
 }
 
+void MainWindow::transferAccountCash(int accountIndex, double amount)
+{
+    if (accountIndex < 0 || accountIndex >= m_accounts.size() || qFuzzyIsNull(amount)) {
+        return;
+    }
+    AccountState& account = m_accounts[accountIndex];
+    const double absAmount = std::abs(amount);
+    if (absAmount <= 0.0) {
+        return;
+    }
+
+    const bool transferIn = amount > 0.0;
+    if (!transferIn && absAmount > account.currentCash) {
+        ui->statusbar->showMessage(QStringLiteral("转出失败：可用资金不足。"), 4000);
+        return;
+    }
+
+    if (transferIn) {
+        account.currentCash += absAmount;
+        account.initialCapital += absAmount;
+    } else {
+        account.currentCash -= absAmount;
+        account.initialCapital = qMax(0.0, account.initialCapital - absAmount);
+    }
+
+    appendTradeRecord(accountIndex,
+                      QStringLiteral("资金"),
+                      transferIn ? QStringLiteral("转入") : QStringLiteral("转出"),
+                      0.0,
+                      0.0,
+                      absAmount,
+                      0.0,
+                      QDateTime::currentDateTime().toString("HH:mm:ss"));
+    updateAccountInfo(accountIndex);
+    saveAccountState();
+    ui->statusbar->showMessage(QStringLiteral("账户 %1 %2 %3")
+        .arg(accountIndex + 1)
+        .arg(transferIn ? QStringLiteral("转入") : QStringLiteral("转出"))
+        .arg(absAmount, 0, 'f', 2), 3000);
+}
+
+void MainWindow::resetAccountAssets(int accountIndex)
+{
+    if (accountIndex < 0 || accountIndex >= m_accounts.size()) {
+        return;
+    }
+
+    AccountState& account = m_accounts[accountIndex];
+    double marketValue = 0.0;
+    for (const auto& position : account.positions) {
+        marketValue += position.quantity * position.currentPrice;
+    }
+    const double totalAssets = account.currentCash + marketValue;
+
+    const QMessageBox::StandardButton result = QMessageBox::question(
+        this,
+        QStringLiteral("账户资产归零"),
+        QStringLiteral("确认将账户 %1 的现金和持仓归零？成交记录会保留。").arg(accountIndex + 1),
+        QMessageBox::Yes | QMessageBox::No,
+        QMessageBox::No);
+    if (result != QMessageBox::Yes) {
+        return;
+    }
+
+    account.initialCapital = 0.0;
+    account.currentCash = 0.0;
+    account.positions.clear();
+
+    appendTradeRecord(accountIndex,
+                      QStringLiteral("资金"),
+                      QStringLiteral("资产归零"),
+                      0.0,
+                      0.0,
+                      totalAssets,
+                      0.0,
+                      QDateTime::currentDateTime().toString("HH:mm:ss"));
+    updateAccountInfo(accountIndex);
+    saveAccountState();
+    ui->statusbar->showMessage(QStringLiteral("账户 %1 资产已归零").arg(accountIndex + 1), 3000);
+}
+
+QStringList MainWindow::accountNames() const
+{
+    QStringList names;
+    for (const AccountState& account : m_accounts) {
+        names.append(account.name);
+    }
+    while (names.size() < 6) {
+        names.append(QStringLiteral("账户 %1").arg(names.size() + 1));
+    }
+    return names;
+}
+
+MainWindow::StrategyRuntime* MainWindow::runtimeForStrategy(int strategyId) const
+{
+    for (StrategyRuntime* runtime : m_strategyRuntimes) {
+        if (runtime && runtime->id == strategyId) {
+            return runtime;
+        }
+    }
+    return nullptr;
+}
+
+QString MainWindow::strategyRuntimeLogLabel(const StrategyRuntime* runtime) const
+{
+    if (!runtime) {
+        return QStringLiteral("策略");
+    }
+
+    const QString accountText = runtime->accountIndex >= 0 && runtime->accountIndex < m_accounts.size()
+        ? QStringLiteral("账户 %1").arg(runtime->accountIndex + 1)
+        : QStringLiteral("未绑定");
+    const QString strategyName = runtime->config.strategyType == StrategyType::ProsperityGrowth
+        ? QStringLiteral("景气成长")
+        : QStringLiteral("双均线");
+    const QString symbol = runtime->config.symbol.trimmed().isEmpty()
+        ? QStringLiteral("未设置")
+        : runtime->config.symbol;
+    return QStringLiteral("策略 %1 - %2 - %3 - %4")
+        .arg(runtime->id)
+        .arg(strategyName, accountText, symbol);
+}
+
+QString MainWindow::strategyInstanceLogLabel(const StrategyInstanceInfo& instance) const
+{
+    const QString accountText = instance.accountIndex >= 0 && instance.accountIndex < m_accounts.size()
+        ? QStringLiteral("账户 %1").arg(instance.accountIndex + 1)
+        : QStringLiteral("未绑定");
+    const QString strategyName = instance.config.strategyType == StrategyType::ProsperityGrowth
+        ? QStringLiteral("景气成长")
+        : QStringLiteral("双均线");
+    const QString symbol = instance.config.symbol.trimmed().isEmpty()
+        ? QStringLiteral("未设置")
+        : instance.config.symbol;
+    return QStringLiteral("策略 %1 - %2 - %3 - %4")
+        .arg(instance.id)
+        .arg(strategyName, accountText, symbol);
+}
+MainWindow::StrategyRuntime* MainWindow::ensureRuntime(const StrategyInstanceInfo& instance)
+{
+    StrategyRuntime* runtime = runtimeForStrategy(instance.id);
+    if (!runtime) {
+        runtime = new StrategyRuntime;
+        runtime->id = instance.id;
+        runtime->marketData = new MarketDataSimulator(this);
+        runtime->marketData->setFeedMode(MarketDataFeedMode::RealtimeQuoteOnly);
+        connect(runtime->marketData, &MarketDataSimulator::dataUpdated, this, [this, id = instance.id](const MarketData& data) {
+            onStrategyMarketDataUpdated(id, data);
+        });
+        connect(runtime->marketData, &MarketDataSimulator::intradayDataUpdated, this, [this, id = instance.id](const QVector<MarketData>& data) {
+            onStrategyIntradayDataUpdated(id, data);
+        });
+        connect(runtime->marketData, &MarketDataSimulator::errorOccurred, this, [this, id = instance.id](const QString& message) {
+            onStrategyMarketDataError(id, message);
+        });
+        m_strategyRuntimes.append(runtime);
+    }
+
+    runtime->accountIndex = instance.accountIndex;
+    configureStrategyRuntime(runtime, instance.config);
+    return runtime;
+}
+
+void MainWindow::configureStrategyRuntime(StrategyRuntime* runtime, const StrategyConfig& config)
+{
+    if (!runtime) {
+        return;
+    }
+
+    const bool needsNewStrategy = !runtime->strategy || runtime->activeStrategyType != config.strategyType;
+    if (needsNewStrategy) {
+        if (runtime->strategy) {
+            disconnect(runtime->strategy, nullptr, this, nullptr);
+            delete runtime->strategy;
+            runtime->strategy = nullptr;
+        }
+
+        runtime->activeStrategyType = config.strategyType;
+        if (config.strategyType == StrategyType::ProsperityGrowth) {
+            runtime->strategy = new ProsperityGrowthStrategy(this);
+        } else {
+            runtime->strategy = new MovingAverageStrategy(this);
+        }
+        connect(runtime->strategy, &StrategyBase::signalGenerated, this, [this, id = runtime->id](const StrategySignal& signal) {
+            onStrategySignal(id, signal);
+        });
+    }
+
+    runtime->config = config;
+    if (runtime->strategy) {
+        runtime->strategy->setConfig(config);
+    }
+    if (!runtime->running && runtime->marketData) {
+        runtime->marketData->setSymbol(config.symbol);
+    }
+}
+
+bool MainWindow::hasRunningStrategyForAccount(int accountIndex, int exceptStrategyId) const
+{
+    if (accountIndex < 0) {
+        return false;
+    }
+    for (const StrategyRuntime* runtime : m_strategyRuntimes) {
+        if (runtime && (runtime->running || runtime->waiting) && runtime->accountIndex == accountIndex && runtime->id != exceptStrategyId) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void MainWindow::startStrategyRuntimeNow(StrategyRuntime* runtime, bool fromBatch)
+{
+    if (!runtime || runtime->running) {
+        return;
+    }
+
+    runtime->waiting = false;
+    resetStrategyProgressTracking(runtime, runtime->config);
+    runtime->running = true;
+    runtime->hasLastMarketData = false;
+    runtime->indicatorHistory.clear();
+    if (runtime->strategy) {
+        runtime->strategy->reset();
+        runtime->strategy->setConfig(runtime->config);
+    }
+    if (runtime->marketData) {
+        runtime->marketData->setSymbol(runtime->config.symbol);
+        runtime->marketData->startSimulation();
+    }
+
+    m_activeRuntimeId = runtime->id;
+    if (m_signalPanel) {
+        m_signalPanel->clearIndicators();
+    }
+    ui->strategyPanel->setStrategyInstanceRunning(runtime->id, true, false);
+    refreshStrategyRunningState();
+    ui->strategyPanel->addStrategyLog(strategyRuntimeLogLabel(runtime), QStringLiteral("已启动。"));
+    if (!fromBatch) {
+        ui->statusbar->showMessage(QStringLiteral("策略 %1 已启动").arg(runtime->id), 2000);
+    }
+}
+
+void MainWindow::startStrategyInstance(const StrategyInstanceInfo& instance, bool fromBatch)
+{
+    if (instance.id <= 0) {
+        return;
+    }
+
+    const QString label = strategyInstanceLogLabel(instance);
+    if (instance.accountIndex < 0 || instance.accountIndex >= m_accounts.size()) {
+        ui->strategyPanel->addStrategyLog(label, QStringLiteral("跳过：未绑定账户。"));
+        return;
+    }
+    if (hasRunningStrategyForAccount(instance.accountIndex, instance.id)) {
+        ui->strategyPanel->addStrategyLog(label, QStringLiteral("跳过：该账户已有运行或等待中的策略。"));
+        return;
+    }
+
+    StrategyRuntime* runtime = ensureRuntime(instance);
+    if (!runtime || runtime->running) {
+        return;
+    }
+
+    runtime->accountIndex = instance.accountIndex;
+    configureStrategyRuntime(runtime, instance.config);
+
+    if (!MarketDataSimulator::isAShareContinuousTradingTime()) {
+        runtime->running = false;
+        runtime->waiting = true;
+        runtime->hasLastMarketData = false;
+        runtime->indicatorHistory.clear();
+        if (runtime->marketData) {
+            runtime->marketData->stopSimulation();
+            runtime->marketData->setSymbol(instance.config.symbol);
+        }
+        m_activeRuntimeId = instance.id;
+        if (m_signalPanel) {
+            m_signalPanel->clearIndicators();
+        }
+        ui->strategyPanel->setStrategyInstanceRunning(instance.id, false, true);
+        refreshStrategyRunningState();
+        ui->strategyPanel->addStrategyLog(strategyRuntimeLogLabel(runtime), QStringLiteral("已进入等待；连续竞价时自动启动。"));
+        if (!fromBatch) {
+            ui->statusbar->showMessage(QStringLiteral("策略 %1 已进入等待，连续竞价时自动启动").arg(instance.id), 3000);
+        }
+        return;
+    }
+
+    startStrategyRuntimeNow(runtime, fromBatch);
+}
+
+void MainWindow::stopStrategyRuntime(int strategyId)
+{
+    StrategyRuntime* runtime = runtimeForStrategy(strategyId);
+    if (!runtime || (!runtime->running && !runtime->waiting)) {
+        return;
+    }
+
+    const QString label = strategyRuntimeLogLabel(runtime);
+    const bool wasWaiting = runtime->waiting && !runtime->running;
+    runtime->running = false;
+    runtime->waiting = false;
+    if (runtime->marketData) {
+        runtime->marketData->stopSimulation();
+    }
+    ui->strategyPanel->setStrategyInstanceRunning(strategyId, false, false);
+    ui->strategyPanel->addStrategyLog(label, wasWaiting
+        ? QStringLiteral("已取消等待。")
+        : QStringLiteral("已停止。"));
+    refreshStrategyRunningState();
+}
+
+void MainWindow::refreshStrategyRunningState()
+{
+    bool anyActive = false;
+    bool anyWaiting = false;
+    for (StrategyRuntime* runtime : m_strategyRuntimes) {
+        if (!runtime) {
+            continue;
+        }
+        anyActive = anyActive || runtime->running || runtime->waiting;
+        anyWaiting = anyWaiting || runtime->waiting;
+    }
+    m_isRunning = anyActive;
+    ui->strategyPanel->setRunningState(anyActive);
+
+    if (m_strategyStartTimer) {
+        if (anyWaiting && !m_strategyStartTimer->isActive()) {
+            m_strategyStartTimer->start();
+        } else if (!anyWaiting && m_strategyStartTimer->isActive()) {
+            m_strategyStartTimer->stop();
+        }
+    }
+}
+
+void MainWindow::startWaitingStrategiesIfReady()
+{
+    if (!MarketDataSimulator::isAShareContinuousTradingTime()) {
+        return;
+    }
+
+    int started = 0;
+    for (StrategyRuntime* runtime : m_strategyRuntimes) {
+        if (!runtime || !runtime->waiting) {
+            continue;
+        }
+        if (hasRunningStrategyForAccount(runtime->accountIndex, runtime->id)) {
+            continue;
+        }
+        ui->strategyPanel->addStrategyLog(strategyRuntimeLogLabel(runtime), QStringLiteral("连续竞价开始，自动启动。"));
+        startStrategyRuntimeNow(runtime, true);
+        ++started;
+    }
+
+    if (started > 0) {
+        ui->statusbar->showMessage(QStringLiteral("等待策略已启动：%1 个").arg(started), 3000);
+    }
+    refreshStrategyRunningState();
+}
 void MainWindow::onViewSymbolChanged(const QString& symbol)
 {
     const QString normalized = MarketDataSimulator::normalizeSymbol(symbol);
@@ -1122,85 +1864,100 @@ void MainWindow::onViewSymbolChanged(const QString& symbol)
     m_hasLastMarketData = false;
     ui->chartPanel->clearData();
 }
+
 void MainWindow::onStartStrategy()
 {
-    if (m_isRunning) {
-        return;
+    const QVector<StrategyInstanceInfo> instances = ui->strategyPanel->strategyInstances();
+    QSet<int> usedAccounts;
+    for (const StrategyRuntime* runtime : m_strategyRuntimes) {
+        if (runtime && (runtime->running || runtime->waiting) && runtime->accountIndex >= 0) {
+            usedAccounts.insert(runtime->accountIndex);
+        }
     }
 
-    if (!MarketDataSimulator::isAShareContinuousTradingTime()) {
-        const QString message = QStringLiteral("当前未处于 A 股连续竞价时段。\n\n策略只能在交易日 09:30-11:30、13:00-15:00 使用实时行情运行；收盘后主图可以查看最近可用交易日行情，但不能启动策略。");
-        showThemedWarning(this, QStringLiteral("不能启动策略"), message);
-        ui->strategyPanel->addSystemLog(message);
-        ui->statusbar->showMessage(QStringLiteral("未开盘，不能执行策略"), 4000);
-        return;
+    int started = 0;
+    int waiting = 0;
+    int skipped = 0;
+    for (const StrategyInstanceInfo& instance : instances) {
+        const QString label = strategyInstanceLogLabel(instance);
+        if (instance.accountIndex < 0 || instance.accountIndex >= m_accounts.size()) {
+            ++skipped;
+            ui->strategyPanel->addStrategyLog(label, QStringLiteral("跳过：未绑定账户。"));
+            continue;
+        }
+        if (usedAccounts.contains(instance.accountIndex)) {
+            StrategyRuntime* existing = runtimeForStrategy(instance.id);
+            if (existing && (existing->running || existing->waiting)) {
+                continue;
+            }
+            ++skipped;
+            ui->strategyPanel->addStrategyLog(label, QStringLiteral("跳过：账户冲突。"));
+            continue;
+        }
+        startStrategyInstance(instance, true);
+        StrategyRuntime* runtime = runtimeForStrategy(instance.id);
+        if (runtime && runtime->running) {
+            usedAccounts.insert(instance.accountIndex);
+            ++started;
+        } else if (runtime && runtime->waiting) {
+            usedAccounts.insert(instance.accountIndex);
+            ++waiting;
+        } else {
+            ++skipped;
+        }
     }
 
-    const StrategyConfig config = ui->strategyPanel->strategyConfig();
-    configureStrategy(config);
-    m_strategyMarketData->setSymbol(config.symbol);
-    resetStrategyProgressTracking(config);
-
-    m_isRunning = true;
-    if (m_strategy) {
-        m_strategy->reset();
-        m_strategy->setConfig(config);
-    }
-    ui->strategyPanel->setRunningState(true);
-    m_hasLastStrategyMarketData = false;
-    m_indicatorHistory.clear();
-    if (m_signalPanel) {
-        m_signalPanel->clearIndicators();
-    }
-    m_strategyMarketData->startSimulation();
-
-    const QString strategyMode = config.strategyType == StrategyType::ProsperityGrowth
-        ? QStringLiteral("景气成长分批低吸")
-        : QStringLiteral("双均线");
-    ui->strategyPanel->addSystemLog(
-        QStringLiteral("实时模拟策略已启动：%1，策略标的 %2。")
-            .arg(strategyMode, config.symbol));
-    ui->strategyPanel->addSystemLog(
-        QStringLiteral("当前策略：%1").arg(ui->strategyPanel->currentStrategyName()));
-    ui->strategyPanel->addSystemLog(ui->strategyPanel->currentStrategyConfigurationSummary());
-
-    if (m_hasLastStrategyMarketData && m_lastStrategyMarketData.symbol == config.symbol && m_strategy) {
-        m_strategy->processMarketData(m_lastStrategyMarketData);
-        ui->strategyPanel->addSystemLog(
-            QStringLiteral("已载入策略行情：%1 @ %2")
-                .arg(m_lastStrategyMarketData.symbol)
-                .arg(m_lastStrategyMarketData.close, 0, 'f', 2));
-    } else {
-        ui->strategyPanel->addSystemLog(QStringLiteral("正在连接策略行情源..."));
-    }
-
-    ui->statusbar->showMessage(QStringLiteral("实时模拟策略已启动"), 2000);
+    refreshStrategyRunningState();
+    ui->statusbar->showMessage(QStringLiteral("全部启动完成：%1 个已启动，%2 个等待，%3 个已跳过")
+        .arg(started)
+        .arg(waiting)
+        .arg(skipped), 3000);
 }
 void MainWindow::onStopStrategy()
 {
-    if (!m_isRunning) {
+    for (StrategyRuntime* runtime : m_strategyRuntimes) {
+        if (runtime && (runtime->running || runtime->waiting)) {
+            stopStrategyRuntime(runtime->id);
+        }
+    }
+    refreshStrategyRunningState();
+    ui->statusbar->showMessage(QStringLiteral("所有策略已停止，等待已取消"), 2000);
+}
+
+void MainWindow::onStartStrategyInstance(int strategyId)
+{
+    const StrategyInstanceInfo instance = ui->strategyPanel->strategyInstance(strategyId);
+    startStrategyInstance(instance, false);
+}
+
+void MainWindow::onStopStrategyInstance(int strategyId)
+{
+    stopStrategyRuntime(strategyId);
+}
+
+void MainWindow::onStrategyInstanceSelectionChanged(int strategyId)
+{
+    m_activeRuntimeId = strategyId;
+    updateSignalIndicators();
+}
+
+void MainWindow::onUpdateParameters()
+{
+    const int strategyId = ui->strategyPanel->currentStrategyInstanceId();
+    if (strategyId <= 0) {
         return;
     }
 
-    m_isRunning = false;
-    if (m_strategyMarketData) {
-        m_strategyMarketData->stopSimulation();
+    m_activeRuntimeId = strategyId;
+    const StrategyInstanceInfo instance = ui->strategyPanel->strategyInstance(strategyId);
+    StrategyRuntime* runtime = runtimeForStrategy(strategyId);
+    if (runtime && !runtime->running) {
+        runtime->accountIndex = instance.accountIndex;
+        configureStrategyRuntime(runtime, instance.config);
+        runtime->indicatorHistory.clear();
+        runtime->hasLastMarketData = false;
     }
-    ui->strategyPanel->setRunningState(false);
-    ui->strategyPanel->addSystemLog(QStringLiteral("实时模拟策略已停止，主页看盘行情继续刷新。"));
-
-    ui->statusbar->showMessage(QStringLiteral("实时模拟策略已停止"), 2000);
-}
-void MainWindow::onUpdateParameters()
-{
-    const StrategyConfig config = ui->strategyPanel->strategyConfig();
-    configureStrategy(config);
-    if (!m_isRunning && m_strategyMarketData) {
-        m_strategyMarketData->setSymbol(config.symbol);
-        m_indicatorHistory.clear();
-        m_hasLastStrategyMarketData = false;
-        if (m_signalPanel) {
-            m_signalPanel->clearIndicators();
-        }
+    if (m_signalPanel) {
+        updateSignalIndicators();
     }
 }

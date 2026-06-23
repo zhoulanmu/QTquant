@@ -15,7 +15,10 @@ namespace {
 constexpr int QuoteIntervalMs = 3000;
 constexpr int QuoteTimeoutMs = 2500;
 constexpr int TrendTimeoutMs = 6000;
+constexpr int TrendRefreshIntervalMs = 30000;
 constexpr auto QuoteEndpoint = "https://push2.eastmoney.com/api/qt/stock/get";
+constexpr auto SinaQuoteEndpoint = "https://hq.sinajs.cn/list=%1";
+constexpr auto TencentQuoteEndpoint = "https://qt.gtimg.cn/q=%1";
 constexpr auto TrendEndpoint = "https://push2his.eastmoney.com/api/qt/stock/trends2/get";
 constexpr auto EastMoneyUt = "fa5fd1943c7b386f172d6893dbfba10b";
 constexpr auto EastMoneyFields = "f43,f44,f45,f46,f47,f48,f57,f58,f60,f169,f170";
@@ -68,8 +71,11 @@ MarketDataSimulator::MarketDataSimulator(QObject *parent)
     , m_network(new QNetworkAccessManager(this))
     , m_activeReply(nullptr)
     , m_trendReply(nullptr)
+    , m_activeQuoteSource(QuoteSource::EastMoney)
+    , m_quoteFailureReasons()
     , m_lastQuoteData()
     , m_hasLastQuoteData(false)
+    , m_lastTrendFetchAt()
     , m_pendingTrendFallbackReason()
     , m_isUsingQuoteFallbackTrend(false)
     , m_feedMode(MarketDataFeedMode::QuoteAndTrend)
@@ -118,6 +124,9 @@ void MarketDataSimulator::stopSimulation()
         m_trendReply->deleteLater();
         m_trendReply = nullptr;
     }
+
+    m_activeQuoteSource = QuoteSource::EastMoney;
+    m_quoteFailureReasons.clear();
 }
 
 void MarketDataSimulator::setSymbol(const QString &symbol)
@@ -139,6 +148,9 @@ void MarketDataSimulator::setSymbol(const QString &symbol)
     m_hasLastQuoteData = false;
     m_pendingTrendFallbackReason.clear();
     m_isUsingQuoteFallbackTrend = false;
+    m_lastTrendFetchAt = QDateTime();
+    m_activeQuoteSource = QuoteSource::EastMoney;
+    m_quoteFailureReasons.clear();
 
     if (m_activeReply) {
         disconnect(m_activeReply, nullptr, this, nullptr);
@@ -168,6 +180,8 @@ void MarketDataSimulator::setFeedMode(MarketDataFeedMode mode)
     m_feedMode = mode;
     m_pendingTrendFallbackReason.clear();
     m_isUsingQuoteFallbackTrend = false;
+    m_lastTrendFetchAt = QDateTime();
+    m_quoteFailureReasons.clear();
     if (m_isRunning) {
         generateNewData();
     }
@@ -261,7 +275,9 @@ void MarketDataSimulator::generateNewData()
         break;
     case MarketDataFeedMode::QuoteWhenOpenTrendWhenClosed:
         fetchLatestQuote();
-        if (!marketOpen) {
+        if (!m_lastTrendFetchAt.isValid()
+            || m_lastTrendFetchAt.msecsTo(QDateTime::currentDateTime()) >= TrendRefreshIntervalMs
+            || !marketOpen) {
             fetchIntradayTrend();
         }
         break;
@@ -286,14 +302,64 @@ void MarketDataSimulator::fetchLatestQuote()
         return;
     }
 
-    QNetworkRequest request(buildQuoteUrl());
+    m_quoteFailureReasons.clear();
+    fetchQuote(QuoteSource::EastMoney);
+}
+
+void MarketDataSimulator::fetchQuote(QuoteSource source)
+{
+    if (!m_isRunning || m_activeReply) {
+        return;
+    }
+
+    const QUrl url = buildQuoteUrl(source);
+    if (!url.isValid()) {
+        emit errorOccurred(QStringLiteral("Invalid quote URL for %1").arg(m_symbol));
+        return;
+    }
+
+    QNetworkRequest request(url);
     request.setHeader(QNetworkRequest::UserAgentHeader,
                       QStringLiteral("Mozilla/5.0 StarQuant/0.1 MarketQuote"));
-    request.setRawHeader("Referer", "https://quote.eastmoney.com/");
+    switch (source) {
+    case QuoteSource::EastMoney:
+        request.setRawHeader("Referer", "https://quote.eastmoney.com/");
+        break;
+    case QuoteSource::Sina:
+        request.setRawHeader("Referer", "https://finance.sina.com.cn/");
+        break;
+    case QuoteSource::Tencent:
+        request.setRawHeader("Referer", "https://gu.qq.com/");
+        break;
+    }
     request.setTransferTimeout(QuoteTimeoutMs);
 
+    m_activeQuoteSource = source;
     m_activeReply = m_network->get(request);
     connect(m_activeReply, &QNetworkReply::finished, this, &MarketDataSimulator::onQuoteReplyFinished);
+}
+
+bool MarketDataSimulator::fetchNextQuoteSource(QuoteSource source, const QString& failureReason)
+{
+    const QString reason = failureReason.isEmpty()
+        ? QStringLiteral("returned no usable quote")
+        : failureReason;
+    m_quoteFailureReasons.append(QStringLiteral("%1: %2").arg(sourceName(source), reason));
+
+    QuoteSource nextSource = QuoteSource::EastMoney;
+    switch (source) {
+    case QuoteSource::EastMoney:
+        nextSource = QuoteSource::Sina;
+        break;
+    case QuoteSource::Sina:
+        nextSource = QuoteSource::Tencent;
+        break;
+    case QuoteSource::Tencent:
+        return false;
+    }
+
+    fetchQuote(nextSource);
+    return m_activeReply != nullptr;
 }
 
 void MarketDataSimulator::fetchIntradayTrend()
@@ -305,6 +371,8 @@ void MarketDataSimulator::fetchIntradayTrend()
     if (m_secid.isEmpty()) {
         return;
     }
+
+    m_lastTrendFetchAt = QDateTime::currentDateTime();
 
     QNetworkRequest request(buildTrendUrl());
     request.setHeader(QNetworkRequest::UserAgentHeader,
@@ -323,6 +391,7 @@ void MarketDataSimulator::onQuoteReplyFinished()
         return;
     }
 
+    const QuoteSource source = m_activeQuoteSource;
     if (reply == m_activeReply) {
         m_activeReply = nullptr;
     }
@@ -334,7 +403,8 @@ void MarketDataSimulator::onQuoteReplyFinished()
 
     MarketData data;
     QString parseError;
-    if (parseQuoteResponse(payload, &data, &parseError)) {
+    if (parseQuoteResponse(source, payload, &data, &parseError)) {
+        m_quoteFailureReasons.clear();
         m_lastPrice = data.close;
         m_lastQuoteData = data;
         m_hasLastQuoteData = true;
@@ -352,23 +422,37 @@ void MarketDataSimulator::onQuoteReplyFinished()
         return;
     }
 
-    if (m_lastSuccessfulDataAt.isValid()
-        && m_lastSuccessfulDataAt.secsTo(QDateTime::currentDateTime()) <= 15) {
-        return;
-    }
-
     const bool connectionClosed = networkError == QNetworkReply::OperationCanceledError
         || networkError == QNetworkReply::RemoteHostClosedError
         || networkErrorText.contains(QStringLiteral("Operation canceled"), Qt::CaseInsensitive)
         || networkErrorText.contains(QStringLiteral("Connection closed"), Qt::CaseInsensitive);
 
+    QString failureReason;
     if (networkError != QNetworkReply::NoError || connectionClosed) {
-        const QString reason = networkErrorText.isEmpty() ? parseError : networkErrorText;
-        emit errorOccurred(QStringLiteral("Market quote request failed: %1").arg(reason));
+        failureReason = networkErrorText.isEmpty() ? parseError : networkErrorText;
+    } else {
+        failureReason = parseError;
+    }
+    if (failureReason.isEmpty()) {
+        failureReason = QStringLiteral("Market quote returned no usable data for %1").arg(m_symbol);
+    }
+
+    if (fetchNextQuoteSource(source, failureReason)) {
         return;
     }
 
-    emit errorOccurred(parseError);
+    if (m_lastSuccessfulDataAt.isValid()
+        && m_lastSuccessfulDataAt.secsTo(QDateTime::currentDateTime()) <= 15) {
+        m_quoteFailureReasons.clear();
+        return;
+    }
+
+    const QString combinedReason = m_quoteFailureReasons.isEmpty()
+        ? failureReason
+        : m_quoteFailureReasons.join(QStringLiteral("; "));
+    m_quoteFailureReasons.clear();
+    emit errorOccurred(QStringLiteral("Market quote request failed after EastMoney, Sina and Tencent fallback: %1")
+                           .arg(combinedReason));
 }
 
 void MarketDataSimulator::onTrendReplyFinished()
@@ -437,17 +521,27 @@ void MarketDataSimulator::onTrendReplyFinished()
     emit errorOccurred(failureReason);
 }
 
-QUrl MarketDataSimulator::buildQuoteUrl() const
+QUrl MarketDataSimulator::buildQuoteUrl(QuoteSource source) const
 {
-    QUrl url(QString::fromLatin1(QuoteEndpoint));
-    QUrlQuery query;
-    query.addQueryItem(QStringLiteral("ut"), QString::fromLatin1(EastMoneyUt));
-    query.addQueryItem(QStringLiteral("fltt"), QStringLiteral("2"));
-    query.addQueryItem(QStringLiteral("invt"), QStringLiteral("2"));
-    query.addQueryItem(QStringLiteral("secid"), m_secid);
-    query.addQueryItem(QStringLiteral("fields"), QString::fromLatin1(EastMoneyFields));
-    url.setQuery(query);
-    return url;
+    switch (source) {
+    case QuoteSource::EastMoney: {
+        QUrl url(QString::fromLatin1(QuoteEndpoint));
+        QUrlQuery query;
+        query.addQueryItem(QStringLiteral("ut"), QString::fromLatin1(EastMoneyUt));
+        query.addQueryItem(QStringLiteral("fltt"), QStringLiteral("2"));
+        query.addQueryItem(QStringLiteral("invt"), QStringLiteral("2"));
+        query.addQueryItem(QStringLiteral("secid"), m_secid);
+        query.addQueryItem(QStringLiteral("fields"), QString::fromLatin1(EastMoneyFields));
+        url.setQuery(query);
+        return url;
+    }
+    case QuoteSource::Sina:
+        return QUrl(QString::fromLatin1(SinaQuoteEndpoint).arg(prefixedMarketSymbol(m_symbol)));
+    case QuoteSource::Tencent:
+        return QUrl(QString::fromLatin1(TencentQuoteEndpoint).arg(prefixedMarketSymbol(m_symbol)));
+    }
+
+    return QUrl();
 }
 
 QUrl MarketDataSimulator::buildTrendUrl() const
@@ -497,7 +591,24 @@ bool MarketDataSimulator::emitQuoteFallbackTrend(const QString& reason)
     return true;
 }
 
-bool MarketDataSimulator::parseQuoteResponse(const QByteArray& payload, MarketData* data, QString* errorMessage) const
+bool MarketDataSimulator::parseQuoteResponse(QuoteSource source, const QByteArray& payload, MarketData* data, QString* errorMessage) const
+{
+    switch (source) {
+    case QuoteSource::EastMoney:
+        return parseEastMoneyQuoteResponse(payload, data, errorMessage);
+    case QuoteSource::Sina:
+        return parseSinaQuoteResponse(payload, data, errorMessage);
+    case QuoteSource::Tencent:
+        return parseTencentQuoteResponse(payload, data, errorMessage);
+    }
+
+    if (errorMessage) {
+        *errorMessage = QStringLiteral("Unknown quote source for %1").arg(m_symbol);
+    }
+    return false;
+}
+
+bool MarketDataSimulator::parseEastMoneyQuoteResponse(const QByteArray& payload, MarketData* data, QString* errorMessage) const
 {
     QJsonParseError jsonError;
     const QJsonDocument document = QJsonDocument::fromJson(payload, &jsonError);
@@ -526,7 +637,7 @@ bool MarketDataSimulator::parseQuoteResponse(const QByteArray& payload, MarketDa
 
     if (close <= 0.0 && m_feedMode == MarketDataFeedMode::RealtimeQuoteOnly) {
         if (errorMessage) {
-            *errorMessage = QStringLiteral("策略实时行情不可用：%1 当前没有可用实时报价。" ).arg(m_symbol);
+            *errorMessage = QStringLiteral("Realtime EastMoney quote is unavailable for %1").arg(m_symbol);
         }
         return false;
     }
@@ -562,6 +673,164 @@ bool MarketDataSimulator::parseQuoteResponse(const QByteArray& payload, MarketDa
     data->previousClose = previousClose;
     data->averagePrice = data->volume > 0.0 ? data->turnover / (data->volume * 100.0) : close;
     data->tradeCount = data->volume > 0.0 ? static_cast<int>(data->volume) : 0;
+    return true;
+}
+
+bool MarketDataSimulator::parseSinaQuoteResponse(const QByteArray& payload, MarketData* data, QString* errorMessage) const
+{
+    const QString text = QString::fromLocal8Bit(payload).trimmed();
+    const int valueStart = text.indexOf(QLatin1Char('"'));
+    const int valueEnd = text.lastIndexOf(QLatin1Char('"'));
+    if (valueStart < 0 || valueEnd <= valueStart) {
+        if (errorMessage) {
+            *errorMessage = QStringLiteral("Sina quote returned invalid text for %1").arg(m_symbol);
+        }
+        return false;
+    }
+
+    const QStringList parts = text.mid(valueStart + 1, valueEnd - valueStart - 1).split(QLatin1Char(','));
+    if (parts.size() < 32 || parts.value(0).trimmed().isEmpty()) {
+        if (errorMessage) {
+            *errorMessage = QStringLiteral("Sina quote returned no usable data for %1").arg(m_symbol);
+        }
+        return false;
+    }
+
+    const double previousClose = textToDouble(parts.value(2));
+    double close = textToDouble(parts.value(3));
+    double open = textToDouble(parts.value(1));
+    double high = textToDouble(parts.value(4));
+    double low = textToDouble(parts.value(5));
+
+    if (close <= 0.0 && m_feedMode == MarketDataFeedMode::RealtimeQuoteOnly) {
+        if (errorMessage) {
+            *errorMessage = QStringLiteral("Realtime Sina quote is unavailable for %1").arg(m_symbol);
+        }
+        return false;
+    }
+    if (close <= 0.0) {
+        close = previousClose > 0.0 ? previousClose : m_lastPrice;
+    }
+    if (close <= 0.0) {
+        if (errorMessage) {
+            *errorMessage = QStringLiteral("Sina quote has no usable price for %1").arg(m_symbol);
+        }
+        return false;
+    }
+
+    if (open <= 0.0) {
+        open = close;
+    }
+    if (high <= 0.0) {
+        high = qMax(open, close);
+    }
+    if (low <= 0.0) {
+        low = qMin(open, close);
+    }
+
+    const double volumeShares = textToDouble(parts.value(8));
+    const double volumeLots = volumeShares > 0.0 ? volumeShares / 100.0 : 0.0;
+    const double turnover = textToDouble(parts.value(9));
+    QDateTime timestamp = QDateTime::fromString(parts.value(30).trimmed() + QLatin1Char(' ') + parts.value(31).trimmed(),
+                                                QStringLiteral("yyyy-MM-dd HH:mm:ss"));
+    if (!timestamp.isValid()) {
+        timestamp = QDateTime::currentDateTime();
+    }
+
+    data->symbol = m_symbol;
+    data->name = parts.value(0).trimmed();
+    data->timestamp = timestamp;
+    data->open = open;
+    data->high = high;
+    data->low = low;
+    data->close = close;
+    data->volume = volumeLots;
+    data->turnover = turnover;
+    data->previousClose = previousClose;
+    data->averagePrice = volumeLots > 0.0 && turnover > 0.0 ? turnover / (volumeLots * 100.0) : close;
+    data->tradeCount = volumeLots > 0.0 ? static_cast<int>(volumeLots) : 0;
+    return true;
+}
+
+bool MarketDataSimulator::parseTencentQuoteResponse(const QByteArray& payload, MarketData* data, QString* errorMessage) const
+{
+    const QString text = QString::fromLocal8Bit(payload).trimmed();
+    const int valueStart = text.indexOf(QLatin1Char('"'));
+    const int valueEnd = text.lastIndexOf(QLatin1Char('"'));
+    if (valueStart < 0 || valueEnd <= valueStart) {
+        if (errorMessage) {
+            *errorMessage = QStringLiteral("Tencent quote returned invalid text for %1").arg(m_symbol);
+        }
+        return false;
+    }
+
+    const QStringList parts = text.mid(valueStart + 1, valueEnd - valueStart - 1).split(QLatin1Char('~'));
+    if (parts.size() < 35 || parts.value(3).trimmed().isEmpty()) {
+        if (errorMessage) {
+            *errorMessage = QStringLiteral("Tencent quote returned no usable data for %1").arg(m_symbol);
+        }
+        return false;
+    }
+
+    const double previousClose = textToDouble(parts.value(4));
+    double close = textToDouble(parts.value(3));
+    double open = textToDouble(parts.value(5));
+    double high = textToDouble(parts.value(33));
+    double low = textToDouble(parts.value(34));
+
+    if (close <= 0.0 && m_feedMode == MarketDataFeedMode::RealtimeQuoteOnly) {
+        if (errorMessage) {
+            *errorMessage = QStringLiteral("Realtime Tencent quote is unavailable for %1").arg(m_symbol);
+        }
+        return false;
+    }
+    if (close <= 0.0) {
+        close = previousClose > 0.0 ? previousClose : m_lastPrice;
+    }
+    if (close <= 0.0) {
+        if (errorMessage) {
+            *errorMessage = QStringLiteral("Tencent quote has no usable price for %1").arg(m_symbol);
+        }
+        return false;
+    }
+
+    if (open <= 0.0) {
+        open = close;
+    }
+    if (high <= 0.0) {
+        high = qMax(open, close);
+    }
+    if (low <= 0.0) {
+        low = qMin(open, close);
+    }
+
+    const double volumeLots = textToDouble(parts.value(6));
+    double turnover = 0.0;
+    const QStringList summary = parts.value(35).split(QLatin1Char('/'));
+    if (summary.size() >= 3) {
+        turnover = textToDouble(summary.value(2));
+    }
+    if (turnover <= 0.0) {
+        turnover = textToDouble(parts.value(37)) * 10000.0;
+    }
+
+    QDateTime timestamp = QDateTime::fromString(parts.value(30).trimmed(), QStringLiteral("yyyyMMddHHmmss"));
+    if (!timestamp.isValid()) {
+        timestamp = QDateTime::currentDateTime();
+    }
+
+    data->symbol = m_symbol;
+    data->name = parts.value(1).trimmed();
+    data->timestamp = timestamp;
+    data->open = open;
+    data->high = high;
+    data->low = low;
+    data->close = close;
+    data->volume = volumeLots;
+    data->turnover = turnover;
+    data->previousClose = previousClose;
+    data->averagePrice = volumeLots > 0.0 && turnover > 0.0 ? turnover / (volumeLots * 100.0) : close;
+    data->tradeCount = volumeLots > 0.0 ? static_cast<int>(volumeLots) : 0;
     return true;
 }
 
@@ -702,6 +971,44 @@ bool MarketDataSimulator::parseTrendResponse(const QByteArray& payload, QVector<
     return true;
 }
 
+QString MarketDataSimulator::sourceName(QuoteSource source)
+{
+    switch (source) {
+    case QuoteSource::EastMoney:
+        return QStringLiteral("EastMoney");
+    case QuoteSource::Sina:
+        return QStringLiteral("Sina");
+    case QuoteSource::Tencent:
+        return QStringLiteral("Tencent");
+    }
+
+    return QStringLiteral("Unknown");
+}
+
+QString MarketDataSimulator::prefixedMarketSymbol(const QString& symbol)
+{
+    const QString normalized = normalizeSymbol(symbol);
+    const int dotIndex = normalized.indexOf(QLatin1Char('.'));
+    if (dotIndex <= 0) {
+        return QString();
+    }
+
+    const QString code = normalized.left(dotIndex);
+    const QString exchange = normalized.mid(dotIndex + 1);
+    if (code.size() != 6) {
+        return QString();
+    }
+
+    if (exchange == QStringLiteral("SH")) {
+        return QStringLiteral("sh") + code;
+    }
+    if (exchange == QStringLiteral("SZ")) {
+        return QStringLiteral("sz") + code;
+    }
+
+    return QString();
+}
+
 QString MarketDataSimulator::secIdForSymbol(const QString &symbol)
 {
     const QString normalized = normalizeSymbol(symbol);
@@ -744,4 +1051,17 @@ double MarketDataSimulator::valueToDouble(const QJsonValue& value)
     }
 
     return 0.0;
+}
+
+double MarketDataSimulator::textToDouble(QString text)
+{
+    text = text.trimmed();
+    if (text.isEmpty() || text == QStringLiteral("-") || text == QStringLiteral("--")) {
+        return 0.0;
+    }
+
+    text.remove(QLatin1Char(','));
+    bool ok = false;
+    const double number = text.toDouble(&ok);
+    return ok ? number : 0.0;
 }

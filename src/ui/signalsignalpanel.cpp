@@ -53,6 +53,15 @@ void SignalPanel::clearIndicators()
     m_bollStatusLabel->setStyleSheet("");
 }
 
+void SignalPanel::showIndicatorWarmup(int sampleCount, int requiredCount)
+{
+    m_rsiLabel->setText(QStringLiteral("样本 %1/%2").arg(sampleCount).arg(requiredCount));
+    m_rsiLabel->setStyleSheet("color: #fbbf24;");
+    m_macdLabel->setText(QStringLiteral("收集中"));
+    m_macdLabel->setStyleSheet("color: #fbbf24;");
+    m_bollStatusLabel->setText(QStringLiteral("收集中"));
+    m_bollStatusLabel->setStyleSheet("color: #fbbf24;");
+}
 void SignalPanel::updateIndicators(double rsi, double macd, double bollUpper, double bollLower, double currentPrice)
 {
     m_rsiLabel->setText(QString("%1").arg(rsi, 0, 'f', 1));

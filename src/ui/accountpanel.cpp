@@ -17,8 +17,8 @@ AccountPanel::AccountPanel(QWidget *parent) :
     ui->positionsTable->setSelectionMode(QAbstractItemView::SingleSelection);
     ui->positionsTable->setSelectionBehavior(QAbstractItemView::SelectRows);
 
-    ui->tradesTable->setColumnCount(6);
-    ui->tradesTable->setHorizontalHeaderLabels({QStringLiteral("时间"), QStringLiteral("代码"), QStringLiteral("方向"), QStringLiteral("成交价"), QStringLiteral("数量"), QStringLiteral("金额")});
+    ui->tradesTable->setColumnCount(7);
+    ui->tradesTable->setHorizontalHeaderLabels({QStringLiteral("时间"), QStringLiteral("代码"), QStringLiteral("方向"), QStringLiteral("成交价"), QStringLiteral("数量"), QStringLiteral("成交额"), QStringLiteral("费用")});
     ui->tradesTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
     ui->tradesTable->setSelectionMode(QAbstractItemView::SingleSelection);
     ui->tradesTable->setSelectionBehavior(QAbstractItemView::SelectRows);
@@ -77,7 +77,7 @@ void AccountPanel::updatePositions(const QMap<QString, PositionInfo> &positions)
     ui->positionsTable->resizeColumnsToContents();
 }
 
-void AccountPanel::addTradeRecord(const QString &symbol, const QString &type, double price, double volume, double amount, const QString &time)
+void AccountPanel::addTradeRecord(const QString &symbol, const QString &type, double price, double volume, double amount, double fee, const QString &time)
 {
     const int row = ui->tradesTable->rowCount();
     ui->tradesTable->insertRow(row);
@@ -92,6 +92,7 @@ void AccountPanel::addTradeRecord(const QString &symbol, const QString &type, do
     ui->tradesTable->setItem(row, 3, new QTableWidgetItem(QString::number(price, 'f', 2)));
     ui->tradesTable->setItem(row, 4, new QTableWidgetItem(QString::number(volume, 'f', 0)));
     ui->tradesTable->setItem(row, 5, new QTableWidgetItem(QString::number(amount, 'f', 2)));
+    ui->tradesTable->setItem(row, 6, new QTableWidgetItem(QString::number(fee, 'f', 2)));
 
     ui->tradesTable->resizeColumnsToContents();
 

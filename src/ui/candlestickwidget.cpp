@@ -1,5 +1,6 @@
 #include "candlestickwidget.h"
 #include <QLinearGradient>
+#include <QMouseEvent>
 #include <QPainter>
 #include <QPainterPath>
 #include <QTime>
@@ -35,12 +36,6 @@ int tradingMinuteOfDay(const QTime& time)
     return TotalTradingMinutes;
 }
 
-qreal minuteToX(int minute, const QRectF& area)
-{
-    const qreal ratio = qBound(0.0, static_cast<qreal>(minute) / TotalTradingMinutes, 1.0);
-    return area.left() + area.width() * ratio;
-}
-
 double previousCloseFor(const std::deque<MarketData>& history)
 {
     for (auto it = history.rbegin(); it != history.rend(); ++it) {
@@ -68,9 +63,14 @@ QColor labelColorForPrice(double price, double previousClose)
 
 CandlestickWidget::CandlestickWidget(QWidget *parent) :
     QWidget(parent),
+    m_autoMinPrice(0.0),
+    m_autoMaxPrice(1.0),
     m_minPrice(0.0),
     m_maxPrice(1.0),
-    m_zoomFactor(1.0),
+    m_priceZoomFactor(1.0),
+    m_timeStartMinute(0),
+    m_timeEndMinute(TotalTradingMinutes),
+    m_timeZoomFactor(1.0),
     m_emptyMessage(QStringLiteral("正在加载行情数据..."))
 {
     setStyleSheet("background-color: #1a1a2e;");
@@ -79,14 +79,38 @@ CandlestickWidget::CandlestickWidget(QWidget *parent) :
 
 void CandlestickWidget::wheelEvent(QWheelEvent *event)
 {
+    if (!m_priceHistory.empty()) {
+        const QRectF area = chartArea();
+        const QPointF pos = event->position();
+        const bool timeZoom = event->modifiers().testFlag(Qt::ControlModifier)
+            || event->modifiers().testFlag(Qt::ShiftModifier);
+        const double factor = event->angleDelta().y() > 0 ? 1.18 : (1.0 / 1.18);
+        if (timeZoom) {
+            m_timeZoomFactor = qBound(1.0, m_timeZoomFactor * factor, 8.0);
+            applyTimeZoom(xToMinute(pos.x(), area));
+        } else {
+            m_priceZoomFactor = qBound(1.0, m_priceZoomFactor * factor, 24.0);
+            applyPriceZoom(priceAtY(pos.y(), area));
+        }
+        update();
+    }
+    event->accept();
+}
+
+void CandlestickWidget::mouseDoubleClickEvent(QMouseEvent* event)
+{
+    resetZoom();
+    update();
     event->accept();
 }
 
 void CandlestickWidget::updateData(const std::deque<MarketData> &history, double minPrice, double maxPrice)
 {
     m_priceHistory = history;
-    m_minPrice = minPrice;
-    m_maxPrice = maxPrice;
+    m_autoMinPrice = minPrice;
+    m_autoMaxPrice = maxPrice;
+    applyPriceZoom((m_minPrice + m_maxPrice) / 2.0);
+    applyTimeZoom((m_timeStartMinute + m_timeEndMinute) / 2);
     update();
 }
 
@@ -97,6 +121,7 @@ void CandlestickWidget::setEmptyMessage(const QString& message)
         update();
     }
 }
+
 void CandlestickWidget::paintEvent(QPaintEvent *event)
 {
     Q_UNUSED(event);
@@ -140,6 +165,87 @@ int CandlestickWidget::priceToY(double price, const QRectF &area) const
     return qRound(qBound(area.top(), y, area.bottom()));
 }
 
+double CandlestickWidget::priceAtY(qreal y, const QRectF& area) const
+{
+    if (m_maxPrice <= m_minPrice || area.height() <= 0.0) {
+        return (m_minPrice + m_maxPrice) / 2.0;
+    }
+
+    const qreal ratio = qBound(0.0, (area.bottom() - y) / area.height(), 1.0);
+    return m_minPrice + ratio * (m_maxPrice - m_minPrice);
+}
+
+double CandlestickWidget::visibleTimeSpan() const
+{
+    return qMax(1.0, static_cast<double>(m_timeEndMinute - m_timeStartMinute));
+}
+
+int CandlestickWidget::xToMinute(qreal x, const QRectF& area) const
+{
+    if (area.width() <= 0.0) {
+        return (m_timeStartMinute + m_timeEndMinute) / 2;
+    }
+
+    const double ratio = qBound(0.0, (x - area.left()) / area.width(), 1.0);
+    return qBound(0, qRound(m_timeStartMinute + ratio * visibleTimeSpan()), TotalTradingMinutes);
+}
+
+qreal CandlestickWidget::minuteToVisibleX(int minute, const QRectF& area) const
+{
+    const double ratio = qBound(0.0,
+                                (static_cast<double>(minute) - m_timeStartMinute) / visibleTimeSpan(),
+                                1.0);
+    return area.left() + area.width() * ratio;
+}
+
+void CandlestickWidget::applyPriceZoom(double centerPrice)
+{
+    if (m_autoMaxPrice <= m_autoMinPrice) {
+        m_minPrice = m_autoMinPrice;
+        m_maxPrice = m_autoMaxPrice;
+        return;
+    }
+
+    const double autoRange = m_autoMaxPrice - m_autoMinPrice;
+    const double viewRange = autoRange / qMax(1.0, m_priceZoomFactor);
+    const double minCenter = m_autoMinPrice + viewRange / 2.0;
+    const double maxCenter = m_autoMaxPrice - viewRange / 2.0;
+    const double center = minCenter <= maxCenter
+        ? qBound(minCenter, centerPrice, maxCenter)
+        : (m_autoMinPrice + m_autoMaxPrice) / 2.0;
+
+    m_minPrice = qMax(0.0, center - viewRange / 2.0);
+    m_maxPrice = center + viewRange / 2.0;
+}
+
+void CandlestickWidget::applyTimeZoom(int centerMinute)
+{
+    const double viewSpan = TotalTradingMinutes / qMax(1.0, m_timeZoomFactor);
+    double start = centerMinute - viewSpan / 2.0;
+    double end = centerMinute + viewSpan / 2.0;
+    if (start < 0.0) {
+        end -= start;
+        start = 0.0;
+    }
+    if (end > TotalTradingMinutes) {
+        start -= end - TotalTradingMinutes;
+        end = TotalTradingMinutes;
+    }
+
+    m_timeStartMinute = qBound(0, qRound(start), TotalTradingMinutes - 1);
+    m_timeEndMinute = qBound(m_timeStartMinute + 1, qRound(end), TotalTradingMinutes);
+}
+
+void CandlestickWidget::resetZoom()
+{
+    m_priceZoomFactor = 1.0;
+    m_timeZoomFactor = 1.0;
+    m_timeStartMinute = 0;
+    m_timeEndMinute = TotalTradingMinutes;
+    m_minPrice = m_autoMinPrice;
+    m_maxPrice = m_autoMaxPrice;
+}
+
 void CandlestickWidget::drawGrid(QPainter &painter)
 {
     const QRectF area = chartArea();
@@ -152,7 +258,10 @@ void CandlestickWidget::drawGrid(QPainter &painter)
 
     const QList<int> minutes = {0, 60, 120, 180, TotalTradingMinutes};
     for (int minute : minutes) {
-        const qreal x = minuteToX(minute, area);
+        if (minute < m_timeStartMinute || minute > m_timeEndMinute) {
+            continue;
+        }
+        const qreal x = minuteToVisibleX(minute, area);
         painter.drawLine(QPointF(x, area.top()), QPointF(x, area.bottom()));
     }
 }
@@ -198,7 +307,10 @@ void CandlestickWidget::drawTimeLabels(QPainter &painter, const QRectF &area, in
     };
 
     for (const auto& label : labels) {
-        const qreal x = minuteToX(label.first, area);
+        if (label.first < m_timeStartMinute || label.first > m_timeEndMinute) {
+            continue;
+        }
+        const qreal x = minuteToVisibleX(label.first, area);
         painter.drawText(QRectF(x - 42, area.bottom() + 5, 84, 18), Qt::AlignCenter, label.second);
     }
 }
@@ -219,11 +331,11 @@ void CandlestickWidget::drawCandlesticks(QPainter &painter)
         }
 
         const int minute = tradingMinuteOfDay(data.timestamp.time());
-        if (minute < 0) {
+        if (minute < 0 || minute < m_timeStartMinute || minute > m_timeEndMinute) {
             continue;
         }
 
-        const qreal x = minuteToX(minute, area);
+        const qreal x = minuteToVisibleX(minute, area);
         priceLine << QPointF(x, priceToY(data.close, area));
 
         if (data.averagePrice > 0.0) {

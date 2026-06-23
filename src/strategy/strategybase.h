@@ -54,7 +54,7 @@ struct RiskConfig {
 };
 
 struct PositionConfig {
-    double lotSize = 1000.0;
+    double lotSize = 0.0;
     double maxSingleTrackPercent = 20.0;
     int diversifyTrackCount = 3;
 };
@@ -91,6 +91,7 @@ public:
     virtual void setParameters(const StrategyParameters& params);
     virtual void setConfig(const StrategyConfig& config);
     const StrategyConfig& config() const { return m_config; }
+    void syncPositionState(bool hasPosition, double entryPrice);
     virtual void processMarketData(const MarketData& data) = 0;
     virtual void reset();
 

@@ -35,6 +35,27 @@ void StrategyBase::setConfig(const StrategyConfig& config)
     m_params.lotSize = config.positionConfig.lotSize;
 }
 
+void StrategyBase::syncPositionState(bool hasPosition, double entryPrice)
+{
+    if (!hasPosition) {
+        m_hasPosition = false;
+        m_entryPrice = 0.0;
+        m_stopLossPrice = 0.0;
+        m_takeProfitPrice = 0.0;
+        return;
+    }
+
+    if (m_hasPosition && m_entryPrice > 0.0) {
+        return;
+    }
+
+    m_hasPosition = true;
+    m_entryPrice = entryPrice > 0.0 ? entryPrice : m_entryPrice;
+    if (m_entryPrice > 0.0) {
+        m_stopLossPrice = m_entryPrice * (1.0 - m_config.riskConfig.stopLossPercent / 100.0);
+        m_takeProfitPrice = m_entryPrice * (1.0 + m_config.riskConfig.takeProfitPercent / 100.0);
+    }
+}
 void StrategyBase::reset()
 {
     m_hasPosition = false;
