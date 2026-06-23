@@ -83,8 +83,8 @@ clean: CMakeFiles/StarQuant_autogen.dir/clean
 # Target rules for target CMakeFiles/StarQuant.dir
 
 # All Build rule for target.
-CMakeFiles/StarQuant.dir/all: CMakeFiles/StarQuant_autogen_timestamp_deps.dir/all
 CMakeFiles/StarQuant.dir/all: CMakeFiles/StarQuant_autogen.dir/all
+CMakeFiles/StarQuant.dir/all: CMakeFiles/StarQuant_autogen_timestamp_deps.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/build
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=D:\QTquant\build\CMakeFiles --progress-num=1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20 "Built target StarQuant"
@@ -102,8 +102,8 @@ StarQuant: CMakeFiles/StarQuant.dir/rule
 .PHONY : StarQuant
 
 # codegen rule for target.
-CMakeFiles/StarQuant.dir/codegen: CMakeFiles/StarQuant_autogen_timestamp_deps.dir/all
 CMakeFiles/StarQuant.dir/codegen: CMakeFiles/StarQuant_autogen.dir/all
+CMakeFiles/StarQuant.dir/codegen: CMakeFiles/StarQuant_autogen_timestamp_deps.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/codegen
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=D:\QTquant\build\CMakeFiles --progress-num=1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20 "Finished codegen for target StarQuant"
 .PHONY : CMakeFiles/StarQuant.dir/codegen
