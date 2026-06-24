@@ -609,7 +609,9 @@ void MainWindow::onMarketDataUpdated(const MarketData &data)
 
     ui->marketPanel->updateMarketData(data);
     ui->strategyPanel->rememberStockName(data.symbol, data.name);
-    ui->chartPanel->updateChartData(data);
+    if (MarketDataSimulator::isAShareContinuousTradingTime(data.timestamp)) {
+        ui->chartPanel->updateChartData(data);
+    }
     m_statisticsPanel->setData(data.turnover, data.volume, data.volume, 0.0, 0.0, 0);
 
     updatePositionsPrice(data.symbol, data.close);

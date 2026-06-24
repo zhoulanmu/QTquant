@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QObject>
+#include <QDate>
 #include <QDateTime>
 #include <QJsonValue>
 #include <QString>
@@ -83,19 +84,34 @@ private:
         Tencent
     };
 
+    enum class TrendSource {
+        EastMoney,
+        Sina,
+        Tencent
+    };
+
     void fetchLatestQuote();
     void fetchQuote(QuoteSource source);
     bool fetchNextQuoteSource(QuoteSource source, const QString& failureReason);
     void fetchIntradayTrend();
+    void fetchTrend(TrendSource source, const QDate& targetDate);
+    bool fetchNextTrendSource(TrendSource source, const QString& failureReason);
+    bool hasReusableTrendCache(const QDate& targetDate, const QDateTime& now) const;
+    bool emitCachedTrend(const QDate& targetDate);
     QUrl buildQuoteUrl(QuoteSource source) const;
-    QUrl buildTrendUrl() const;
+    QUrl buildTrendUrl(TrendSource source, const QDate& targetDate) const;
     bool emitQuoteFallbackTrend(const QString& reason);
     bool parseQuoteResponse(QuoteSource source, const QByteArray& payload, MarketData* data, QString* errorMessage) const;
     bool parseEastMoneyQuoteResponse(const QByteArray& payload, MarketData* data, QString* errorMessage) const;
     bool parseSinaQuoteResponse(const QByteArray& payload, MarketData* data, QString* errorMessage) const;
     bool parseTencentQuoteResponse(const QByteArray& payload, MarketData* data, QString* errorMessage) const;
-    bool parseTrendResponse(const QByteArray& payload, QVector<MarketData>* points, QString* errorMessage) const;
+    bool parseTrendResponse(TrendSource source, const QByteArray& payload, const QDate& targetDate, QVector<MarketData>* points, QDate* actualDate, QString* errorMessage) const;
+    bool parseEastMoneyTrendResponse(const QByteArray& payload, const QDate& targetDate, QVector<MarketData>* points, QDate* actualDate, QString* errorMessage) const;
+    bool parseSinaTrendResponse(const QByteArray& payload, const QDate& targetDate, QVector<MarketData>* points, QDate* actualDate, QString* errorMessage) const;
+    bool parseTencentTrendResponse(const QByteArray& payload, const QDate& targetDate, QVector<MarketData>* points, QDate* actualDate, QString* errorMessage) const;
+    bool selectTrendSession(const QVector<MarketData>& allPoints, const QDate& targetDate, QVector<MarketData>* points, QDate* actualDate, QString* errorMessage) const;
     static QString sourceName(QuoteSource source);
+    static QString trendSourceName(TrendSource source);
     static QString prefixedMarketSymbol(const QString& symbol);
     static QString secIdForSymbol(const QString& symbol);
     static double valueToDouble(const QJsonValue& value);
@@ -111,10 +127,17 @@ private:
     QNetworkReply* m_activeReply;
     QNetworkReply* m_trendReply;
     QuoteSource m_activeQuoteSource;
+    TrendSource m_activeTrendSource;
     QStringList m_quoteFailureReasons;
+    QStringList m_trendFailureReasons;
     MarketData m_lastQuoteData;
     bool m_hasLastQuoteData;
     QDateTime m_lastTrendFetchAt;
+    QDate m_requestedTrendDate;
+    QDate m_cachedTrendRequestDate;
+    QDate m_cachedTrendDate;
+    QString m_cachedTrendSymbol;
+    QVector<MarketData> m_cachedTrendPoints;
     QString m_pendingTrendFallbackReason;
     bool m_isUsingQuoteFallbackTrend;
     MarketDataFeedMode m_feedMode;

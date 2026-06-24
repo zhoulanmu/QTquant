@@ -74,6 +74,9 @@ CandlestickWidget::CandlestickWidget(QWidget *parent) :
     m_emptyMessage(QStringLiteral("正在加载行情数据..."))
 {
     setStyleSheet("background-color: #1a1a2e;");
+    setAutoFillBackground(false);
+    setAttribute(Qt::WA_OpaquePaintEvent, true);
+    setAttribute(Qt::WA_NoSystemBackground, true);
     setMouseTracking(true);
 }
 
@@ -366,6 +369,9 @@ void CandlestickWidget::drawCandlesticks(QPainter &painter)
         painter.drawPolyline(averageLine);
     }
 
+    const bool hasVisibleTimeSpan = priceLine.size() > 1
+        && std::abs(priceLine.first().x() - priceLine.last().x()) > 0.5;
+
     painter.setPen(QPen(QColor(0, 229, 255), 2.0, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
     if (priceLine.size() == 1) {
         painter.drawPoint(priceLine.first());
@@ -374,8 +380,10 @@ void CandlestickWidget::drawCandlesticks(QPainter &painter)
     }
 
     const QPointF lastPoint = priceLine.last();
-    painter.setPen(QPen(QColor(99, 179, 237, 120), 1, Qt::DashLine));
-    painter.drawLine(QPointF(area.left(), lastPoint.y()), QPointF(area.right(), lastPoint.y()));
+    if (hasVisibleTimeSpan) {
+        painter.setPen(QPen(QColor(99, 179, 237, 120), 1, Qt::DashLine));
+        painter.drawLine(QPointF(area.left(), lastPoint.y()), QPointF(area.right(), lastPoint.y()));
+    }
 
     painter.setPen(QPen(QColor(255, 255, 255, 200), 1));
     painter.setBrush(QColor(0, 229, 255));

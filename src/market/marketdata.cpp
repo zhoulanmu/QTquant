@@ -10,29 +10,411 @@
 #include <QRegularExpression>
 #include <QTime>
 #include <QUrlQuery>
+#include <algorithm>
 
 namespace {
 constexpr int QuoteIntervalMs = 3000;
 constexpr int QuoteTimeoutMs = 2500;
 constexpr int TrendTimeoutMs = 6000;
 constexpr int TrendRefreshIntervalMs = 30000;
+constexpr int HistoricalTrendRefreshIntervalMs = 5 * 60 * 1000;
+constexpr int TrendHistoryPointCount = 1200;
 constexpr auto QuoteEndpoint = "https://push2.eastmoney.com/api/qt/stock/get";
 constexpr auto SinaQuoteEndpoint = "https://hq.sinajs.cn/list=%1";
 constexpr auto TencentQuoteEndpoint = "https://qt.gtimg.cn/q=%1";
 constexpr auto TrendEndpoint = "https://push2his.eastmoney.com/api/qt/stock/trends2/get";
+constexpr auto SinaTrendEndpoint = "https://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_MarketData.getKLineData";
+constexpr auto TencentTrendEndpoint = "https://web.ifzq.gtimg.cn/appstock/app/kline/mkline";
 constexpr auto EastMoneyUt = "fa5fd1943c7b386f172d6893dbfba10b";
 constexpr auto EastMoneyFields = "f43,f44,f45,f46,f47,f48,f57,f58,f60,f169,f170";
 constexpr auto TrendFields1 = "f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13";
 constexpr auto TrendFields2 = "f51,f52,f53,f54,f55,f56,f57,f58";
 
-QVector<MarketData> quoteSummaryTrend(const MarketData& quote)
+bool isAShareWeekday(const QDate& date)
+{
+    const int day = date.dayOfWeek();
+    return day >= 1 && day <= 5;
+}
+
+bool isBeforeAShareOpen(const QDateTime& now = QDateTime())
+{
+    const QDateTime current = now.isValid() ? now : QDateTime::currentDateTime();
+    return isAShareWeekday(current.date()) && current.time() < QTime(9, 30);
+}
+
+bool canUseQuoteSummaryTrendFallback(const QDateTime& now = QDateTime())
+{
+    const QDateTime current = now.isValid() ? now : QDateTime::currentDateTime();
+    if (!isAShareWeekday(current.date())) {
+        return true;
+    }
+    return current.time() >= QTime(15, 0);
+}
+
+QDate previousAShareWeekday(QDate date)
+{
+    QDate value = date.addDays(-1);
+    while (value.isValid() && !isAShareWeekday(value)) {
+        value = value.addDays(-1);
+    }
+    return value;
+}
+
+QDate trendTargetDateFor(const QDateTime& now)
+{
+    const QDateTime current = now.isValid() ? now : QDateTime::currentDateTime();
+    if (!isAShareWeekday(current.date()) || current.time() < QTime(9, 30)) {
+        return previousAShareWeekday(current.date());
+    }
+    return current.date();
+}
+
+QString extractJsonText(const QByteArray& payload)
+{
+    const QString text = QString::fromUtf8(payload).trimmed();
+    const int objectStart = text.indexOf(QLatin1Char('{'));
+    const int arrayStart = text.indexOf(QLatin1Char('['));
+    int start = -1;
+    if (objectStart >= 0 && arrayStart >= 0) {
+        start = qMin(objectStart, arrayStart);
+    } else {
+        start = qMax(objectStart, arrayStart);
+    }
+    if (start < 0) {
+        return text;
+    }
+
+    const QChar opener = text.at(start);
+    const QChar closer = opener == QLatin1Char('{') ? QLatin1Char('}') : QLatin1Char(']');
+    const int end = text.lastIndexOf(closer);
+    if (end < start) {
+        return text.mid(start);
+    }
+    return text.mid(start, end - start + 1);
+}
+
+double jsonNumber(const QJsonValue& value)
+{
+    if (value.isDouble()) {
+        return value.toDouble();
+    }
+    if (value.isString()) {
+        QString text = value.toString().trimmed();
+        if (text.isEmpty() || text == QStringLiteral("-") || text == QStringLiteral("--")) {
+            return 0.0;
+        }
+        text.remove(QLatin1Char(','));
+        bool ok = false;
+        const double number = text.toDouble(&ok);
+        return ok ? number : 0.0;
+    }
+    return 0.0;
+}
+
+QDateTime parseTrendTimestamp(QString text, const QDate& defaultDate)
+{
+    text = text.trimmed();
+    if (text.isEmpty()) {
+        return QDateTime();
+    }
+
+    const QStringList formats = {
+        QStringLiteral("yyyy-MM-dd HH:mm:ss"),
+        QStringLiteral("yyyy-MM-dd HH:mm"),
+        QStringLiteral("yyyyMMddHHmmss"),
+        QStringLiteral("yyyyMMddHHmm"),
+        QStringLiteral("yyyyMMdd HH:mm:ss"),
+        QStringLiteral("yyyyMMdd HH:mm")
+    };
+    for (const QString& format : formats) {
+        const QDateTime timestamp = QDateTime::fromString(text, format);
+        if (timestamp.isValid()) {
+            return timestamp;
+        }
+    }
+
+    if (defaultDate.isValid()) {
+        const QTime time = QTime::fromString(text, QStringLiteral("HH:mm:ss"));
+        if (time.isValid()) {
+            return QDateTime(defaultDate, time);
+        }
+        if (text.size() == 4) {
+            bool ok = false;
+            const int value = text.toInt(&ok);
+            if (ok) {
+                const QTime compactTime(value / 100, value % 100);
+                if (compactTime.isValid()) {
+                    return QDateTime(defaultDate, compactTime);
+                }
+            }
+        }
+    }
+
+    return QDateTime();
+}
+
+bool appendDelimitedTrendPoint(const QString& row,
+                               const QDate& targetDate,
+                               const QString& symbol,
+                               const QString& name,
+                               QVector<MarketData>* points)
+{
+    const QStringList rawParts = row.split(QRegularExpression(QStringLiteral("[,\\s]+")), Qt::SkipEmptyParts);
+    if (rawParts.size() < 2) {
+        return false;
+    }
+
+    QString timestampText = rawParts.value(0);
+    int numberStart = 1;
+    if (rawParts.size() > 2 && rawParts.value(0).contains(QLatin1Char('-')) && rawParts.value(1).contains(QLatin1Char(':'))) {
+        timestampText += QLatin1Char(' ') + rawParts.value(1);
+        numberStart = 2;
+    }
+
+    const QDateTime timestamp = parseTrendTimestamp(timestampText, targetDate);
+    if (!timestamp.isValid()) {
+        return false;
+    }
+
+    QVector<double> numbers;
+    for (int i = numberStart; i < rawParts.size(); ++i) {
+        bool ok = false;
+        const double number = rawParts.at(i).toDouble(&ok);
+        if (ok) {
+            numbers.append(number);
+        }
+    }
+    if (numbers.isEmpty()) {
+        return false;
+    }
+
+    double open = numbers.value(0);
+    double close = numbers.size() >= 4 ? numbers.value(1) : numbers.value(0);
+    double high = numbers.size() >= 4 ? numbers.value(2) : close;
+    double low = numbers.size() >= 4 ? numbers.value(3) : close;
+    const double volume = numbers.size() >= 5 ? numbers.value(4) : 0.0;
+    const double turnover = numbers.size() >= 6 ? numbers.value(5) : 0.0;
+    const double averagePrice = numbers.size() >= 2 && numbers.size() < 4 ? numbers.value(1) : 0.0;
+
+    if (close <= 0.0) {
+        return false;
+    }
+    if (open <= 0.0) {
+        open = close;
+    }
+    if (high <= 0.0) {
+        high = qMax(open, close);
+    }
+    if (low <= 0.0) {
+        low = qMin(open, close);
+    }
+
+    MarketData point;
+    point.symbol = symbol;
+    point.name = name;
+    point.timestamp = timestamp;
+    point.open = open;
+    point.high = high;
+    point.low = low;
+    point.close = close;
+    point.volume = volume;
+    point.turnover = turnover;
+    point.averagePrice = averagePrice > 0.0 ? averagePrice : close;
+    point.tradeCount = volume > 0.0 ? static_cast<int>(volume) : 0;
+    points->append(point);
+    return true;
+}
+
+bool appendObjectTrendPoint(const QJsonObject& object,
+                            const QDate& targetDate,
+                            const QString& symbol,
+                            const QString& name,
+                            QVector<MarketData>* points)
+{
+    QString timestampText = object.value(QStringLiteral("day")).toString().trimmed();
+    if (timestampText.isEmpty()) {
+        timestampText = object.value(QStringLiteral("datetime")).toString().trimmed();
+    }
+    if (timestampText.isEmpty()) {
+        const QString date = object.value(QStringLiteral("date")).toString().trimmed();
+        const QString time = object.value(QStringLiteral("time")).toString().trimmed();
+        timestampText = time.isEmpty() ? date : date + QLatin1Char(' ') + time;
+    }
+    if (timestampText.isEmpty()) {
+        timestampText = object.value(QStringLiteral("t")).toString().trimmed();
+    }
+
+    const QDateTime timestamp = parseTrendTimestamp(timestampText, targetDate);
+    if (!timestamp.isValid()) {
+        return false;
+    }
+
+    double close = jsonNumber(object.value(QStringLiteral("close")));
+    if (close <= 0.0) {
+        close = jsonNumber(object.value(QStringLiteral("price")));
+    }
+    if (close <= 0.0) {
+        close = jsonNumber(object.value(QStringLiteral("c")));
+    }
+    if (close <= 0.0) {
+        return false;
+    }
+
+    double open = jsonNumber(object.value(QStringLiteral("open")));
+    double high = jsonNumber(object.value(QStringLiteral("high")));
+    double low = jsonNumber(object.value(QStringLiteral("low")));
+    const double volume = jsonNumber(object.value(QStringLiteral("volume")));
+    double turnover = jsonNumber(object.value(QStringLiteral("amount")));
+    if (turnover <= 0.0) {
+        turnover = jsonNumber(object.value(QStringLiteral("turnover")));
+    }
+
+    if (open <= 0.0) {
+        open = close;
+    }
+    if (high <= 0.0) {
+        high = qMax(open, close);
+    }
+    if (low <= 0.0) {
+        low = qMin(open, close);
+    }
+
+    MarketData point;
+    point.symbol = symbol;
+    point.name = name;
+    point.timestamp = timestamp;
+    point.open = open;
+    point.high = high;
+    point.low = low;
+    point.close = close;
+    point.volume = volume;
+    point.turnover = turnover;
+    point.averagePrice = close;
+    point.tradeCount = volume > 0.0 ? static_cast<int>(volume) : 0;
+    points->append(point);
+    return true;
+}
+
+bool appendArrayTrendPoint(const QJsonArray& array,
+                           const QDate& targetDate,
+                           const QString& symbol,
+                           const QString& name,
+                           QVector<MarketData>* points)
+{
+    if (array.size() < 2) {
+        return false;
+    }
+
+    const QString timestampText = array.first().isString()
+        ? array.first().toString()
+        : QString::number(static_cast<qlonglong>(array.first().toDouble()));
+    const QDateTime timestamp = parseTrendTimestamp(timestampText, targetDate);
+    if (!timestamp.isValid()) {
+        return false;
+    }
+
+    QVector<double> numbers;
+    for (int i = 1; i < array.size(); ++i) {
+        const double number = jsonNumber(array.at(i));
+        if (number > 0.0 || array.at(i).isDouble() || array.at(i).isString()) {
+            numbers.append(number);
+        }
+    }
+    if (numbers.isEmpty()) {
+        return false;
+    }
+
+    double open = numbers.value(0);
+    double close = numbers.size() >= 4 ? numbers.value(1) : numbers.value(0);
+    double high = numbers.size() >= 4 ? numbers.value(2) : close;
+    double low = numbers.size() >= 4 ? numbers.value(3) : close;
+    const double volume = numbers.size() >= 5 ? numbers.value(4) : 0.0;
+    const double turnover = numbers.size() >= 6 ? numbers.value(5) : 0.0;
+    const double averagePrice = numbers.size() >= 2 && numbers.size() < 4 ? numbers.value(1) : 0.0;
+
+    if (close <= 0.0) {
+        return false;
+    }
+    if (open <= 0.0) {
+        open = close;
+    }
+    if (high <= 0.0) {
+        high = qMax(open, close);
+    }
+    if (low <= 0.0) {
+        low = qMin(open, close);
+    }
+
+    MarketData point;
+    point.symbol = symbol;
+    point.name = name;
+    point.timestamp = timestamp;
+    point.open = open;
+    point.high = high;
+    point.low = low;
+    point.close = close;
+    point.volume = volume;
+    point.turnover = turnover;
+    point.averagePrice = averagePrice > 0.0 ? averagePrice : close;
+    point.tradeCount = volume > 0.0 ? static_cast<int>(volume) : 0;
+    points->append(point);
+    return true;
+}
+
+void collectKlinePoints(const QJsonValue& value,
+                        const QDate& targetDate,
+                        const QString& symbol,
+                        const QString& name,
+                        QVector<MarketData>* points)
+{
+    if (value.isObject()) {
+        const QJsonObject object = value.toObject();
+        if (appendObjectTrendPoint(object, targetDate, symbol, name, points)) {
+            return;
+        }
+        for (auto it = object.constBegin(); it != object.constEnd(); ++it) {
+            collectKlinePoints(it.value(), targetDate, symbol, name, points);
+        }
+        return;
+    }
+
+    if (value.isArray()) {
+        const QJsonArray array = value.toArray();
+        if (appendArrayTrendPoint(array, targetDate, symbol, name, points)) {
+            return;
+        }
+        for (const QJsonValue& item : array) {
+            collectKlinePoints(item, targetDate, symbol, name, points);
+        }
+        return;
+    }
+
+    if (value.isString()) {
+        appendDelimitedTrendPoint(value.toString(), targetDate, symbol, name, points);
+    }
+}
+
+QVector<MarketData> quoteSummaryTrend(const MarketData& quote, const QDate& targetDate = QDate())
 {
     QVector<MarketData> points;
     if (quote.close <= 0.0 || !quote.timestamp.isValid()) {
         return points;
     }
 
-    const QDate date = quote.timestamp.date();
+    const QDate date = targetDate.isValid() ? targetDate : quote.timestamp.date();
+    if (date != quote.timestamp.date() && quote.previousClose > 0.0) {
+        MarketData point = quote;
+        point.timestamp = QDateTime(date, QTime(15, 0));
+        point.open = quote.previousClose;
+        point.high = quote.previousClose;
+        point.low = quote.previousClose;
+        point.close = quote.previousClose;
+        point.averagePrice = quote.previousClose;
+        point.previousClose = quote.previousClose;
+        points.append(point);
+        return points;
+    }
+
     const double open = quote.open > 0.0 ? quote.open : quote.close;
     const double close = quote.close;
     const double high = quote.high > 0.0 ? qMax(quote.high, qMax(open, close)) : qMax(open, close);
@@ -72,10 +454,17 @@ MarketDataSimulator::MarketDataSimulator(QObject *parent)
     , m_activeReply(nullptr)
     , m_trendReply(nullptr)
     , m_activeQuoteSource(QuoteSource::EastMoney)
+    , m_activeTrendSource(TrendSource::EastMoney)
     , m_quoteFailureReasons()
+    , m_trendFailureReasons()
     , m_lastQuoteData()
     , m_hasLastQuoteData(false)
     , m_lastTrendFetchAt()
+    , m_requestedTrendDate()
+    , m_cachedTrendRequestDate()
+    , m_cachedTrendDate()
+    , m_cachedTrendSymbol()
+    , m_cachedTrendPoints()
     , m_pendingTrendFallbackReason()
     , m_isUsingQuoteFallbackTrend(false)
     , m_feedMode(MarketDataFeedMode::QuoteAndTrend)
@@ -126,7 +515,9 @@ void MarketDataSimulator::stopSimulation()
     }
 
     m_activeQuoteSource = QuoteSource::EastMoney;
+    m_activeTrendSource = TrendSource::EastMoney;
     m_quoteFailureReasons.clear();
+    m_trendFailureReasons.clear();
 }
 
 void MarketDataSimulator::setSymbol(const QString &symbol)
@@ -149,8 +540,15 @@ void MarketDataSimulator::setSymbol(const QString &symbol)
     m_pendingTrendFallbackReason.clear();
     m_isUsingQuoteFallbackTrend = false;
     m_lastTrendFetchAt = QDateTime();
+    m_requestedTrendDate = QDate();
+    m_cachedTrendRequestDate = QDate();
+    m_cachedTrendDate = QDate();
+    m_cachedTrendSymbol.clear();
+    m_cachedTrendPoints.clear();
     m_activeQuoteSource = QuoteSource::EastMoney;
+    m_activeTrendSource = TrendSource::EastMoney;
     m_quoteFailureReasons.clear();
+    m_trendFailureReasons.clear();
 
     if (m_activeReply) {
         disconnect(m_activeReply, nullptr, this, nullptr);
@@ -181,7 +579,9 @@ void MarketDataSimulator::setFeedMode(MarketDataFeedMode mode)
     m_pendingTrendFallbackReason.clear();
     m_isUsingQuoteFallbackTrend = false;
     m_lastTrendFetchAt = QDateTime();
+    m_requestedTrendDate = QDate();
     m_quoteFailureReasons.clear();
+    m_trendFailureReasons.clear();
     if (m_isRunning) {
         generateNewData();
     }
@@ -264,7 +664,8 @@ bool MarketDataSimulator::isAShareContinuousTradingTime(const QDateTime& now)
 }
 void MarketDataSimulator::generateNewData()
 {
-    const bool marketOpen = isAShareContinuousTradingTime();
+    const QDateTime now = QDateTime::currentDateTime();
+    const bool marketOpen = isAShareContinuousTradingTime(now);
     switch (m_feedMode) {
     case MarketDataFeedMode::QuoteOnly:
         fetchLatestQuote();
@@ -275,9 +676,9 @@ void MarketDataSimulator::generateNewData()
         break;
     case MarketDataFeedMode::QuoteWhenOpenTrendWhenClosed:
         fetchLatestQuote();
-        if (!m_lastTrendFetchAt.isValid()
-            || m_lastTrendFetchAt.msecsTo(QDateTime::currentDateTime()) >= TrendRefreshIntervalMs
-            || !marketOpen) {
+        if (!hasReusableTrendCache(trendTargetDateFor(now), now)
+            && (!m_lastTrendFetchAt.isValid()
+                || m_lastTrendFetchAt.msecsTo(now) >= (marketOpen ? TrendRefreshIntervalMs : HistoricalTrendRefreshIntervalMs))) {
             fetchIntradayTrend();
         }
         break;
@@ -362,6 +763,37 @@ bool MarketDataSimulator::fetchNextQuoteSource(QuoteSource source, const QString
     return m_activeReply != nullptr;
 }
 
+bool MarketDataSimulator::hasReusableTrendCache(const QDate& targetDate, const QDateTime& now) const
+{
+    if (isAShareContinuousTradingTime(now)) {
+        return false;
+    }
+    if (m_cachedTrendPoints.isEmpty()
+        || m_cachedTrendSymbol != m_symbol
+        || !m_cachedTrendRequestDate.isValid()
+        || m_cachedTrendRequestDate != targetDate) {
+        return false;
+    }
+    if (!m_lastTrendFetchAt.isValid()) {
+        return true;
+    }
+    return m_lastTrendFetchAt.msecsTo(now) < HistoricalTrendRefreshIntervalMs;
+}
+
+bool MarketDataSimulator::emitCachedTrend(const QDate& targetDate)
+{
+    if (m_cachedTrendPoints.isEmpty()
+        || m_cachedTrendSymbol != m_symbol
+        || !m_cachedTrendDate.isValid()
+        || !targetDate.isValid()
+        || m_cachedTrendDate > targetDate) {
+        return false;
+    }
+
+    emit intradayDataUpdated(m_cachedTrendPoints);
+    return true;
+}
+
 void MarketDataSimulator::fetchIntradayTrend()
 {
     if (!m_isRunning || m_trendReply) {
@@ -372,16 +804,67 @@ void MarketDataSimulator::fetchIntradayTrend()
         return;
     }
 
+    fetchTrend(TrendSource::EastMoney, trendTargetDateFor(QDateTime::currentDateTime()));
+}
+
+void MarketDataSimulator::fetchTrend(TrendSource source, const QDate& targetDate)
+{
+    if (!m_isRunning || m_trendReply) {
+        return;
+    }
+
+    m_requestedTrendDate = targetDate;
+    m_activeTrendSource = source;
+
+    const QUrl url = buildTrendUrl(source, targetDate);
+    if (!url.isValid()) {
+        fetchNextTrendSource(source, QStringLiteral("Invalid trend URL for %1").arg(m_symbol));
+        return;
+    }
+
     m_lastTrendFetchAt = QDateTime::currentDateTime();
 
-    QNetworkRequest request(buildTrendUrl());
+    QNetworkRequest request(url);
     request.setHeader(QNetworkRequest::UserAgentHeader,
                       QStringLiteral("Mozilla/5.0 StarQuant/0.1 MarketTrend"));
-    request.setRawHeader("Referer", "https://quote.eastmoney.com/");
+    switch (source) {
+    case TrendSource::EastMoney:
+        request.setRawHeader("Referer", "https://quote.eastmoney.com/");
+        break;
+    case TrendSource::Sina:
+        request.setRawHeader("Referer", "https://finance.sina.com.cn/");
+        break;
+    case TrendSource::Tencent:
+        request.setRawHeader("Referer", "https://gu.qq.com/");
+        break;
+    }
     request.setTransferTimeout(TrendTimeoutMs);
 
     m_trendReply = m_network->get(request);
     connect(m_trendReply, &QNetworkReply::finished, this, &MarketDataSimulator::onTrendReplyFinished);
+}
+
+bool MarketDataSimulator::fetchNextTrendSource(TrendSource source, const QString& failureReason)
+{
+    const QString reason = failureReason.isEmpty()
+        ? QStringLiteral("returned no usable trend")
+        : failureReason;
+    m_trendFailureReasons.append(QStringLiteral("%1: %2").arg(trendSourceName(source), reason));
+
+    TrendSource nextSource = TrendSource::EastMoney;
+    switch (source) {
+    case TrendSource::EastMoney:
+        nextSource = TrendSource::Sina;
+        break;
+    case TrendSource::Sina:
+        nextSource = TrendSource::Tencent;
+        break;
+    case TrendSource::Tencent:
+        return false;
+    }
+
+    fetchTrend(nextSource, m_requestedTrendDate);
+    return m_trendReply != nullptr;
 }
 
 void MarketDataSimulator::onQuoteReplyFinished()
@@ -470,12 +953,21 @@ void MarketDataSimulator::onTrendReplyFinished()
     const QString networkErrorText = reply->errorString();
     const QByteArray payload = reply->readAll();
     reply->deleteLater();
+    const QDateTime now = QDateTime::currentDateTime();
 
+    const TrendSource source = m_activeTrendSource;
+    const QDate requestedDate = m_requestedTrendDate;
     QVector<MarketData> points;
+    QDate actualDate;
     QString parseError;
-    if (parseTrendResponse(payload, &points, &parseError)) {
+    if (parseTrendResponse(source, payload, requestedDate, &points, &actualDate, &parseError)) {
         if (!points.isEmpty()) {
             m_lastSuccessfulDataAt = QDateTime::currentDateTime();
+            m_trendFailureReasons.clear();
+            m_cachedTrendRequestDate = requestedDate;
+            m_cachedTrendDate = actualDate.isValid() ? actualDate : points.constLast().timestamp.date();
+            m_cachedTrendSymbol = m_symbol;
+            m_cachedTrendPoints = points;
             m_pendingTrendFallbackReason.clear();
             m_isUsingQuoteFallbackTrend = false;
             emit intradayDataUpdated(points);
@@ -498,13 +990,26 @@ void MarketDataSimulator::onTrendReplyFinished()
         failureReason = QStringLiteral("Market trend returned no usable data for %1").arg(m_symbol);
     }
 
-    if (emitQuoteFallbackTrend(failureReason)) {
+    if (fetchNextTrendSource(source, failureReason)) {
+        return;
+    }
+
+    const QString combinedReason = m_trendFailureReasons.isEmpty()
+        ? failureReason
+        : m_trendFailureReasons.join(QStringLiteral("; "));
+    m_trendFailureReasons.clear();
+
+    if (emitCachedTrend(requestedDate)) {
+        return;
+    }
+
+    if (emitQuoteFallbackTrend(combinedReason)) {
         return;
     }
     if (m_feedMode == MarketDataFeedMode::QuoteWhenOpenTrendWhenClosed
-        && !isAShareContinuousTradingTime()
+        && !isAShareContinuousTradingTime(now)
         && m_activeReply) {
-        m_pendingTrendFallbackReason = failureReason;
+        m_pendingTrendFallbackReason = combinedReason;
         return;
     }
 
@@ -514,11 +1019,11 @@ void MarketDataSimulator::onTrendReplyFinished()
     }
 
     if (networkError != QNetworkReply::NoError) {
-        emit errorOccurred(failureReason);
+        emit errorOccurred(combinedReason);
         return;
     }
 
-    emit errorOccurred(failureReason);
+    emit errorOccurred(combinedReason);
 }
 
 QUrl MarketDataSimulator::buildQuoteUrl(QuoteSource source) const
@@ -544,30 +1049,62 @@ QUrl MarketDataSimulator::buildQuoteUrl(QuoteSource source) const
     return QUrl();
 }
 
-QUrl MarketDataSimulator::buildTrendUrl() const
+QUrl MarketDataSimulator::buildTrendUrl(TrendSource source, const QDate& targetDate) const
 {
-    QUrl url(QString::fromLatin1(TrendEndpoint));
-    QUrlQuery query;
-    query.addQueryItem(QStringLiteral("ut"), QString::fromLatin1(EastMoneyUt));
-    query.addQueryItem(QStringLiteral("fields1"), QString::fromLatin1(TrendFields1));
-    query.addQueryItem(QStringLiteral("fields2"), QString::fromLatin1(TrendFields2));
-    query.addQueryItem(QStringLiteral("secid"), m_secid);
-    query.addQueryItem(QStringLiteral("ndays"), QStringLiteral("5"));
-    query.addQueryItem(QStringLiteral("iscr"), QStringLiteral("0"));
-    query.addQueryItem(QStringLiteral("iscca"), QStringLiteral("0"));
-    url.setQuery(query);
-    return url;
+    switch (source) {
+    case TrendSource::EastMoney: {
+        QUrl url(QString::fromLatin1(TrendEndpoint));
+        QUrlQuery query;
+        query.addQueryItem(QStringLiteral("ut"), QString::fromLatin1(EastMoneyUt));
+        query.addQueryItem(QStringLiteral("fields1"), QString::fromLatin1(TrendFields1));
+        query.addQueryItem(QStringLiteral("fields2"), QString::fromLatin1(TrendFields2));
+        query.addQueryItem(QStringLiteral("secid"), m_secid);
+        query.addQueryItem(QStringLiteral("ndays"), targetDate == QDate::currentDate() ? QStringLiteral("1") : QStringLiteral("5"));
+        query.addQueryItem(QStringLiteral("iscr"), QStringLiteral("0"));
+        query.addQueryItem(QStringLiteral("iscca"), QStringLiteral("0"));
+        url.setQuery(query);
+        return url;
+    }
+    case TrendSource::Sina: {
+        const QString code = prefixedMarketSymbol(m_symbol);
+        if (code.isEmpty()) {
+            return QUrl();
+        }
+        QUrl url(QString::fromLatin1(SinaTrendEndpoint));
+        QUrlQuery query;
+        query.addQueryItem(QStringLiteral("symbol"), code);
+        query.addQueryItem(QStringLiteral("scale"), QStringLiteral("1"));
+        query.addQueryItem(QStringLiteral("ma"), QStringLiteral("no"));
+        query.addQueryItem(QStringLiteral("datalen"), QString::number(TrendHistoryPointCount));
+        url.setQuery(query);
+        return url;
+    }
+    case TrendSource::Tencent: {
+        const QString code = prefixedMarketSymbol(m_symbol);
+        if (code.isEmpty()) {
+            return QUrl();
+        }
+        QUrl url(QString::fromLatin1(TencentTrendEndpoint));
+        QUrlQuery query;
+        query.addQueryItem(QStringLiteral("param"),
+                           QStringLiteral("%1,m1,,%2").arg(code).arg(TrendHistoryPointCount));
+        url.setQuery(query);
+        return url;
+    }
+    }
+
+    return QUrl();
 }
 
 bool MarketDataSimulator::emitQuoteFallbackTrend(const QString& reason)
 {
+    const QDateTime now = QDateTime::currentDateTime();
     if (m_feedMode != MarketDataFeedMode::QuoteWhenOpenTrendWhenClosed
-        || isAShareContinuousTradingTime()) {
+        || isAShareContinuousTradingTime(now)) {
         m_pendingTrendFallbackReason.clear();
         m_isUsingQuoteFallbackTrend = false;
         return false;
     }
-
     const QString fallbackReason = reason.isEmpty()
         ? QStringLiteral("分时接口未返回可用数据")
         : reason;
@@ -576,7 +1113,7 @@ bool MarketDataSimulator::emitQuoteFallbackTrend(const QString& reason)
         return false;
     }
 
-    const QVector<MarketData> fallbackPoints = quoteSummaryTrend(m_lastQuoteData);
+    const QVector<MarketData> fallbackPoints = quoteSummaryTrend(m_lastQuoteData, m_requestedTrendDate);
     if (fallbackPoints.isEmpty()) {
         m_pendingTrendFallbackReason = fallbackReason;
         return false;
@@ -834,19 +1371,48 @@ bool MarketDataSimulator::parseTencentQuoteResponse(const QByteArray& payload, M
     return true;
 }
 
-bool MarketDataSimulator::parseTrendResponse(const QByteArray& payload, QVector<MarketData>* points, QString* errorMessage) const
+bool MarketDataSimulator::parseTrendResponse(TrendSource source,
+                                             const QByteArray& payload,
+                                             const QDate& targetDate,
+                                             QVector<MarketData>* points,
+                                             QDate* actualDate,
+                                             QString* errorMessage) const
+{
+    switch (source) {
+    case TrendSource::EastMoney:
+        return parseEastMoneyTrendResponse(payload, targetDate, points, actualDate, errorMessage);
+    case TrendSource::Sina:
+        return parseSinaTrendResponse(payload, targetDate, points, actualDate, errorMessage);
+    case TrendSource::Tencent:
+        return parseTencentTrendResponse(payload, targetDate, points, actualDate, errorMessage);
+    }
+
+    if (errorMessage) {
+        *errorMessage = QStringLiteral("Unknown trend source for %1").arg(m_symbol);
+    }
+    return false;
+}
+
+bool MarketDataSimulator::parseEastMoneyTrendResponse(const QByteArray& payload,
+                                                      const QDate& targetDate,
+                                                      QVector<MarketData>* points,
+                                                      QDate* actualDate,
+                                                      QString* errorMessage) const
 {
     if (!points) {
         return false;
     }
 
     points->clear();
+    if (actualDate) {
+        *actualDate = QDate();
+    }
 
     QJsonParseError jsonError;
-    const QJsonDocument document = QJsonDocument::fromJson(payload, &jsonError);
+    const QJsonDocument document = QJsonDocument::fromJson(extractJsonText(payload).toUtf8(), &jsonError);
     if (jsonError.error != QJsonParseError::NoError || !document.isObject()) {
         if (errorMessage) {
-            *errorMessage = QStringLiteral("Market trend returned invalid JSON: %1").arg(jsonError.errorString());
+            *errorMessage = QStringLiteral("EastMoney trend returned invalid JSON: %1").arg(jsonError.errorString());
         }
         return false;
     }
@@ -855,7 +1421,7 @@ bool MarketDataSimulator::parseTrendResponse(const QByteArray& payload, QVector<
     const QJsonValue trendValue = root.value(QStringLiteral("data"));
     if (!trendValue.isObject()) {
         if (errorMessage) {
-            *errorMessage = QStringLiteral("Market trend returned no data for %1").arg(m_symbol);
+            *errorMessage = QStringLiteral("EastMoney trend returned no data for %1").arg(m_symbol);
         }
         return false;
     }
@@ -864,7 +1430,7 @@ bool MarketDataSimulator::parseTrendResponse(const QByteArray& payload, QVector<
     const QJsonArray trends = trendData.value(QStringLiteral("trends")).toArray();
     if (trends.isEmpty()) {
         if (errorMessage) {
-            *errorMessage = QStringLiteral("Market trend returned empty data for %1").arg(m_symbol);
+            *errorMessage = QStringLiteral("EastMoney trend returned empty data for %1").arg(m_symbol);
         }
         return false;
     }
@@ -874,8 +1440,7 @@ bool MarketDataSimulator::parseTrendResponse(const QByteArray& payload, QVector<
         previousClose = valueToDouble(trendData.value(QStringLiteral("prePrice")));
     }
 
-    QVector<MarketData> latestSessionPoints;
-    QDate latestSessionDate;
+    QVector<MarketData> allPoints;
     for (const QJsonValue& value : trends) {
         const QString row = value.toString().trimmed();
         if (row.isEmpty()) {
@@ -932,15 +1497,6 @@ bool MarketDataSimulator::parseTrendResponse(const QByteArray& payload, QVector<
             continue;
         }
 
-        const QDate sessionDate = timestamp.date();
-        if (!latestSessionDate.isValid() || sessionDate > latestSessionDate) {
-            latestSessionDate = sessionDate;
-            latestSessionPoints.clear();
-        }
-        if (sessionDate != latestSessionDate) {
-            continue;
-        }
-
         MarketData point;
         point.symbol = m_symbol;
         point.name = trendData.value(QStringLiteral("name")).toString();
@@ -956,18 +1512,176 @@ bool MarketDataSimulator::parseTrendResponse(const QByteArray& payload, QVector<
             ? averagePrice
             : (volume > 0.0 ? turnover / (volume * 100.0) : close);
         point.tradeCount = volume > 0.0 ? static_cast<int>(volume) : 0;
-        latestSessionPoints.append(point);
+        allPoints.append(point);
     }
 
-    *points = latestSessionPoints;
+    return selectTrendSession(allPoints, targetDate, points, actualDate, errorMessage);
+}
 
-    if (points->isEmpty()) {
+bool MarketDataSimulator::parseSinaTrendResponse(const QByteArray& payload,
+                                                 const QDate& targetDate,
+                                                 QVector<MarketData>* points,
+                                                 QDate* actualDate,
+                                                 QString* errorMessage) const
+{
+    if (!points) {
+        return false;
+    }
+
+    points->clear();
+    if (actualDate) {
+        *actualDate = QDate();
+    }
+
+    QJsonParseError jsonError;
+    const QJsonDocument document = QJsonDocument::fromJson(extractJsonText(payload).toUtf8(), &jsonError);
+    if (jsonError.error != QJsonParseError::NoError || (!document.isArray() && !document.isObject())) {
+        if (errorMessage) {
+            *errorMessage = QStringLiteral("Sina trend returned invalid JSON: %1").arg(jsonError.errorString());
+        }
+        return false;
+    }
+
+    QVector<MarketData> allPoints;
+    const QJsonValue root = document.isArray()
+        ? QJsonValue(document.array())
+        : QJsonValue(document.object());
+    collectKlinePoints(root, targetDate, m_symbol, QString(), &allPoints);
+    return selectTrendSession(allPoints, targetDate, points, actualDate, errorMessage);
+}
+
+bool MarketDataSimulator::parseTencentTrendResponse(const QByteArray& payload,
+                                                    const QDate& targetDate,
+                                                    QVector<MarketData>* points,
+                                                    QDate* actualDate,
+                                                    QString* errorMessage) const
+{
+    if (!points) {
+        return false;
+    }
+
+    points->clear();
+    if (actualDate) {
+        *actualDate = QDate();
+    }
+
+    QJsonParseError jsonError;
+    const QJsonDocument document = QJsonDocument::fromJson(extractJsonText(payload).toUtf8(), &jsonError);
+    if (jsonError.error != QJsonParseError::NoError || (!document.isArray() && !document.isObject())) {
+        if (errorMessage) {
+            *errorMessage = QStringLiteral("Tencent trend returned invalid JSON: %1").arg(jsonError.errorString());
+        }
+        return false;
+    }
+
+    QVector<MarketData> allPoints;
+    const QJsonValue root = document.isArray()
+        ? QJsonValue(document.array())
+        : QJsonValue(document.object());
+    collectKlinePoints(root, targetDate, m_symbol, QString(), &allPoints);
+    return selectTrendSession(allPoints, targetDate, points, actualDate, errorMessage);
+}
+
+bool MarketDataSimulator::selectTrendSession(const QVector<MarketData>& allPoints,
+                                             const QDate& targetDate,
+                                             QVector<MarketData>* points,
+                                             QDate* actualDate,
+                                             QString* errorMessage) const
+{
+    if (!points) {
+        return false;
+    }
+
+    points->clear();
+    if (actualDate) {
+        *actualDate = QDate();
+    }
+
+    if (allPoints.isEmpty()) {
         if (errorMessage) {
             *errorMessage = QStringLiteral("Market trend had no usable points for %1").arg(m_symbol);
         }
         return false;
     }
 
+    QDate selectedDate;
+    for (const MarketData& point : allPoints) {
+        if (!point.timestamp.isValid() || point.close <= 0.0) {
+            continue;
+        }
+
+        const QDate pointDate = point.timestamp.date();
+        if (targetDate.isValid() && pointDate > targetDate) {
+            continue;
+        }
+        if (!selectedDate.isValid() || pointDate > selectedDate) {
+            selectedDate = pointDate;
+        }
+    }
+
+    if (!selectedDate.isValid()) {
+        if (errorMessage) {
+            *errorMessage = QStringLiteral("Market trend has no session before %1 for %2")
+                .arg(targetDate.toString(QStringLiteral("yyyy-MM-dd")), m_symbol);
+        }
+        return false;
+    }
+
+    double previousClose = 0.0;
+    QVector<MarketData> selectedPoints;
+    for (const MarketData& point : allPoints) {
+        if (!point.timestamp.isValid() || point.close <= 0.0) {
+            continue;
+        }
+        const QDate pointDate = point.timestamp.date();
+        if (pointDate < selectedDate) {
+            previousClose = point.close;
+            continue;
+        }
+        if (pointDate == selectedDate) {
+            selectedPoints.append(point);
+        }
+    }
+
+    if (selectedPoints.isEmpty()) {
+        if (errorMessage) {
+            *errorMessage = QStringLiteral("Market trend selected empty session for %1").arg(m_symbol);
+        }
+        return false;
+    }
+
+    std::sort(selectedPoints.begin(), selectedPoints.end(), [](const MarketData& left, const MarketData& right) {
+        return left.timestamp < right.timestamp;
+    });
+
+    if (previousClose <= 0.0 && m_hasLastQuoteData && m_lastQuoteData.previousClose > 0.0
+        && selectedDate == m_lastQuoteData.timestamp.date()) {
+        previousClose = m_lastQuoteData.previousClose;
+    }
+    if (previousClose <= 0.0) {
+        previousClose = selectedPoints.constFirst().open > 0.0
+            ? selectedPoints.constFirst().open
+            : selectedPoints.constFirst().close;
+    }
+
+    double volumeSum = 0.0;
+    double weightedPriceSum = 0.0;
+    for (MarketData& point : selectedPoints) {
+        point.symbol = m_symbol;
+        point.previousClose = previousClose;
+        if (point.volume > 0.0) {
+            volumeSum += point.volume;
+            weightedPriceSum += point.close * point.volume;
+        }
+        if (point.averagePrice <= 0.0) {
+            point.averagePrice = volumeSum > 0.0 ? weightedPriceSum / volumeSum : point.close;
+        }
+    }
+
+    *points = selectedPoints;
+    if (actualDate) {
+        *actualDate = selectedDate;
+    }
     return true;
 }
 
@@ -979,6 +1693,20 @@ QString MarketDataSimulator::sourceName(QuoteSource source)
     case QuoteSource::Sina:
         return QStringLiteral("Sina");
     case QuoteSource::Tencent:
+        return QStringLiteral("Tencent");
+    }
+
+    return QStringLiteral("Unknown");
+}
+
+QString MarketDataSimulator::trendSourceName(TrendSource source)
+{
+    switch (source) {
+    case TrendSource::EastMoney:
+        return QStringLiteral("EastMoney");
+    case TrendSource::Sina:
+        return QStringLiteral("Sina");
+    case TrendSource::Tencent:
         return QStringLiteral("Tencent");
     }
 
