@@ -73,6 +73,7 @@ private:
     StrategyRuntime* runtimeForStrategy(int strategyId) const;
     QString strategyRuntimeLogLabel(const StrategyRuntime* runtime) const;
     QString strategyInstanceLogLabel(const StrategyInstanceInfo& instance) const;
+    int strategyDisplayIndex(int strategyId) const;
     StrategyRuntime* ensureRuntime(const StrategyInstanceInfo& instance);
     void startStrategyRuntimeNow(StrategyRuntime* runtime, bool fromBatch);
     void startStrategyInstance(const StrategyInstanceInfo& instance, bool fromBatch);

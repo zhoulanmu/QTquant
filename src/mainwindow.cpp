@@ -21,6 +21,7 @@
 #include <QMessageBox>
 #include <QPushButton>
 #include <QSettings>
+#include <QScrollArea>
 #include <QSet>
 #include <QSizePolicy>
 #include <QTableWidget>
@@ -484,14 +485,29 @@ QWidget* MainWindow::createMainTab()
 QWidget* MainWindow::createStrategyTab()
 {
     auto* tab = new QWidget(m_mainTabs);
-    auto* rootLayout = new QHBoxLayout(tab);
-    rootLayout->setContentsMargins(10, 10, 10, 10);
-    rootLayout->setSpacing(12);
+    auto* rootLayout = new QVBoxLayout(tab);
+    rootLayout->setContentsMargins(0, 0, 0, 0);
+    rootLayout->setSpacing(0);
+
+    auto* scrollArea = new QScrollArea(tab);
+    scrollArea->setWidgetResizable(true);
+    scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    scrollArea->setStyleSheet(QStringLiteral("QScrollArea { border: none; background: transparent; }"));
+
+    auto* content = new QWidget(scrollArea);
+    auto* contentLayout = new QHBoxLayout(content);
+    contentLayout->setSizeConstraint(QLayout::SetMinimumSize);
+    contentLayout->setContentsMargins(10, 10, 10, 10);
+    contentLayout->setSpacing(12);
 
     ui->strategyPanel->setMinimumWidth(420);
     m_signalPanel->setMinimumWidth(360);
-    rootLayout->addWidget(ui->strategyPanel, 2);
-    rootLayout->addWidget(m_signalPanel, 1);
+    contentLayout->addWidget(ui->strategyPanel, 2);
+    contentLayout->addWidget(m_signalPanel, 1);
+
+    scrollArea->setWidget(content);
+    rootLayout->addWidget(scrollArea);
     return tab;
 }
 
@@ -887,7 +903,7 @@ void MainWindow::onStrategyMarketDataError(int strategyId, const QString& messag
         ui->strategyPanel->setStrategyInstanceRunning(strategyId, false, true);
         refreshStrategyRunningState();
         ui->strategyPanel->addStrategyLog(label, QStringLiteral("已收盘，切换为等待；连续竞价时自动启动。"));
-        ui->statusbar->showMessage(QStringLiteral("策略 %1 已切换为等待，连续竞价时自动启动").arg(strategyId), 3000);
+        ui->statusbar->showMessage(QStringLiteral("策略 %1 已切换为等待，连续竞价时自动启动").arg(strategyDisplayIndex(strategyId)), 3000);
         return;
     }
 
@@ -905,7 +921,7 @@ void MainWindow::onStrategySignal(int strategyId, const StrategySignal &signal)
     if (runtime) {
         runtime->tradeTriggeredOnTick = true;
     }
-    const QString label = runtime ? strategyRuntimeLogLabel(runtime) : QStringLiteral("策略 %1").arg(strategyId);
+    const QString label = runtime ? strategyRuntimeLogLabel(runtime) : QStringLiteral("策略 %1").arg(strategyDisplayIndex(strategyId));
     ui->strategyPanel->addSignalLog(signal, label);
 
     QString signalText;
@@ -1154,7 +1170,7 @@ void MainWindow::appendTradeRecord(int accountIndex, const QString& symbol, cons
 void MainWindow::executeOrder(int strategyId, const StrategySignal& signal)
 {
     StrategyRuntime* runtime = runtimeForStrategy(strategyId);
-    const QString label = runtime ? strategyRuntimeLogLabel(runtime) : QStringLiteral("策略 %1").arg(strategyId);
+    const QString label = runtime ? strategyRuntimeLogLabel(runtime) : QStringLiteral("策略 %1").arg(strategyDisplayIndex(strategyId));
     if (!runtime || runtime->accountIndex < 0 || runtime->accountIndex >= m_accounts.size()) {
         ui->strategyPanel->addStrategyLog(label, QStringLiteral("订单跳过：未绑定账户。"));
         return;
@@ -1650,7 +1666,7 @@ QString MainWindow::strategyRuntimeLogLabel(const StrategyRuntime* runtime) cons
         ? QStringLiteral("未设置")
         : runtime->config.symbol;
     return QStringLiteral("策略 %1 - %2 - %3 - %4")
-        .arg(runtime->id)
+        .arg(strategyDisplayIndex(runtime->id))
         .arg(strategyName, accountText, symbol);
 }
 
@@ -1666,8 +1682,19 @@ QString MainWindow::strategyInstanceLogLabel(const StrategyInstanceInfo& instanc
         ? QStringLiteral("未设置")
         : instance.config.symbol;
     return QStringLiteral("策略 %1 - %2 - %3 - %4")
-        .arg(instance.id)
+        .arg(strategyDisplayIndex(instance.id))
         .arg(strategyName, accountText, symbol);
+}
+
+int MainWindow::strategyDisplayIndex(int strategyId) const
+{
+    if (ui && ui->strategyPanel) {
+        const int displayIndex = ui->strategyPanel->strategyInstanceDisplayIndex(strategyId);
+        if (displayIndex > 0) {
+            return displayIndex;
+        }
+    }
+    return strategyId;
 }
 MainWindow::StrategyRuntime* MainWindow::ensureRuntime(const StrategyInstanceInfo& instance)
 {
@@ -1769,7 +1796,7 @@ void MainWindow::startStrategyRuntimeNow(StrategyRuntime* runtime, bool fromBatc
     refreshStrategyRunningState();
     ui->strategyPanel->addStrategyLog(strategyRuntimeLogLabel(runtime), QStringLiteral("已启动。"));
     if (!fromBatch) {
-        ui->statusbar->showMessage(QStringLiteral("策略 %1 已启动").arg(runtime->id), 2000);
+        ui->statusbar->showMessage(QStringLiteral("策略 %1 已启动").arg(strategyDisplayIndex(runtime->id)), 2000);
     }
 }
 
@@ -1814,7 +1841,7 @@ void MainWindow::startStrategyInstance(const StrategyInstanceInfo& instance, boo
         refreshStrategyRunningState();
         ui->strategyPanel->addStrategyLog(strategyRuntimeLogLabel(runtime), QStringLiteral("已进入等待；连续竞价时自动启动。"));
         if (!fromBatch) {
-            ui->statusbar->showMessage(QStringLiteral("策略 %1 已进入等待，连续竞价时自动启动").arg(instance.id), 3000);
+            ui->statusbar->showMessage(QStringLiteral("策略 %1 已进入等待，连续竞价时自动启动").arg(strategyDisplayIndex(instance.id)), 3000);
         }
         return;
     }

@@ -76,6 +76,7 @@ public:
     QVector<StrategyInstanceInfo> strategyInstances();
     StrategyInstanceInfo strategyInstance(int strategyId);
     int currentStrategyInstanceId() const;
+    int strategyInstanceDisplayIndex(int strategyId) const;
 
     void setRunningState(bool running);
     void setAccountNames(const QStringList& names);
@@ -123,6 +124,7 @@ private:
     void setupStockSearchUi();
     void setupStrategyInstanceUi();
     void setupCommonStrategyUi();
+    void updateStrategyPresetDescription();
     void setupCurrentStrategyConfigUi();
     void updateCurrentStrategyConfigUi();
     void setGrowthConfigEnabled(bool enabled);
@@ -144,7 +146,7 @@ private:
     int selectedStrategyInstanceIndex() const;
     int selectedStrategyAccountIndex() const;
     int nextAvailableAccountIndex() const;
-    QString strategyInstanceDisplayText(const StrategyInstanceInfo& instance) const;
+    QString strategyInstanceDisplayText(const StrategyInstanceInfo& instance, int displayIndex) const;
     void loadPersonalSettings();
     void savePersonalSettings() const;
     void loadWatchlist();

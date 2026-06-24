@@ -611,6 +611,16 @@ int StrategyPanel::currentStrategyInstanceId() const
     return m_strategyInstances.at(index).id;
 }
 
+int StrategyPanel::strategyInstanceDisplayIndex(int strategyId) const
+{
+    for (int i = 0; i < m_strategyInstances.size(); ++i) {
+        if (m_strategyInstances.at(i).id == strategyId) {
+            return i + 1;
+        }
+    }
+    return strategyId;
+}
+
 void StrategyPanel::setAccountNames(const QStringList& names)
 {
     m_accountNames = names;
@@ -1011,6 +1021,7 @@ void StrategyPanel::loadStrategyInstanceIntoEditor(int index)
     }
 
     updateCurrentStrategyConfigUi();
+    updateStrategyPresetDescription();
     m_loadingStrategyInstance = false;
     refreshStrategyInstanceControls();
 }
@@ -1027,7 +1038,7 @@ void StrategyPanel::refreshStrategyInstanceList()
     int selectedRow = -1;
     for (int i = 0; i < m_strategyInstances.size(); ++i) {
         const StrategyInstanceInfo& instance = m_strategyInstances.at(i);
-        auto* item = new QListWidgetItem(strategyInstanceDisplayText(instance));
+        auto* item = new QListWidgetItem(strategyInstanceDisplayText(instance, i + 1));
         item->setData(Qt::UserRole, instance.id);
         m_strategyInstanceList->addItem(item);
         if (instance.id == selectedId) {
@@ -1117,7 +1128,7 @@ int StrategyPanel::nextAvailableAccountIndex() const
     return -1;
 }
 
-QString StrategyPanel::strategyInstanceDisplayText(const StrategyInstanceInfo& instance) const
+QString StrategyPanel::strategyInstanceDisplayText(const StrategyInstanceInfo& instance, int displayIndex) const
 {
     const QString accountText = instance.accountIndex >= 0 && instance.accountIndex < m_accountNames.size()
         ? m_accountNames.at(instance.accountIndex)
@@ -1126,7 +1137,7 @@ QString StrategyPanel::strategyInstanceDisplayText(const StrategyInstanceInfo& i
         ? QStringLiteral("运行")
         : (instance.waiting ? QStringLiteral("等待") : QStringLiteral("空闲"));
     return QStringLiteral("策略 %1 | %2 | %3 | %4 | %5")
-        .arg(instance.id)
+        .arg(displayIndex)
         .arg(strategyTypeDisplayName(instance.config.strategyType), accountText, instance.config.symbol, stateText);
 }
 void StrategyPanel::setupCommonStrategyUi()
@@ -1168,7 +1179,7 @@ void StrategyPanel::setupCommonStrategyUi()
     m_strategyDetailButton->setMinimumWidth(120);
     m_strategyDetailButton->setToolTipDuration(60000);
 
-    m_applyStrategyPresetBtn = new QPushButton(QStringLiteral("应用策略配置"), presetGroup);
+    m_applyStrategyPresetBtn = new QPushButton(QStringLiteral("应用当前配置"), presetGroup);
 
     auto* descLayout = new QHBoxLayout();
     descLayout->setContentsMargins(0, 0, 0, 0);
@@ -1207,6 +1218,47 @@ void StrategyPanel::setupCommonStrategyUi()
     });
 
     onStrategyPresetChanged(m_strategyPresetCombo->currentIndex());
+}
+
+void StrategyPanel::updateStrategyPresetDescription()
+{
+    if (!m_strategyPresetDescLabel || !m_strategyPresetCombo) {
+        return;
+    }
+
+    const QVector<StrategyPreset> presets = commonStrategyPresets();
+    const int index = m_strategyPresetCombo->currentIndex();
+    if (index < 0 || index >= presets.size()) {
+        return;
+    }
+
+    const StrategyConfig config = strategyConfig();
+    const QString symbolText = config.symbol.trimmed().isEmpty()
+        ? QStringLiteral("未设置")
+        : config.symbol;
+    const QString description = presets.at(index).description;
+
+    if (config.strategyType == StrategyType::DoubleMA) {
+        m_strategyPresetDescLabel->setText(
+            QStringLiteral("%1  标的:%2 周期:%3分钟 快MA:%4 慢MA:%5 止损:%6% 止盈:%7%")
+                .arg(description, symbolText)
+                .arg(config.doubleMAConfig.barPeriodMinutes)
+                .arg(config.doubleMAConfig.fastMA)
+                .arg(config.doubleMAConfig.slowMA)
+                .arg(config.riskConfig.stopLossPercent, 0, 'f', 1)
+                .arg(config.riskConfig.takeProfitPercent, 0, 'f', 1));
+        return;
+    }
+
+    m_strategyPresetDescLabel->setText(
+        QStringLiteral("%1  标的:%2 快MA:%3 慢MA:%4 止损:%5% 止盈:%6% 仓位上限:%7% 分散:%8")
+            .arg(description, symbolText)
+            .arg(config.doubleMAConfig.fastMA)
+            .arg(config.doubleMAConfig.slowMA)
+            .arg(config.riskConfig.stopLossPercent, 0, 'f', 1)
+            .arg(config.riskConfig.takeProfitPercent, 0, 'f', 1)
+            .arg(config.positionConfig.maxSingleTrackPercent, 0, 'f', 1)
+            .arg(config.positionConfig.diversifyTrackCount));
 }
 
 void StrategyPanel::setupCurrentStrategyConfigUi()
@@ -1855,8 +1907,10 @@ void StrategyPanel::selectStrategySymbol(const QString& symbol, const QString& n
     updateSearchSuggestions(normalized);
     m_updatingSymbol = false;
     saveStrategySymbol();
+    updateStrategyPresetDescription();
     if (!m_loadingSettings) {
         saveStrategySettings();
+        saveCurrentStrategyInstanceFromEditor();
     }
 
     if (emitChange) {
@@ -2220,6 +2274,7 @@ void StrategyPanel::addSignalLog(const StrategySignal &signal, const QString& co
 }
 void StrategyPanel::on_paramChanged()
 {
+    updateStrategyPresetDescription();
     if (!m_loadingSettings && !m_loadingStrategyInstance) {
         saveStrategySettings();
         saveCurrentStrategyInstanceFromEditor();
@@ -2412,27 +2467,9 @@ void StrategyPanel::onStrategyPresetChanged(int index)
         return;
     }
 
-    const StrategyPreset& preset = presets[index];
-    if (preset.kind == StrategyKind::DoubleMA) {
-        m_strategyPresetDescLabel->setText(
-            QStringLiteral("%1  周期:%2分钟 快MA:%3 慢MA:%4 止损:%5% 止盈:%6%")
-                .arg(preset.description)
-                .arg(getMABarPeriodMinutes())
-                .arg(preset.fastMA)
-                .arg(preset.slowMA)
-                .arg(preset.stopLoss, 0, 'f', 1)
-                .arg(preset.takeProfit, 0, 'f', 1));
-    } else {
-        m_strategyPresetDescLabel->setText(
-            QStringLiteral("%1  快MA:%2 慢MA:%3 止损:%4% 止盈:%5%")
-                .arg(preset.description)
-                .arg(preset.fastMA)
-                .arg(preset.slowMA)
-                .arg(preset.stopLoss, 0, 'f', 1)
-                .arg(preset.takeProfit, 0, 'f', 1));
-    }
+    updateStrategyPresetDescription();
     if (m_strategyDetailButton) {
-        m_strategyDetailButton->setToolTip(strategyDetailTooltip(preset.kind));
+        m_strategyDetailButton->setToolTip(strategyDetailTooltip(presets.at(index).kind));
     }
 
     updateCurrentStrategyConfigUi();
@@ -2452,30 +2489,11 @@ void StrategyPanel::onApplyStrategyPresetClicked()
         return;
     }
 
-    const StrategyPreset& preset = presets[index];
-    ui->fastMASpin->setValue(preset.fastMA);
-    ui->slowMASpin->setValue(preset.slowMA);
-    if (preset.kind == StrategyKind::DoubleMA && m_maBarPeriodCombo) {
-        const int periodIndex = m_maBarPeriodCombo->findData(5);
-        if (periodIndex >= 0) {
-            m_maBarPeriodCombo->setCurrentIndex(periodIndex);
-        }
-    }
-    ui->stopLossSpin->setValue(preset.stopLoss);
-    ui->takeProfitSpin->setValue(preset.takeProfit);
-
-    if (preset.kind == StrategyKind::ProsperityGrowth) {
-        if (m_pullbackMinSpin) m_pullbackMinSpin->setValue(3);
-        if (m_pullbackMaxSpin) m_pullbackMaxSpin->setValue(5);
-        if (m_sectorCapSpin) m_sectorCapSpin->setValue(20.0);
-        if (m_diversifyMainlineSpin) m_diversifyMainlineSpin->setValue(3);
-        if (m_surgeTakeProfitSpin) m_surgeTakeProfitSpin->setValue(25.0);
-    }
-
+    updateStrategyPresetDescription();
     updateCurrentStrategyConfigUi();
     saveStrategySettings();
     saveCurrentStrategyInstanceFromEditor();
-    addSystemLog(QStringLiteral("已应用策略：%1").arg(preset.name));
+    addSystemLog(QStringLiteral("已应用当前配置：%1").arg(currentStrategyName()));
     addSystemLog(currentStrategyConfigurationSummary());
     if (m_applyStrategyPresetBtn) {
         const QString normalText = m_applyStrategyPresetBtn->text();
@@ -2497,6 +2515,7 @@ void StrategyPanel::onStrategyConfigChanged()
     if (m_pullbackMinSpin && m_pullbackMaxSpin && m_pullbackMinSpin->value() > m_pullbackMaxSpin->value()) {
         m_pullbackMaxSpin->setValue(m_pullbackMinSpin->value());
     }
+    updateStrategyPresetDescription();
     if (!m_loadingSettings && !m_loadingStrategyInstance) {
         saveStrategySettings();
         saveCurrentStrategyInstanceFromEditor();
