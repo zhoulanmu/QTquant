@@ -30,6 +30,7 @@ qt_standard_project_setup()
 
 add_executable(StarQuant WIN32
     src/main.cpp
+    resources/starquant.rc
     resources/starquant.qrc
     src/mainwindow.cpp
     src/mainwindow.h
