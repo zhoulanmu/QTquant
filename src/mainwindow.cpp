@@ -16,7 +16,6 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QHeaderView>
-#include <QInputDialog>
 #include <QLabel>
 #include <QMessageBox>
 #include <QPushButton>
@@ -384,6 +383,166 @@ bool showThemedQuestion(QWidget* parent, const QString& title, const QString& me
 
     return dialog.exec() == QDialog::Accepted;
 }
+
+bool showThemedAmountInput(QWidget* parent, const QString& title, const QString& label,
+                           double currentValue, double minimum, double maximum,
+                           int decimals, double* value)
+{
+    if (!value) {
+        return false;
+    }
+
+    QDialog dialog(parent);
+    dialog.setModal(true);
+    dialog.setWindowTitle(title);
+    dialog.setWindowFlags(Qt::Dialog | Qt::FramelessWindowHint);
+    dialog.setObjectName(QStringLiteral("themedAmountDialog"));
+    dialog.setMinimumWidth(440);
+    dialog.setStyleSheet(QStringLiteral(R"(
+        QDialog#themedAmountDialog {
+            background-color: #1a1a2e;
+            border: 1px solid #4a5568;
+            border-radius: 8px;
+        }
+        QLabel#amountTitle {
+            color: #f7fafc;
+            font-size: 15px;
+            font-weight: bold;
+        }
+        QLabel#amountLabel {
+            color: #e2e8f0;
+            font-size: 13px;
+            min-width: 48px;
+        }
+        QDoubleSpinBox#amountSpin {
+            background-color: #4a5568;
+            color: white;
+            border: 1px solid #718096;
+            border-radius: 6px;
+            padding: 6px 10px;
+            font-size: 14px;
+            min-height: 34px;
+        }
+        QDoubleSpinBox#amountSpin:focus {
+            border-color: #63b3ed;
+        }
+        QPushButton#amountCloseButton {
+            background-color: transparent;
+            color: #a0aec0;
+            border: none;
+            border-radius: 4px;
+            min-width: 28px;
+            max-width: 28px;
+            min-height: 28px;
+            max-height: 28px;
+            padding: 0;
+            font-size: 16px;
+        }
+        QPushButton#amountCloseButton:hover {
+            background-color: #2d3748;
+            color: white;
+        }
+        QPushButton#amountAcceptButton {
+            background-color: #2b6cb0;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 8px 22px;
+            min-width: 88px;
+            min-height: 32px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        QPushButton#amountAcceptButton:hover {
+            background-color: #3182ce;
+        }
+        QPushButton#amountAcceptButton:pressed {
+            background-color: #2c5282;
+        }
+        QPushButton#amountRejectButton {
+            background-color: #718096;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 8px 22px;
+            min-width: 88px;
+            min-height: 32px;
+            font-size: 13px;
+        }
+        QPushButton#amountRejectButton:hover {
+            background-color: #5a6678;
+        }
+    )"));
+
+    auto* rootLayout = new QVBoxLayout(&dialog);
+    rootLayout->setContentsMargins(18, 16, 18, 16);
+    rootLayout->setSpacing(14);
+
+    auto* titleLayout = new QHBoxLayout();
+    titleLayout->setContentsMargins(0, 0, 0, 0);
+    titleLayout->setSpacing(10);
+
+    auto* titleLabel = new QLabel(title, &dialog);
+    titleLabel->setObjectName(QStringLiteral("amountTitle"));
+
+    auto* closeButton = new QPushButton(QStringLiteral("X"), &dialog);
+    closeButton->setObjectName(QStringLiteral("amountCloseButton"));
+    closeButton->setCursor(Qt::PointingHandCursor);
+
+    titleLayout->addWidget(titleLabel, 1);
+    titleLayout->addWidget(closeButton, 0, Qt::AlignTop);
+    rootLayout->addLayout(titleLayout);
+
+    auto* inputLayout = new QHBoxLayout();
+    inputLayout->setContentsMargins(0, 4, 0, 2);
+    inputLayout->setSpacing(10);
+
+    auto* labelWidget = new QLabel(label, &dialog);
+    labelWidget->setObjectName(QStringLiteral("amountLabel"));
+
+    auto* amountSpin = new QDoubleSpinBox(&dialog);
+    amountSpin->setObjectName(QStringLiteral("amountSpin"));
+    amountSpin->setRange(minimum, maximum);
+    amountSpin->setDecimals(decimals);
+    amountSpin->setSingleStep(1000.0);
+    amountSpin->setValue(qBound(minimum, currentValue, maximum));
+    amountSpin->setMinimumWidth(280);
+
+    inputLayout->addWidget(labelWidget);
+    inputLayout->addWidget(amountSpin, 1);
+    rootLayout->addLayout(inputLayout);
+
+    auto* buttonLayout = new QHBoxLayout();
+    buttonLayout->setContentsMargins(0, 4, 0, 0);
+    buttonLayout->addStretch();
+
+    auto* rejectButton = new QPushButton(QStringLiteral("取消"), &dialog);
+    rejectButton->setObjectName(QStringLiteral("amountRejectButton"));
+    rejectButton->setCursor(Qt::PointingHandCursor);
+
+    auto* acceptButton = new QPushButton(QStringLiteral("确定"), &dialog);
+    acceptButton->setObjectName(QStringLiteral("amountAcceptButton"));
+    acceptButton->setCursor(Qt::PointingHandCursor);
+    acceptButton->setDefault(true);
+
+    buttonLayout->addWidget(rejectButton);
+    buttonLayout->addWidget(acceptButton);
+    rootLayout->addLayout(buttonLayout);
+
+    QObject::connect(closeButton, &QPushButton::clicked, &dialog, &QDialog::reject);
+    QObject::connect(rejectButton, &QPushButton::clicked, &dialog, &QDialog::reject);
+    QObject::connect(acceptButton, &QPushButton::clicked, &dialog, &QDialog::accept);
+
+    amountSpin->setFocus(Qt::PopupFocusReason);
+    amountSpin->selectAll();
+
+    if (dialog.exec() != QDialog::Accepted) {
+        return false;
+    }
+
+    *value = amountSpin->value();
+    return true;
+}
 }
 
 MainWindow::MainWindow(bool guestMode, const QString& accountName, QWidget *parent)
@@ -722,9 +881,9 @@ QWidget* MainWindow::createPersonalTab()
         connect(quick50kBtn, &QPushButton::clicked, amountSpin, [amountSpin]() { amountSpin->setValue(50000.0); });
         connect(quick100kBtn, &QPushButton::clicked, amountSpin, [amountSpin]() { amountSpin->setValue(100000.0); });
         connect(customBtn, &QPushButton::clicked, this, [this, amountSpin]() {
-            bool ok = false;
-            const double value = QInputDialog::getDouble(this, QStringLiteral("自定义金额"), QStringLiteral("金额"), amountSpin->value(), 0.0, 100000000.0, 2, &ok);
-            if (ok) {
+            double value = amountSpin->value();
+            if (showThemedAmountInput(this, QStringLiteral("自定义金额"), QStringLiteral("金额"),
+                                      amountSpin->value(), 0.0, 100000000.0, 2, &value)) {
                 amountSpin->setValue(value);
             }
         });
