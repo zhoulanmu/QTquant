@@ -34,12 +34,30 @@
 #include <QToolTip>
 #include <QUrlQuery>
 #include <QVBoxLayout>
+#include <QWheelEvent>
 
 namespace {
 constexpr int SearchDelayMs = 280;
 constexpr int SearchTimeoutMs = 2500;
 constexpr auto SearchEndpoint = "https://searchapi.eastmoney.com/api/suggest/get";
 constexpr auto SearchToken = "D43BF722C8E33EC61";
+
+class NoWheelComboBox final : public QComboBox
+{
+public:
+    explicit NoWheelComboBox(QWidget* parent = nullptr)
+        : QComboBox(parent)
+    {
+    }
+
+protected:
+    void wheelEvent(QWheelEvent* event) override
+    {
+        if (event) {
+            event->ignore();
+        }
+    }
+};
 
 enum class StrategyKind
 {
@@ -416,7 +434,7 @@ StrategyPanel::StrategyPanel(QWidget *parent) :
     ui->label_3->setToolTip(slowMATip);
     ui->slowMASpin->setToolTip(slowMATip);
     auto* maBarPeriodLabel = new QLabel(QStringLiteral("均线计算周期"), ui->groupBox);
-    m_maBarPeriodCombo = new QComboBox(ui->groupBox);
+    m_maBarPeriodCombo = new NoWheelComboBox(ui->groupBox);
     m_maBarPeriodCombo->addItem(QStringLiteral("1分钟"), 1);
     m_maBarPeriodCombo->addItem(QStringLiteral("3分钟"), 3);
     m_maBarPeriodCombo->addItem(QStringLiteral("5分钟"), 5);
@@ -831,7 +849,7 @@ void StrategyPanel::setupStrategyInstanceUi()
     accountLayout->setContentsMargins(0, 0, 0, 0);
     accountLayout->setSpacing(8);
     accountLayout->addWidget(new QLabel(QStringLiteral("绑定账户"), m_strategyInstanceGroup));
-    m_strategyAccountCombo = new QComboBox(m_strategyInstanceGroup);
+    m_strategyAccountCombo = new NoWheelComboBox(m_strategyInstanceGroup);
     m_strategyAccountCombo->addItem(QStringLiteral("未绑定"), -1);
     for (int i = 0; i < m_accountNames.size(); ++i) {
         m_strategyAccountCombo->addItem(m_accountNames.at(i), i);
@@ -1159,7 +1177,7 @@ void StrategyPanel::setupCommonStrategyUi()
     strategySymbolLayout->addWidget(m_strategySymbolEdit, 1);
     presetLayout->addWidget(strategySymbolWidget);
 
-    m_strategyPresetCombo = new QComboBox(presetGroup);
+    m_strategyPresetCombo = new NoWheelComboBox(presetGroup);
     const QVector<StrategyPreset> presets = commonStrategyPresets();
     for (const auto& preset : presets) {
         m_strategyPresetCombo->addItem(preset.name);
