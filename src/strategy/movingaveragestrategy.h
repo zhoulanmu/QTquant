@@ -24,9 +24,16 @@ private:
     void startBar(const MarketData& data, const QDateTime& barStart);
     void updateCurrentBar(const MarketData& data);
     void processClosedBar(const MarketData& bar);
-    void checkTradingSignal(double price);
+    void checkTradingSignal(const MarketData& bar);
     void updateStopLossTakeProfit(double price);
     void calculateIndicators();
+    int confirmationBars() const;
+    int cooldownBars() const;
+    double minSpreadPercent() const;
+    double minRewardCostMultiple() const;
+    bool isLateBuyBlocked(const QDateTime& barTime) const;
+    double estimatedRoundTripCostPercent(double price) const;
+    void enterCooldown();
 
 private:
     bool m_hasCurrentBar;
@@ -44,4 +51,7 @@ private:
     double m_macd;
     double m_bollingerUpper;
     double m_bollingerLower;
+    int m_buyConfirmBars;
+    int m_sellConfirmBars;
+    int m_cooldownBarsRemaining;
 };

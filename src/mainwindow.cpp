@@ -1242,7 +1242,7 @@ void MainWindow::executeOrder(int strategyId, const StrategySignal& signal)
         }
 
         appendTradeRecord(runtime->accountIndex, symbol, typeStr, price, lotSize, tradeAmount, fees.total,
-                          QDateTime::currentDateTime().toString("HH:mm:ss"));
+                          QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss"));
         ui->strategyPanel->addStrategyLog(label, QStringLiteral("已成交：买入 %1 股 @ %2，%3")
             .arg(lotSize, 0, 'f', 0)
             .arg(price, 0, 'f', 2)
@@ -1289,7 +1289,7 @@ void MainWindow::executeOrder(int strategyId, const StrategySignal& signal)
     }
 
     appendTradeRecord(runtime->accountIndex, symbol, typeStr, price, lotSize, tradeAmount, fees.total,
-                      QDateTime::currentDateTime().toString("HH:mm:ss"));
+                      QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss"));
     ui->strategyPanel->addStrategyLog(label, QStringLiteral("已成交：卖出 %1 股 @ %2，%3")
         .arg(lotSize, 0, 'f', 0)
         .arg(price, 0, 'f', 2)
@@ -1454,7 +1454,7 @@ void MainWindow::executeManualTrade(const QString& symbol, SignalType type, doub
         }
 
         appendTradeRecord(m_activeAccountIndex, normalized, typeStr, price, volume, amount, fees.total,
-                          QDateTime::currentDateTime().toString("HH:mm:ss"));
+                          QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss"));
     } else if (type == SignalType::SELL) {
         if (!account.positions.contains(normalized) || account.positions.value(normalized).quantity <= 0.0) {
             ui->statusbar->showMessage(QStringLiteral("手动卖出跳过：没有可用持仓。"), 4000);
@@ -1473,7 +1473,7 @@ void MainWindow::executeManualTrade(const QString& symbol, SignalType type, doub
         }
 
         appendTradeRecord(m_activeAccountIndex, normalized, typeStr, price, volume, amount, fees.total,
-                          QDateTime::currentDateTime().toString("HH:mm:ss"));
+                          QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss"));
     } else {
         return;
     }
@@ -1579,7 +1579,7 @@ void MainWindow::transferAccountCash(int accountIndex, double amount)
                       0.0,
                       absAmount,
                       0.0,
-                      QDateTime::currentDateTime().toString("HH:mm:ss"));
+                      QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss"));
     updateAccountInfo(accountIndex);
     saveAccountState();
     ui->statusbar->showMessage(QStringLiteral("账户 %1 %2 %3")
@@ -1622,7 +1622,7 @@ void MainWindow::resetAccountAssets(int accountIndex)
                       0.0,
                       totalAssets,
                       0.0,
-                      QDateTime::currentDateTime().toString("HH:mm:ss"));
+                      QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss"));
     updateAccountInfo(accountIndex);
     saveAccountState();
     ui->statusbar->showMessage(QStringLiteral("账户 %1 资产已归零").arg(accountIndex + 1), 3000);

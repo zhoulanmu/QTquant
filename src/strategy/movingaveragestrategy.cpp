@@ -1,6 +1,8 @@
 #include "movingaveragestrategy.h"
 #include "../indicator/indicators.h"
+
 #include <QDateTime>
+#include <QTime>
 
 MovingAverageStrategy::MovingAverageStrategy(QObject *parent)
     : StrategyBase(parent)
@@ -11,6 +13,9 @@ MovingAverageStrategy::MovingAverageStrategy(QObject *parent)
     , m_macd(0.0)
     , m_bollingerUpper(0.0)
     , m_bollingerLower(0.0)
+    , m_buyConfirmBars(0)
+    , m_sellConfirmBars(0)
+    , m_cooldownBarsRemaining(0)
 {
 }
 
@@ -27,6 +32,9 @@ void MovingAverageStrategy::reset()
     m_volumes.clear();
     m_fastMA = 0.0;
     m_slowMA = 0.0;
+    m_buyConfirmBars = 0;
+    m_sellConfirmBars = 0;
+    m_cooldownBarsRemaining = 0;
 }
 
 int MovingAverageStrategy::closedBarCount() const
@@ -131,12 +139,16 @@ void MovingAverageStrategy::processClosedBar(const MarketData& bar)
         updateStopLossTakeProfit(bar.close);
     }
 
-    checkTradingSignal(bar.close);
+    if (m_cooldownBarsRemaining > 0) {
+        --m_cooldownBarsRemaining;
+    }
+
+    checkTradingSignal(bar);
 }
 
 void MovingAverageStrategy::calculateIndicators()
 {
-    if (m_closePrices.size() < m_params.slowMA) {
+    if (m_closePrices.size() < static_cast<size_t>(m_params.slowMA)) {
         m_fastMA = 0.0;
         m_slowMA = 0.0;
         return;
@@ -146,56 +158,141 @@ void MovingAverageStrategy::calculateIndicators()
     m_slowMA = TechnicalIndicators::calculateSMA(m_closePrices, m_params.slowMA);
     m_rsi = TechnicalIndicators::calculateRSI(m_closePrices, 14);
     auto [macd, signal] = TechnicalIndicators::calculateMACD(m_closePrices, 12, 26, 9);
+    Q_UNUSED(signal)
     m_macd = macd;
     auto [lower, upper] = TechnicalIndicators::calculateBollingerBands(m_closePrices, 20, 2.0);
     m_bollingerLower = lower;
     m_bollingerUpper = upper;
 }
 
-void MovingAverageStrategy::checkTradingSignal(double price)
+int MovingAverageStrategy::confirmationBars() const
 {
-    if (m_closePrices.size() < m_params.slowMA) return;
+    return qBound(1, m_config.doubleMAConfig.confirmationBars, 5);
+}
 
-    double prevFastMA = TechnicalIndicators::calculateSMA(
-        std::vector<double>(m_closePrices.begin(), m_closePrices.end() - 1), m_params.fastMA);
-    double prevSlowMA = TechnicalIndicators::calculateSMA(
-        std::vector<double>(m_closePrices.begin(), m_closePrices.end() - 1), m_params.slowMA);
+int MovingAverageStrategy::cooldownBars() const
+{
+    return qBound(0, m_config.doubleMAConfig.cooldownBars, 20);
+}
 
-    bool goldenCross = (prevFastMA <= prevSlowMA) && (m_fastMA > m_slowMA);
-    bool deathCross = (prevFastMA >= prevSlowMA) && (m_fastMA < m_slowMA);
+double MovingAverageStrategy::minSpreadPercent() const
+{
+    return qBound(0.0, m_config.doubleMAConfig.minSpreadPercent, 5.0);
+}
+
+double MovingAverageStrategy::minRewardCostMultiple() const
+{
+    return qBound(0.0, m_config.doubleMAConfig.minRewardCostMultiple, 10.0);
+}
+
+bool MovingAverageStrategy::isLateBuyBlocked(const QDateTime& barTime) const
+{
+    if (!m_config.doubleMAConfig.blockLateBuy || !barTime.isValid()) {
+        return false;
+    }
+    return barTime.time() >= QTime(14, 45);
+}
+
+double MovingAverageStrategy::estimatedRoundTripCostPercent(double price) const
+{
+    if (price <= 0.0) {
+        return 0.0;
+    }
+
+    const double volume = m_params.lotSize > 0.0 ? m_params.lotSize : 100.0;
+    const double amount = price * volume;
+    if (amount <= 0.0) {
+        return 0.0;
+    }
+
+    const double buyCommission = qMax(amount * 0.0002, 5.0);
+    const double sellCommission = qMax(amount * 0.0002, 5.0);
+    const double buyTransfer = amount * 0.00001;
+    const double sellTransfer = amount * 0.00001;
+    const double stampDuty = amount * 0.001;
+    return (buyCommission + sellCommission + buyTransfer + sellTransfer + stampDuty) / amount * 100.0;
+}
+
+void MovingAverageStrategy::enterCooldown()
+{
+    m_buyConfirmBars = 0;
+    m_sellConfirmBars = 0;
+    m_cooldownBarsRemaining = cooldownBars();
+}
+
+void MovingAverageStrategy::checkTradingSignal(const MarketData& bar)
+{
+    const double price = bar.close;
+    if (m_closePrices.size() <= static_cast<size_t>(m_params.slowMA) || price <= 0.0) {
+        return;
+    }
+
+    const std::vector<double> previousCloses(m_closePrices.begin(), m_closePrices.end() - 1);
+    const double prevSlowMA = TechnicalIndicators::calculateSMA(previousCloses, m_params.slowMA);
+    const double spreadPercent = m_slowMA > 0.0 ? (m_fastMA - m_slowMA) / m_slowMA * 100.0 : 0.0;
+    const bool spreadEnough = spreadPercent >= minSpreadPercent();
+    const bool trendOk = !m_config.doubleMAConfig.requireSlowMAUp
+        || (prevSlowMA > 0.0 && m_slowMA >= prevSlowMA && price >= m_slowMA);
+    const bool costOk = minRewardCostMultiple() <= 0.0
+        || m_params.takeProfitPercent >= estimatedRoundTripCostPercent(price) * minRewardCostMultiple();
+    const bool buySetup = m_fastMA > m_slowMA
+        && spreadEnough
+        && trendOk
+        && costOk
+        && m_rsi < 70
+        && !isLateBuyBlocked(bar.timestamp)
+        && m_cooldownBarsRemaining <= 0;
+    const bool sellSetup = m_fastMA < m_slowMA;
 
     if (!m_hasPosition) {
-        if (goldenCross && m_rsi < 70) {
+        m_sellConfirmBars = 0;
+        m_buyConfirmBars = buySetup ? m_buyConfirmBars + 1 : 0;
+        if (m_buyConfirmBars >= confirmationBars()) {
             m_hasPosition = true;
             m_entryPrice = price;
             m_entryTime = QDateTime::currentDateTime();
+            m_buyConfirmBars = 0;
 
             m_stopLossPrice = m_entryPrice * (1 - m_params.stopLossPercent / 100.0);
             m_takeProfitPrice = m_entryPrice * (1 + m_params.takeProfitPercent / 100.0);
 
             emitSignal(SignalType::BUY, price, m_params.lotSize,
-                       QString("%1分钟K线金叉: 快速MA(%2)上穿慢速MA(%3)")
+                       QStringLiteral("%1分钟K线多头确认: 快MA(%2)高于慢MA(%3)，差值%4%")
                            .arg(barPeriodMinutes())
                            .arg(m_params.fastMA)
-                           .arg(m_params.slowMA));
+                           .arg(m_params.slowMA)
+                           .arg(spreadPercent, 0, 'f', 2));
         }
-    } else {
-        if (deathCross) {
-            m_hasPosition = false;
-            emitSignal(SignalType::SELL, price, m_params.lotSize,
-                       QString("%1分钟K线死叉: 快速MA(%2)下穿慢速MA(%3)")
-                           .arg(barPeriodMinutes())
-                           .arg(m_params.fastMA)
-                           .arg(m_params.slowMA));
-        } else if (price <= m_stopLossPrice) {
-            m_hasPosition = false;
-            emitSignal(SignalType::STOP_LOSS, price, m_params.lotSize,
-                       QString("止损触发: 亏损%1%").arg(m_params.stopLossPercent));
-        } else if (price >= m_takeProfitPrice) {
-            m_hasPosition = false;
-            emitSignal(SignalType::TAKE_PROFIT, price, m_params.lotSize,
-                       QString("止盈触发: 盈利%1%").arg(m_params.takeProfitPercent));
-        }
+        return;
+    }
+
+    m_buyConfirmBars = 0;
+
+    if (price <= m_stopLossPrice) {
+        m_hasPosition = false;
+        enterCooldown();
+        emitSignal(SignalType::STOP_LOSS, price, m_params.lotSize,
+                   QStringLiteral("止损触发: 亏损%1%").arg(m_params.stopLossPercent));
+        return;
+    }
+
+    if (price >= m_takeProfitPrice) {
+        m_hasPosition = false;
+        enterCooldown();
+        emitSignal(SignalType::TAKE_PROFIT, price, m_params.lotSize,
+                   QStringLiteral("止盈触发: 盈利%1%").arg(m_params.takeProfitPercent));
+        return;
+    }
+
+    m_sellConfirmBars = sellSetup ? m_sellConfirmBars + 1 : 0;
+    if (m_sellConfirmBars >= confirmationBars()) {
+        m_hasPosition = false;
+        enterCooldown();
+        emitSignal(SignalType::SELL, price, m_params.lotSize,
+                   QStringLiteral("%1分钟K线空头确认: 快MA(%2)低于慢MA(%3)")
+                       .arg(barPeriodMinutes())
+                       .arg(m_params.fastMA)
+                       .arg(m_params.slowMA));
     }
 }
 

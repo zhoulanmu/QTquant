@@ -178,6 +178,12 @@ QJsonObject strategyConfigToJson(const StrategyConfig& config)
     doubleMA.insert(QStringLiteral("fastMA"), config.doubleMAConfig.fastMA);
     doubleMA.insert(QStringLiteral("slowMA"), config.doubleMAConfig.slowMA);
     doubleMA.insert(QStringLiteral("barPeriodMinutes"), normalizedMABarPeriodMinutes(config.doubleMAConfig.barPeriodMinutes));
+    doubleMA.insert(QStringLiteral("minSpreadPercent"), config.doubleMAConfig.minSpreadPercent);
+    doubleMA.insert(QStringLiteral("confirmationBars"), config.doubleMAConfig.confirmationBars);
+    doubleMA.insert(QStringLiteral("cooldownBars"), config.doubleMAConfig.cooldownBars);
+    doubleMA.insert(QStringLiteral("requireSlowMAUp"), config.doubleMAConfig.requireSlowMAUp);
+    doubleMA.insert(QStringLiteral("blockLateBuy"), config.doubleMAConfig.blockLateBuy);
+    doubleMA.insert(QStringLiteral("minRewardCostMultiple"), config.doubleMAConfig.minRewardCostMultiple);
     object.insert(QStringLiteral("doubleMA"), doubleMA);
 
     QJsonObject risk;
@@ -221,6 +227,12 @@ StrategyConfig strategyConfigFromJson(const QJsonObject& object, const StrategyC
     config.doubleMAConfig.fastMA = doubleMA.value(QStringLiteral("fastMA")).toInt(config.doubleMAConfig.fastMA);
     config.doubleMAConfig.slowMA = doubleMA.value(QStringLiteral("slowMA")).toInt(config.doubleMAConfig.slowMA);
     config.doubleMAConfig.barPeriodMinutes = normalizedMABarPeriodMinutes(doubleMA.value(QStringLiteral("barPeriodMinutes")).toInt(config.doubleMAConfig.barPeriodMinutes));
+    config.doubleMAConfig.minSpreadPercent = doubleMA.value(QStringLiteral("minSpreadPercent")).toDouble(config.doubleMAConfig.minSpreadPercent);
+    config.doubleMAConfig.confirmationBars = doubleMA.value(QStringLiteral("confirmationBars")).toInt(config.doubleMAConfig.confirmationBars);
+    config.doubleMAConfig.cooldownBars = doubleMA.value(QStringLiteral("cooldownBars")).toInt(config.doubleMAConfig.cooldownBars);
+    config.doubleMAConfig.requireSlowMAUp = doubleMA.value(QStringLiteral("requireSlowMAUp")).toBool(config.doubleMAConfig.requireSlowMAUp);
+    config.doubleMAConfig.blockLateBuy = doubleMA.value(QStringLiteral("blockLateBuy")).toBool(config.doubleMAConfig.blockLateBuy);
+    config.doubleMAConfig.minRewardCostMultiple = doubleMA.value(QStringLiteral("minRewardCostMultiple")).toDouble(config.doubleMAConfig.minRewardCostMultiple);
 
     const QJsonObject risk = object.value(QStringLiteral("risk")).toObject();
     config.riskConfig.stopLossPercent = risk.value(QStringLiteral("stopLossPercent")).toDouble(config.riskConfig.stopLossPercent);
@@ -378,6 +390,12 @@ StrategyPanel::StrategyPanel(QWidget *parent) :
     m_strategyConfigGroup(nullptr),
     m_strategyConfigHintLabel(nullptr),
     m_maBarPeriodCombo(nullptr),
+    m_doubleMAMinSpreadSpin(nullptr),
+    m_doubleMAConfirmBarsSpin(nullptr),
+    m_doubleMACooldownBarsSpin(nullptr),
+    m_doubleMACostMultipleSpin(nullptr),
+    m_doubleMATrendFilterCheck(nullptr),
+    m_doubleMALateBuyCheck(nullptr),
     m_ma60UpCheck(nullptr),
     m_profitGrowthCheck(nullptr),
     m_orderLandingCheck(nullptr),
@@ -514,6 +532,12 @@ StrategyConfig StrategyPanel::strategyConfig() const
     config.doubleMAConfig.fastMA = getFastMA();
     config.doubleMAConfig.slowMA = getSlowMA();
     config.doubleMAConfig.barPeriodMinutes = getMABarPeriodMinutes();
+    config.doubleMAConfig.minSpreadPercent = m_doubleMAMinSpreadSpin ? m_doubleMAMinSpreadSpin->value() : config.doubleMAConfig.minSpreadPercent;
+    config.doubleMAConfig.confirmationBars = m_doubleMAConfirmBarsSpin ? m_doubleMAConfirmBarsSpin->value() : config.doubleMAConfig.confirmationBars;
+    config.doubleMAConfig.cooldownBars = m_doubleMACooldownBarsSpin ? m_doubleMACooldownBarsSpin->value() : config.doubleMAConfig.cooldownBars;
+    config.doubleMAConfig.minRewardCostMultiple = m_doubleMACostMultipleSpin ? m_doubleMACostMultipleSpin->value() : config.doubleMAConfig.minRewardCostMultiple;
+    config.doubleMAConfig.requireSlowMAUp = !m_doubleMATrendFilterCheck || m_doubleMATrendFilterCheck->isChecked();
+    config.doubleMAConfig.blockLateBuy = !m_doubleMALateBuyCheck || m_doubleMALateBuyCheck->isChecked();
 
     config.riskConfig.stopLossPercent = getStopLossPercent();
     config.riskConfig.takeProfitPercent = getTakeProfitPercent();
@@ -594,13 +618,16 @@ QString StrategyPanel::currentStrategyConfigurationSummary() const
             .arg(config.riskConfig.surgeTakeProfitPercent, 0, 'f', 1);
     }
 
-    return QStringLiteral("%1；标的:%2；周期:%3分钟；快MA:%4 慢MA:%5 止损:%6% 止盈:%7%；数量:自动")
+    return QStringLiteral("%1；标的:%2；周期:%3分钟；快MA:%4 慢MA:%5 止损:%6% 止盈:%7%；差值:%8%；确认:%9根；冷却:%10根；数量:自动")
         .arg(currentStrategyName(), config.symbol)
         .arg(config.doubleMAConfig.barPeriodMinutes)
         .arg(config.doubleMAConfig.fastMA)
         .arg(config.doubleMAConfig.slowMA)
         .arg(config.riskConfig.stopLossPercent, 0, 'f', 1)
-        .arg(config.riskConfig.takeProfitPercent, 0, 'f', 1);
+        .arg(config.riskConfig.takeProfitPercent, 0, 'f', 1)
+        .arg(config.doubleMAConfig.minSpreadPercent, 0, 'f', 2)
+        .arg(config.doubleMAConfig.confirmationBars)
+        .arg(config.doubleMAConfig.cooldownBars);
 }
 
 QVector<StrategyInstanceInfo> StrategyPanel::strategyInstances()
@@ -1012,6 +1039,12 @@ void StrategyPanel::loadStrategyInstanceIntoEditor(int index)
     }
     ui->stopLossSpin->setValue(instance.config.riskConfig.stopLossPercent);
     ui->takeProfitSpin->setValue(instance.config.riskConfig.takeProfitPercent);
+    if (m_doubleMAMinSpreadSpin) m_doubleMAMinSpreadSpin->setValue(instance.config.doubleMAConfig.minSpreadPercent);
+    if (m_doubleMAConfirmBarsSpin) m_doubleMAConfirmBarsSpin->setValue(instance.config.doubleMAConfig.confirmationBars);
+    if (m_doubleMACooldownBarsSpin) m_doubleMACooldownBarsSpin->setValue(instance.config.doubleMAConfig.cooldownBars);
+    if (m_doubleMACostMultipleSpin) m_doubleMACostMultipleSpin->setValue(instance.config.doubleMAConfig.minRewardCostMultiple);
+    if (m_doubleMATrendFilterCheck) m_doubleMATrendFilterCheck->setChecked(instance.config.doubleMAConfig.requireSlowMAUp);
+    if (m_doubleMALateBuyCheck) m_doubleMALateBuyCheck->setChecked(instance.config.doubleMAConfig.blockLateBuy);
 
     for (QCheckBox* check : m_growthTrackChecks) {
         if (check) {
@@ -1106,6 +1139,11 @@ void StrategyPanel::refreshStrategyInstanceControls()
     }
 
     const StrategyKind kind = strategyKindAt(m_strategyPresetCombo ? m_strategyPresetCombo->currentIndex() : 0);
+    for (QWidget* widget : m_doubleMAConfigWidgets) {
+        if (widget) {
+            widget->setEnabled(editorEnabled && kind == StrategyKind::DoubleMA);
+        }
+    }
     setGrowthConfigEnabled(editorEnabled && kind == StrategyKind::ProsperityGrowth);
 }
 
@@ -1256,11 +1294,14 @@ void StrategyPanel::updateStrategyPresetDescription()
 
     if (config.strategyType == StrategyType::DoubleMA) {
         m_strategyPresetDescLabel->setText(
-            QStringLiteral("%1  标的:%2 周期:%3分钟 快MA:%4 慢MA:%5 止损:%6% 止盈:%7%")
+            QStringLiteral("%1  标的:%2 周期:%3分钟 快MA:%4 慢MA:%5 差值:%6% 确认:%7根 冷却:%8根 止损:%9% 止盈:%10%")
                 .arg(description, symbolText)
                 .arg(config.doubleMAConfig.barPeriodMinutes)
                 .arg(config.doubleMAConfig.fastMA)
                 .arg(config.doubleMAConfig.slowMA)
+                .arg(config.doubleMAConfig.minSpreadPercent, 0, 'f', 2)
+                .arg(config.doubleMAConfig.confirmationBars)
+                .arg(config.doubleMAConfig.cooldownBars)
                 .arg(config.riskConfig.stopLossPercent, 0, 'f', 1)
                 .arg(config.riskConfig.takeProfitPercent, 0, 'f', 1));
         return;
@@ -1295,6 +1336,50 @@ void StrategyPanel::setupCurrentStrategyConfigUi()
     m_strategyConfigHintLabel = new QLabel(m_strategyConfigGroup);
     m_strategyConfigHintLabel->setWordWrap(true);
     configLayout->addWidget(m_strategyConfigHintLabel);
+
+    auto* doubleMAGroup = new QGroupBox(QStringLiteral("双均线过滤"), m_strategyConfigGroup);
+    auto* doubleMALayout = new QFormLayout(doubleMAGroup);
+    m_doubleMAMinSpreadSpin = new QDoubleSpinBox(doubleMAGroup);
+    m_doubleMAMinSpreadSpin->setRange(0.0, 5.0);
+    m_doubleMAMinSpreadSpin->setDecimals(2);
+    m_doubleMAMinSpreadSpin->setSingleStep(0.05);
+    m_doubleMAMinSpreadSpin->setValue(0.25);
+    m_doubleMAMinSpreadSpin->setSuffix(QStringLiteral("%"));
+    m_doubleMAMinSpreadSpin->setToolTip(QStringLiteral("快MA必须至少高于慢MA这个比例，低于该差值的微弱交叉会被忽略。"));
+    doubleMALayout->addRow(QStringLiteral("最小均线差"), m_doubleMAMinSpreadSpin);
+
+    m_doubleMAConfirmBarsSpin = new QSpinBox(doubleMAGroup);
+    m_doubleMAConfirmBarsSpin->setRange(1, 5);
+    m_doubleMAConfirmBarsSpin->setValue(2);
+    m_doubleMAConfirmBarsSpin->setToolTip(QStringLiteral("买入或死叉卖出信号需要连续成立几根K线，数值越大越稳但反应越慢。"));
+    doubleMALayout->addRow(QStringLiteral("确认K线"), m_doubleMAConfirmBarsSpin);
+
+    m_doubleMACooldownBarsSpin = new QSpinBox(doubleMAGroup);
+    m_doubleMACooldownBarsSpin->setRange(0, 20);
+    m_doubleMACooldownBarsSpin->setValue(5);
+    m_doubleMACooldownBarsSpin->setToolTip(QStringLiteral("卖出后等待几根K线才允许重新买入，用来减少刚卖又买。"));
+    doubleMALayout->addRow(QStringLiteral("卖出冷却K线"), m_doubleMACooldownBarsSpin);
+
+    m_doubleMACostMultipleSpin = new QDoubleSpinBox(doubleMAGroup);
+    m_doubleMACostMultipleSpin->setRange(0.0, 10.0);
+    m_doubleMACostMultipleSpin->setDecimals(1);
+    m_doubleMACostMultipleSpin->setSingleStep(0.5);
+    m_doubleMACostMultipleSpin->setValue(2.0);
+    m_doubleMACostMultipleSpin->setToolTip(QStringLiteral("止盈空间至少覆盖估算往返交易成本的倍数；0 表示关闭成本过滤。"));
+    doubleMALayout->addRow(QStringLiteral("成本覆盖倍数"), m_doubleMACostMultipleSpin);
+
+    m_doubleMATrendFilterCheck = new QCheckBox(QStringLiteral("只在慢MA走平或向上时买入"), doubleMAGroup);
+    m_doubleMATrendFilterCheck->setChecked(true);
+    m_doubleMATrendFilterCheck->setToolTip(QStringLiteral("勾选：慢MA不向下且价格在慢MA上方才允许买；不勾选：只看快慢MA关系。"));
+    doubleMALayout->addRow(QStringLiteral("趋势过滤"), m_doubleMATrendFilterCheck);
+
+    m_doubleMALateBuyCheck = new QCheckBox(QStringLiteral("14:45 后不新开仓"), doubleMAGroup);
+    m_doubleMALateBuyCheck->setChecked(true);
+    m_doubleMALateBuyCheck->setToolTip(QStringLiteral("勾选：尾盘不再买入，只保留已有持仓的卖出、止损、止盈判断。"));
+    doubleMALayout->addRow(QStringLiteral("尾盘控制"), m_doubleMALateBuyCheck);
+
+    configLayout->addWidget(doubleMAGroup);
+    m_doubleMAConfigWidgets.append(doubleMAGroup);
 
     auto* autoGroup = new QGroupBox(QStringLiteral("自动过滤"), m_strategyConfigGroup);
     auto* autoLayout = new QVBoxLayout(autoGroup);
@@ -1399,6 +1484,12 @@ void StrategyPanel::setupCurrentStrategyConfigUi()
     ui->verticalLayout_4->insertWidget(3, configScrollArea);
     ui->verticalLayout_4->setStretch(3, 1);
 
+    connect(m_doubleMAMinSpreadSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &StrategyPanel::onStrategyConfigChanged);
+    connect(m_doubleMAConfirmBarsSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, &StrategyPanel::onStrategyConfigChanged);
+    connect(m_doubleMACooldownBarsSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, &StrategyPanel::onStrategyConfigChanged);
+    connect(m_doubleMACostMultipleSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &StrategyPanel::onStrategyConfigChanged);
+    connect(m_doubleMATrendFilterCheck, &QCheckBox::toggled, this, &StrategyPanel::onStrategyConfigChanged);
+    connect(m_doubleMALateBuyCheck, &QCheckBox::toggled, this, &StrategyPanel::onStrategyConfigChanged);
     connect(m_ma60UpCheck, &QCheckBox::toggled, this, &StrategyPanel::onStrategyConfigChanged);
     connect(m_volumePullbackCheck, &QCheckBox::toggled, this, &StrategyPanel::onStrategyConfigChanged);
     connect(m_pullbackMinSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, &StrategyPanel::onStrategyConfigChanged);
@@ -1428,6 +1519,12 @@ void StrategyPanel::updateCurrentStrategyConfigUi()
     for (QWidget* widget : m_growthConfigWidgets) {
         if (widget) {
             widget->setVisible(growth);
+        }
+    }
+    for (QWidget* widget : m_doubleMAConfigWidgets) {
+        if (widget) {
+            widget->setVisible(!growth);
+            widget->setEnabled(!growth && (!m_strategyPresetCombo || m_strategyPresetCombo->isEnabled()));
         }
     }
 
@@ -1724,6 +1821,24 @@ void StrategyPanel::loadStrategySettings()
     if (settings.contains(QStringLiteral("strategy/basic/takeProfitPercent"))) {
         ui->takeProfitSpin->setValue(settings.value(QStringLiteral("strategy/basic/takeProfitPercent")).toDouble());
     }
+    if (m_doubleMAMinSpreadSpin && settings.contains(QStringLiteral("strategy/doubleMA/minSpreadPercent"))) {
+        m_doubleMAMinSpreadSpin->setValue(settings.value(QStringLiteral("strategy/doubleMA/minSpreadPercent")).toDouble());
+    }
+    if (m_doubleMAConfirmBarsSpin && settings.contains(QStringLiteral("strategy/doubleMA/confirmationBars"))) {
+        m_doubleMAConfirmBarsSpin->setValue(settings.value(QStringLiteral("strategy/doubleMA/confirmationBars")).toInt());
+    }
+    if (m_doubleMACooldownBarsSpin && settings.contains(QStringLiteral("strategy/doubleMA/cooldownBars"))) {
+        m_doubleMACooldownBarsSpin->setValue(settings.value(QStringLiteral("strategy/doubleMA/cooldownBars")).toInt());
+    }
+    if (m_doubleMACostMultipleSpin && settings.contains(QStringLiteral("strategy/doubleMA/minRewardCostMultiple"))) {
+        m_doubleMACostMultipleSpin->setValue(settings.value(QStringLiteral("strategy/doubleMA/minRewardCostMultiple")).toDouble());
+    }
+    if (m_doubleMATrendFilterCheck && settings.contains(QStringLiteral("strategy/doubleMA/requireSlowMAUp"))) {
+        m_doubleMATrendFilterCheck->setChecked(settings.value(QStringLiteral("strategy/doubleMA/requireSlowMAUp")).toBool());
+    }
+    if (m_doubleMALateBuyCheck && settings.contains(QStringLiteral("strategy/doubleMA/blockLateBuy"))) {
+        m_doubleMALateBuyCheck->setChecked(settings.value(QStringLiteral("strategy/doubleMA/blockLateBuy")).toBool());
+    }
 
     const auto applyCheck = [&settings](QCheckBox* check, const QString& key) {
         if (check && settings.contains(key)) {
@@ -1786,6 +1901,12 @@ void StrategyPanel::saveStrategySettings() const
     settings.setValue(QStringLiteral("strategy/basic/stopLossPercent"), ui->stopLossSpin->value());
     settings.setValue(QStringLiteral("strategy/basic/takeProfitPercent"), ui->takeProfitSpin->value());
     settings.remove(QStringLiteral("strategy/basic/lotSize"));
+    if (m_doubleMAMinSpreadSpin) settings.setValue(QStringLiteral("strategy/doubleMA/minSpreadPercent"), m_doubleMAMinSpreadSpin->value());
+    if (m_doubleMAConfirmBarsSpin) settings.setValue(QStringLiteral("strategy/doubleMA/confirmationBars"), m_doubleMAConfirmBarsSpin->value());
+    if (m_doubleMACooldownBarsSpin) settings.setValue(QStringLiteral("strategy/doubleMA/cooldownBars"), m_doubleMACooldownBarsSpin->value());
+    if (m_doubleMACostMultipleSpin) settings.setValue(QStringLiteral("strategy/doubleMA/minRewardCostMultiple"), m_doubleMACostMultipleSpin->value());
+    settings.setValue(QStringLiteral("strategy/doubleMA/requireSlowMAUp"), m_doubleMATrendFilterCheck && m_doubleMATrendFilterCheck->isChecked());
+    settings.setValue(QStringLiteral("strategy/doubleMA/blockLateBuy"), m_doubleMALateBuyCheck && m_doubleMALateBuyCheck->isChecked());
 
     QStringList enabledTracks;
     for (QCheckBox* check : m_growthTrackChecks) {

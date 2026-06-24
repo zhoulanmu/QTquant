@@ -196,8 +196,15 @@ private:
     QGroupBox* m_strategyConfigGroup;
     QLabel* m_strategyConfigHintLabel;
     QComboBox* m_maBarPeriodCombo;
+    QVector<QWidget*> m_doubleMAConfigWidgets;
     QVector<QWidget*> m_growthConfigWidgets;
     QVector<QCheckBox*> m_growthTrackChecks;
+    QDoubleSpinBox* m_doubleMAMinSpreadSpin;
+    QSpinBox* m_doubleMAConfirmBarsSpin;
+    QSpinBox* m_doubleMACooldownBarsSpin;
+    QDoubleSpinBox* m_doubleMACostMultipleSpin;
+    QCheckBox* m_doubleMATrendFilterCheck;
+    QCheckBox* m_doubleMALateBuyCheck;
     QCheckBox* m_ma60UpCheck;
     QCheckBox* m_profitGrowthCheck;
     QCheckBox* m_orderLandingCheck;

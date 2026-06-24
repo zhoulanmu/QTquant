@@ -32,6 +32,12 @@ struct DoubleMAConfig {
     int fastMA = 5;
     int slowMA = 20;
     int barPeriodMinutes = 5;
+    double minSpreadPercent = 0.25;
+    int confirmationBars = 2;
+    int cooldownBars = 5;
+    bool requireSlowMAUp = true;
+    bool blockLateBuy = true;
+    double minRewardCostMultiple = 2.0;
 };
 
 struct GrowthBuyConfig {
