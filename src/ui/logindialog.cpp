@@ -88,6 +88,25 @@ LoginDialog::LoginDialog(QWidget *parent)
             font-size: 12px;
             color: #a0aec0;
         }
+        QMessageBox {
+            background-color: #1a1a2e;
+        }
+        QMessageBox QLabel {
+            color: #e2e8f0;
+            font-size: 13px;
+        }
+        QMessageBox QPushButton {
+            background-color: #718096;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 8px 20px;
+            min-width: 78px;
+            min-height: 32px;
+        }
+        QMessageBox QPushButton:hover {
+            background-color: #5a6678;
+        }
     )");
 }
 

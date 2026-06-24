@@ -240,6 +240,150 @@ void showThemedWarning(QWidget* parent, const QString& title, const QString& mes
 
     dialog.exec();
 }
+
+bool showThemedQuestion(QWidget* parent, const QString& title, const QString& message,
+                        const QString& acceptText, const QString& rejectText)
+{
+    QDialog dialog(parent);
+    dialog.setModal(true);
+    dialog.setWindowTitle(title);
+    dialog.setWindowFlags(Qt::Dialog | Qt::FramelessWindowHint);
+    dialog.setObjectName(QStringLiteral("themedQuestionDialog"));
+    dialog.setMinimumWidth(560);
+    dialog.setStyleSheet(QStringLiteral(R"(
+        QDialog#themedQuestionDialog {
+            background-color: #1a1a2e;
+            border: 1px solid #4a5568;
+            border-radius: 8px;
+        }
+        QLabel#questionTitle {
+            color: #f7fafc;
+            font-size: 15px;
+            font-weight: bold;
+        }
+        QLabel#questionIcon {
+            background-color: #2b6cb0;
+            color: white;
+            border-radius: 14px;
+            min-width: 28px;
+            max-width: 28px;
+            min-height: 28px;
+            max-height: 28px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        QLabel#questionMessage {
+            color: #e2e8f0;
+            font-size: 13px;
+        }
+        QPushButton#questionCloseButton {
+            background-color: transparent;
+            color: #a0aec0;
+            border: none;
+            border-radius: 4px;
+            min-width: 28px;
+            max-width: 28px;
+            min-height: 28px;
+            max-height: 28px;
+            padding: 0;
+            font-size: 16px;
+        }
+        QPushButton#questionCloseButton:hover {
+            background-color: #2d3748;
+            color: white;
+        }
+        QPushButton#questionAcceptButton {
+            background-color: #2b6cb0;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 8px 22px;
+            min-width: 88px;
+            min-height: 32px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        QPushButton#questionAcceptButton:hover {
+            background-color: #3182ce;
+        }
+        QPushButton#questionAcceptButton:pressed {
+            background-color: #2c5282;
+        }
+        QPushButton#questionRejectButton {
+            background-color: #718096;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 8px 22px;
+            min-width: 88px;
+            min-height: 32px;
+            font-size: 13px;
+        }
+        QPushButton#questionRejectButton:hover {
+            background-color: #5a6678;
+        }
+    )"));
+
+    auto* rootLayout = new QVBoxLayout(&dialog);
+    rootLayout->setContentsMargins(18, 16, 18, 16);
+    rootLayout->setSpacing(14);
+
+    auto* titleLayout = new QHBoxLayout();
+    titleLayout->setContentsMargins(0, 0, 0, 0);
+    titleLayout->setSpacing(10);
+
+    auto* titleLabel = new QLabel(title, &dialog);
+    titleLabel->setObjectName(QStringLiteral("questionTitle"));
+
+    auto* closeButton = new QPushButton(QStringLiteral("X"), &dialog);
+    closeButton->setObjectName(QStringLiteral("questionCloseButton"));
+    closeButton->setCursor(Qt::PointingHandCursor);
+
+    titleLayout->addWidget(titleLabel, 1);
+    titleLayout->addWidget(closeButton, 0, Qt::AlignTop);
+    rootLayout->addLayout(titleLayout);
+
+    auto* contentLayout = new QHBoxLayout();
+    contentLayout->setContentsMargins(0, 2, 0, 2);
+    contentLayout->setSpacing(12);
+
+    auto* iconLabel = new QLabel(QStringLiteral("?"), &dialog);
+    iconLabel->setObjectName(QStringLiteral("questionIcon"));
+    iconLabel->setAlignment(Qt::AlignCenter);
+
+    auto* messageLabel = new QLabel(message, &dialog);
+    messageLabel->setObjectName(QStringLiteral("questionMessage"));
+    messageLabel->setWordWrap(true);
+    messageLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    messageLabel->setMinimumWidth(430);
+
+    contentLayout->addWidget(iconLabel, 0, Qt::AlignTop);
+    contentLayout->addWidget(messageLabel, 1);
+    rootLayout->addLayout(contentLayout);
+
+    auto* buttonLayout = new QHBoxLayout();
+    buttonLayout->setContentsMargins(0, 4, 0, 0);
+    buttonLayout->addStretch();
+
+    auto* rejectButton = new QPushButton(rejectText, &dialog);
+    rejectButton->setObjectName(QStringLiteral("questionRejectButton"));
+    rejectButton->setCursor(Qt::PointingHandCursor);
+
+    auto* acceptButton = new QPushButton(acceptText, &dialog);
+    acceptButton->setObjectName(QStringLiteral("questionAcceptButton"));
+    acceptButton->setCursor(Qt::PointingHandCursor);
+    acceptButton->setDefault(true);
+
+    buttonLayout->addWidget(rejectButton);
+    buttonLayout->addWidget(acceptButton);
+    rootLayout->addLayout(buttonLayout);
+
+    QObject::connect(closeButton, &QPushButton::clicked, &dialog, &QDialog::reject);
+    QObject::connect(rejectButton, &QPushButton::clicked, &dialog, &QDialog::reject);
+    QObject::connect(acceptButton, &QPushButton::clicked, &dialog, &QDialog::accept);
+
+    return dialog.exec() == QDialog::Accepted;
+}
 }
 
 MainWindow::MainWindow(bool guestMode, const QString& accountName, QWidget *parent)
@@ -318,6 +462,10 @@ MainWindow::MainWindow(bool guestMode, const QString& accountName, QWidget *pare
         "QTabBar::tab:selected { background-color: #1a1a2e; color: #63b3ed; font-weight: bold; }"
         "QTabBar::tab:!selected { margin-top: 4px; }"
         "QTabBar::tab:hover:!selected { background-color: #3b4a68; color: white; }"
+        "QMessageBox { background-color: #1a1a2e; }"
+        "QMessageBox QLabel { color: #e2e8f0; font-size: 13px; }"
+        "QMessageBox QPushButton { background-color: #718096; color: white; border: none; border-radius: 6px; padding: 8px 20px; min-width: 78px; min-height: 32px; }"
+        "QMessageBox QPushButton:hover { background-color: #5a6678; }"
         "QStatusBar { background-color: #2d3748; color: #e0e0e0; }";
     setStyleSheet(darkTheme);
 
@@ -1601,13 +1749,13 @@ void MainWindow::resetAccountAssets(int accountIndex)
     }
     const double totalAssets = account.currentCash + marketValue;
 
-    const QMessageBox::StandardButton result = QMessageBox::question(
+    const bool confirmed = showThemedQuestion(
         this,
         QStringLiteral("账户资产归零"),
         QStringLiteral("确认将账户 %1 的现金和持仓归零？成交记录会保留。").arg(accountIndex + 1),
-        QMessageBox::Yes | QMessageBox::No,
-        QMessageBox::No);
-    if (result != QMessageBox::Yes) {
+        QStringLiteral("确认归零"),
+        QStringLiteral("取消"));
+    if (!confirmed) {
         return;
     }
 
