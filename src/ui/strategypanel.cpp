@@ -605,13 +605,11 @@ QString StrategyPanel::currentStrategyConfigurationSummary() const
 
 QVector<StrategyInstanceInfo> StrategyPanel::strategyInstances()
 {
-    saveCurrentStrategyInstanceFromEditor();
     return m_strategyInstances;
 }
 
 StrategyInstanceInfo StrategyPanel::strategyInstance(int strategyId)
 {
-    saveCurrentStrategyInstanceFromEditor();
     for (const StrategyInstanceInfo& instance : m_strategyInstances) {
         if (instance.id == strategyId) {
             return instance;
@@ -1926,14 +1924,7 @@ void StrategyPanel::selectStrategySymbol(const QString& symbol, const QString& n
     m_updatingSymbol = false;
     saveStrategySymbol();
     updateStrategyPresetDescription();
-    if (!m_loadingSettings) {
-        saveStrategySettings();
-        saveCurrentStrategyInstanceFromEditor();
-    }
-
-    if (emitChange) {
-        emit parametersChanged();
-    }
+    Q_UNUSED(emitChange)
 }
 QString StrategyPanel::selectedFavoriteSymbol() const
 {
@@ -2293,11 +2284,6 @@ void StrategyPanel::addSignalLog(const StrategySignal &signal, const QString& co
 void StrategyPanel::on_paramChanged()
 {
     updateStrategyPresetDescription();
-    if (!m_loadingSettings && !m_loadingStrategyInstance) {
-        saveStrategySettings();
-        saveCurrentStrategyInstanceFromEditor();
-        emit parametersChanged();
-    }
 }
 
 void StrategyPanel::onSymbolTextChanged(const QString& text)
@@ -2491,12 +2477,6 @@ void StrategyPanel::onStrategyPresetChanged(int index)
     }
 
     updateCurrentStrategyConfigUi();
-    if (!m_loadingSettings && !m_loadingStrategyInstance) {
-        saveCurrentStrategyType();
-        saveStrategySettings();
-        saveCurrentStrategyInstanceFromEditor();
-        emit parametersChanged();
-    }
 }
 
 void StrategyPanel::onApplyStrategyPresetClicked()
@@ -2534,11 +2514,6 @@ void StrategyPanel::onStrategyConfigChanged()
         m_pullbackMaxSpin->setValue(m_pullbackMinSpin->value());
     }
     updateStrategyPresetDescription();
-    if (!m_loadingSettings && !m_loadingStrategyInstance) {
-        saveStrategySettings();
-        saveCurrentStrategyInstanceFromEditor();
-        emit parametersChanged();
-    }
 }
 void StrategyPanel::onStrategyInstanceSelectionChanged()
 {
@@ -2552,7 +2527,6 @@ void StrategyPanel::onStrategyInstanceSelectionChanged()
         return;
     }
 
-    saveStrategyInstanceFromEditor(m_currentStrategyInstanceIndex);
     m_currentStrategyInstanceIndex = newIndex;
     loadStrategyInstanceIntoEditor(newIndex);
     refreshStrategyInstanceList();
@@ -2562,8 +2536,6 @@ void StrategyPanel::onStrategyInstanceSelectionChanged()
 
 void StrategyPanel::onAddStrategyInstanceClicked()
 {
-    saveCurrentStrategyInstanceFromEditor();
-
     StrategyInstanceInfo instance;
     instance.id = m_nextStrategyInstanceId++;
     instance.name = QStringLiteral("策略 %1").arg(instance.id);
@@ -2608,17 +2580,11 @@ void StrategyPanel::onRemoveStrategyInstanceClicked()
 void StrategyPanel::onStrategyAccountChanged(int index)
 {
     Q_UNUSED(index)
-    if (m_loadingSettings || m_loadingStrategyInstance) {
-        return;
-    }
-    saveCurrentStrategyInstanceFromEditor();
     refreshStrategyInstanceControls();
-    emit parametersChanged();
 }
 
 void StrategyPanel::onStrategyInstanceStartClicked()
 {
-    saveCurrentStrategyInstanceFromEditor();
     const int id = currentStrategyInstanceId();
     if (id > 0) {
         emit strategyInstanceStartRequested(id);
