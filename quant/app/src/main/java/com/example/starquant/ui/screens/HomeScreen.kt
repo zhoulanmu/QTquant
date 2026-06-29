@@ -1,19 +1,25 @@
 package com.example.starquant.ui.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material.icons.filled.NotificationsNone
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -25,12 +31,34 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.example.starquant.data.model.MarketData
+import com.example.starquant.ui.components.ChangePill
+import com.example.starquant.ui.components.ChangeText
+import com.example.starquant.ui.components.RankBadge
+import com.example.starquant.ui.components.SectionHeader
+import com.example.starquant.ui.components.StarCard
+import com.example.starquant.ui.theme.FallGreen
+import com.example.starquant.ui.theme.RiseRed
+import com.example.starquant.ui.theme.TextSecondary
+import com.example.starquant.ui.theme.TextTertiary
+import com.example.starquant.ui.theme.TodayAmber
 import com.example.starquant.ui.viewmodel.MainViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+
+private data class HotStock(
+    val rank: Int,
+    val name: String,
+    val symbol: String,
+    val changePercent: Double
+)
+
+private data class HotNews(
+    val title: String,
+    val summary: String,
+    val tag: String
+)
 
 @Composable
 fun HomeScreen(
@@ -38,165 +66,59 @@ fun HomeScreen(
     onStockClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val accountState by viewModel.accountState.collectAsState()
-    val signals by viewModel.signals.collectAsState()
-    val strategyRuntimes by viewModel.strategyRuntimes.collectAsState()
-    val favorites by viewModel.favoriteStocks.collectAsState()
-    val favoriteQuotes by viewModel.favoriteQuotes.collectAsState()
-    val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
-    val todayProfit = accountState.positions.values.sumOf { position ->
-        val base = position.todayOpenPrice.takeIf { it > 0.0 } ?: position.avgCost
-        (position.currentPrice - base) * position.quantity
-    }
-    val todayBase = accountState.positions.values.sumOf { position ->
-        val base = position.todayOpenPrice.takeIf { it > 0.0 } ?: position.avgCost
-        base * position.quantity
-    }
-    val todayProfitPercent = if (todayBase > 0.0) todayProfit / todayBase * 100.0 else 0.0
+    val indexQuotes by viewModel.marketIndexQuotes.collectAsState()
+    val sdf = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
+    val hotStocks = listOf(
+        HotStock(1, "广钢气体", "688548.SH", 20.01),
+        HotStock(2, "正帆科技", "688596.SH", 17.31),
+        HotStock(3, "万邦医药", "301520.SZ", 20.00),
+        HotStock(4, "宁德时代", "300750.SZ", 3.25),
+        HotStock(5, "贵州茅台", "600519.SH", -0.22)
+    )
+    val hotNews = listOf(
+        HotNews("苹果或采购长鑫内存以缓解成本压力", "广钢气体 +20.01% / 正帆科技 +17.31%", "投票"),
+        HotNews("韩国巨资加码半导体，中国 CXO 景气上行？", "礼来 -0.22% / 万邦医药 +20.00%", "自选")
+    )
 
-    LaunchedEffect(favorites) {
-        viewModel.refreshFavoriteQuotes()
+    LaunchedEffect(Unit) {
+        viewModel.refreshMarketIndexQuotes()
     }
 
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(16.dp),
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text(
-            text = "StarQuant 量化交易",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold
+        HomeHeader()
+
+        MarketIndexPanel(
+            quotes = indexQuotes,
+            indexNames = viewModel.marketIndexDefinitions.associate { it.symbol to it.name },
+            timeText = sdf.format(Date())
         )
 
-        Text(
-            text = sdf.format(Date()),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer
-            )
-        ) {
+        StarCard(modifier = Modifier.fillMaxWidth()) {
             Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                modifier = Modifier.padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text(
-                    text = "账户总资产",
-                    style = MaterialTheme.typography.titleMedium
-                )
-                Text(
-                    text = String.format("¥ %.2f", accountState.totalAssets),
-                    style = MaterialTheme.typography.headlineLarge,
-                    fontWeight = FontWeight.Bold
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column {
-                        Text("总盈亏", style = MaterialTheme.typography.bodySmall)
-                        Text(
-                            String.format("%.2f (%.2f%%)", accountState.totalProfit, accountState.totalProfitPercent),
-                            color = if (accountState.totalProfit >= 0) Color(0xFFE53935) else Color(0xFF43A047),
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                    Column {
-                        Text("可用资金", style = MaterialTheme.typography.bodySmall)
-                        Text(
-                            String.format("¥ %.2f", accountState.currentCash),
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                    Column {
-                        Text("持仓数", style = MaterialTheme.typography.bodySmall)
-                        Text(
-                            "${accountState.positions.size}",
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
+                SectionHeader(title = "热股榜", action = "更多 >")
+                hotStocks.forEach { stock ->
+                    HotStockRow(stock = stock, onClick = { onStockClick(stock.symbol) })
                 }
             }
         }
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            StatCard(
-                title = "今日收益",
-                value = String.format("%+.2f", todayProfit),
-                percent = String.format("%+.2f%%", todayProfitPercent),
-                color = if (todayProfit >= 0) Color(0xFFE53935) else Color(0xFF43A047),
-                modifier = Modifier.weight(1f)
-            )
-            StatCard(
-                title = "策略运行",
-                value = "${strategyRuntimes.size}",
-                percent = "个",
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.weight(1f)
-            )
-        }
-
-        Text(
-            text = "自选行情",
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(top = 4.dp)
-        )
-
-        LazyColumn(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            if (favorites.isEmpty()) {
-                item {
-                    Text(
-                        text = "暂无自选股",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(8.dp)
-                    )
-                }
-            }
-            items(favorites.toList(), key = { it.first }) { (symbol, name) ->
-                StockItemRow(
-                    symbol = symbol,
-                    name = name,
-                    quote = favoriteQuotes[symbol],
-                    onClick = { onStockClick(symbol) },
-                    onRemove = { viewModel.removeFromFavorites(symbol) }
-                )
-            }
-        }
-
-        Text(
-            text = "最新信号",
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold
-        )
-
-        if (signals.isEmpty()) {
-            Text(
-                text = "暂无交易信号",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(8.dp)
-            )
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+        StarCard(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier.padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(signals.take(3)) { signal ->
-                    SignalRow(signal = signal)
+                SectionHeader(title = "热点榜", action = "更多 >")
+                hotNews.forEach { news ->
+                    HotNewsRow(news = news)
                 }
             }
         }
@@ -204,103 +126,97 @@ fun HomeScreen(
 }
 
 @Composable
-fun StatCard(
-    title: String,
-    value: String,
-    percent: String,
-    color: Color,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
-    ) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = value,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = color
-            )
-            Text(
-                text = percent,
-                style = MaterialTheme.typography.bodySmall,
-                color = color
-            )
-        }
-    }
-}
-
-@Composable
-fun StockItemRow(
-    symbol: String,
-    name: String,
-    quote: MarketData?,
-    onClick: () -> Unit,
-    onRemove: () -> Unit
-) {
-    val changePercent = quote?.changePercent ?: 0.0
-    val priceColor = when {
-        quote == null -> MaterialTheme.colorScheme.onSurfaceVariant
-        changePercent >= 0 -> Color(0xFFE53935)
-        else -> Color(0xFF43A047)
-    }
-
-    Card(
+private fun HomeHeader() {
+    Row(
         modifier = Modifier.fillMaxWidth(),
-        onClick = onClick
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
+        Column {
+            Text(
+                text = "牛翻天",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "量化交易",
+                style = MaterialTheme.typography.bodyMedium,
+                color = TextSecondary
+            )
+        }
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
-                Text(
-                    text = name,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    text = symbol,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+            Icon(
+                imageVector = Icons.Filled.NotificationsNone,
+                contentDescription = "通知",
+                tint = MaterialTheme.colorScheme.onSurface
+            )
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .background(MaterialTheme.colorScheme.primary, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Person,
+                    contentDescription = "我的",
+                    tint = Color.White,
+                    modifier = Modifier.size(22.dp)
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun MarketIndexPanel(
+    quotes: Map<String, MarketData>,
+    indexNames: Map<String, String>,
+    timeText: String
+) {
+    StarCard(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
             Row(
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(horizontalAlignment = Alignment.End) {
+                Column {
                     Text(
-                        text = quote?.let { String.format("%.2f", it.close) } ?: "暂无数据",
+                        text = "大盘指数",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = priceColor
+                        color = TextTertiary
                     )
                     Text(
-                        text = quote?.let { String.format("%+.2f%%", it.changePercent) } ?: "--",
+                        text = "已收盘 $timeText",
                         style = MaterialTheme.typography.bodySmall,
-                        color = priceColor
+                        color = TextSecondary
                     )
                 }
-                IconButton(onClick = onRemove) {
-                    Icon(
-                        imageVector = Icons.Filled.Delete,
-                        contentDescription = "移除自选",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                Text(
+                    text = "L1 实时行情",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = TodayAmber,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(18.dp)
+            ) {
+                indexNames.forEach { (symbol, name) ->
+                    MarketIndexTile(
+                        name = name,
+                        quote = quotes[symbol],
+                        modifier = Modifier.width(112.dp)
                     )
                 }
             }
@@ -309,54 +225,91 @@ fun StockItemRow(
 }
 
 @Composable
-fun SignalRow(signal: com.example.starquant.data.model.StrategySignal) {
-    val color = when (signal.type) {
-        com.example.starquant.data.model.SignalType.BUY -> Color(0xFFE53935)
-        com.example.starquant.data.model.SignalType.SELL -> Color(0xFF43A047)
-        com.example.starquant.data.model.SignalType.STOP_LOSS -> Color(0xFFE64A19)
-        com.example.starquant.data.model.SignalType.TAKE_PROFIT -> Color(0xFF43A047)
-        else -> Color.Gray
-    }
-    val typeText = when (signal.type) {
-        com.example.starquant.data.model.SignalType.BUY -> "买入"
-        com.example.starquant.data.model.SignalType.SELL -> "卖出"
-        com.example.starquant.data.model.SignalType.STOP_LOSS -> "止损"
-        com.example.starquant.data.model.SignalType.TAKE_PROFIT -> "止盈"
-        else -> "信号"
-    }
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = color.copy(alpha = 0.1f)
+private fun MarketIndexTile(
+    name: String,
+    quote: MarketData?,
+    modifier: Modifier = Modifier
+) {
+    val change = quote?.changePercent ?: 0.0
+    val color = if (change >= 0.0) RiseRed else FallGreen
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(3.dp)
+    ) {
+        Text(
+            text = name,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold
         )
+        Text(
+            text = quote?.let { String.format("%.2f", it.close) } ?: "--",
+            style = MaterialTheme.typography.headlineMedium,
+            color = if (quote == null) TextTertiary else color,
+            fontWeight = FontWeight.Bold
+        )
+        Text(
+            text = quote?.let { String.format("%+.2f  %+.2f%%", it.changeAmount, it.changePercent) } ?: "--",
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (quote == null) TextTertiary else color
+        )
+    }
+}
+
+@Composable
+private fun HotStockRow(
+    stock: HotStock,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 3.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(10.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
-                Text(
-                    text = "$typeText - ${signal.symbol}",
-                    fontWeight = FontWeight.Bold,
-                    color = color,
-                    fontSize = 14.sp
-                )
-                Text(
-                    text = signal.comment,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 11.sp
-                )
-            }
+            RankBadge(rank = stock.rank)
             Text(
-                text = String.format("%.2f", signal.price),
+                text = stock.name,
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                color = color
+                color = if (stock.rank <= 3) TodayAmber else MaterialTheme.colorScheme.onSurface
             )
         }
+        ChangeText(
+            change = stock.changePercent,
+            text = String.format("%+.2f%%", stock.changePercent)
+        )
+    }
+}
+
+@Composable
+private fun HotNewsRow(news: HotNews) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(3.dp)
+        ) {
+            Text(
+                text = news.title,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = news.summary,
+                style = MaterialTheme.typography.bodySmall,
+                color = TextSecondary
+            )
+        }
+        Spacer(modifier = Modifier.width(10.dp))
+        ChangePill(change = 1.0, text = news.tag)
     }
 }

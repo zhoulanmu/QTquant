@@ -36,6 +36,11 @@ data class LoginState(
     val errorMessage: String? = null
 )
 
+data class MarketIndexDefinition(
+    val symbol: String,
+    val name: String
+)
+
 data class StrategyRuntime(
     val id: Int,
     val config: StrategyConfig,
@@ -99,6 +104,16 @@ class MainViewModel : ViewModel() {
 
     private val _signals = MutableStateFlow<List<StrategySignal>>(emptyList())
     val signals: StateFlow<List<StrategySignal>> = _signals.asStateFlow()
+
+    val marketIndexDefinitions = listOf(
+        MarketIndexDefinition("000001.SH", "上证指数"),
+        MarketIndexDefinition("399001.SZ", "深证成指"),
+        MarketIndexDefinition("399006.SZ", "创业板指"),
+        MarketIndexDefinition("000688.SH", "科创50")
+    )
+
+    private val _marketIndexQuotes = MutableStateFlow<Map<String, MarketData>>(emptyMap())
+    val marketIndexQuotes: StateFlow<Map<String, MarketData>> = _marketIndexQuotes.asStateFlow()
 
     private val _favoriteStocks = MutableStateFlow<Map<String, String>>(
         linkedMapOf(
@@ -241,6 +256,17 @@ class MainViewModel : ViewModel() {
         viewModelScope.launch {
             _favoriteStocks.value.keys.forEach { symbol ->
                 loadQuoteForSymbol(symbol)
+            }
+        }
+    }
+
+    fun refreshMarketIndexQuotes() {
+        viewModelScope.launch {
+            val quotes = repository.fetchMarketIndexQuotes(
+                marketIndexDefinitions.map { it.symbol to it.name }
+            )
+            if (quotes.isNotEmpty()) {
+                _marketIndexQuotes.value = quotes
             }
         }
     }

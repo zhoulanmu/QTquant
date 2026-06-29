@@ -1,5 +1,6 @@
 package com.example.starquant.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,7 +15,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -24,6 +24,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -41,6 +42,8 @@ import androidx.compose.ui.unit.sp
 import com.example.starquant.data.model.ScreenerFilter
 import com.example.starquant.data.model.ScreenerFilterType
 import com.example.starquant.data.model.StockInfo
+import com.example.starquant.ui.components.StarCard
+import com.example.starquant.ui.components.StarPrimaryButton
 import com.example.starquant.ui.viewmodel.ScreenerViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -103,8 +106,8 @@ fun ScreenerScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -112,8 +115,8 @@ fun ScreenerScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "智能选股",
-                style = MaterialTheme.typography.headlineSmall,
+                text = "选股",
+                style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold
             )
             Row {
@@ -165,21 +168,31 @@ fun ScreenerScreen(
             }
         }
 
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Text(
-                text = "当前条件: $filterSummary",
-                modifier = Modifier.padding(10.dp),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+        StarCard(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = filterSummary,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f)
+                )
+                TextButton(onClick = { viewModel.resetFilters() }) {
+                    Text("清除")
+                }
+            }
         }
 
-        Button(
+        StarPrimaryButton(
+            text = if (isRunning) "筛选中..." else "开始选股",
             onClick = { viewModel.startScreener() },
             modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(if (isRunning) "筛选中..." else "开始选股")
-        }
+        )
 
         LazyColumn(
             modifier = Modifier.fillMaxWidth().weight(1f),
@@ -386,9 +399,10 @@ fun StockResultItem(
     changePercent: Double,
     onClick: () -> Unit
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        onClick = onClick
+    StarCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
     ) {
         Row(
             modifier = Modifier

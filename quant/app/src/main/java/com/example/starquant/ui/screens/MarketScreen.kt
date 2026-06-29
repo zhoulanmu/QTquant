@@ -12,10 +12,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -36,6 +34,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.starquant.ui.chart.CandlestickChart
 import com.example.starquant.ui.chart.ChartData
+import com.example.starquant.ui.components.StarCard
+import com.example.starquant.ui.components.StarPrimaryButton
+import com.example.starquant.ui.theme.FallGreen
+import com.example.starquant.ui.theme.MA10Color
+import com.example.starquant.ui.theme.MA20Color
+import com.example.starquant.ui.theme.MA5Color
+import com.example.starquant.ui.theme.RiseRed
+import com.example.starquant.ui.theme.TextSecondary
 import com.example.starquant.ui.viewmodel.MainViewModel
 
 @Composable
@@ -69,9 +75,15 @@ fun MarketScreen(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        Text(
+            text = "行情",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold
+        )
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -87,7 +99,8 @@ fun MarketScreen(
                 },
                 singleLine = true
             )
-            Button(
+            StarPrimaryButton(
+                text = "查询",
                 onClick = {
                     if (searchText.isNotBlank()) {
                         viewModel.setSymbol(searchText.uppercase())
@@ -95,9 +108,7 @@ fun MarketScreen(
                         viewModel.fetchIntraday()
                     }
                 }
-            ) {
-                Text("查询")
-            }
+            )
             IconButton(
                 onClick = {
                     viewModel.toggleFavorite(
@@ -124,12 +135,7 @@ fun MarketScreen(
 
         if (quoteData != null) {
             val data = quoteData!!
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                )
-            ) {
+            StarCard(modifier = Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -151,8 +157,8 @@ fun MarketScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                        val upColor = Color(0xFFE53935)
-                        val downColor = Color(0xFF43A047)
+                        val upColor = RiseRed
+                        val downColor = FallGreen
                         val priceColor = if (data.changePercent >= 0) upColor else downColor
                         Column(horizontalAlignment = Alignment.End) {
                             Text(
@@ -191,9 +197,7 @@ fun MarketScreen(
                 }
             }
         } else if (!isLoading) {
-            Card(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
-            ) {
+            StarCard(modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp)) {
                 Text(
                     text = "点击查询获取行情数据",
                     modifier = Modifier.padding(16.dp),
@@ -215,17 +219,29 @@ fun MarketScreen(
             FilterChip(
                 selected = showMA5,
                 onClick = { showMA5 = !showMA5 },
-                label = { Text("MA5", fontSize = 11.sp) }
+                label = { Text("MA5", fontSize = 11.sp) },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = MA5Color.copy(alpha = 0.28f),
+                    selectedLabelColor = MaterialTheme.colorScheme.onSurface
+                )
             )
             FilterChip(
                 selected = showMA10,
                 onClick = { showMA10 = !showMA10 },
-                label = { Text("MA10", fontSize = 11.sp) }
+                label = { Text("MA10", fontSize = 11.sp) },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = MA10Color.copy(alpha = 0.22f),
+                    selectedLabelColor = MaterialTheme.colorScheme.onSurface
+                )
             )
             FilterChip(
                 selected = showMA20,
                 onClick = { showMA20 = !showMA20 },
-                label = { Text("MA20", fontSize = 11.sp) }
+                label = { Text("MA20", fontSize = 11.sp) },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = MA20Color.copy(alpha = 0.24f),
+                    selectedLabelColor = MaterialTheme.colorScheme.onSurface
+                )
             )
             FilterChip(
                 selected = showVolume,
@@ -242,15 +258,17 @@ fun MarketScreen(
                 showMA20 = showMA20,
                 showVolume = showVolume
             )
-            CandlestickChart(
-                data = chartData,
-                modifier = Modifier.fillMaxWidth()
-            )
+            StarCard(modifier = Modifier.fillMaxWidth()) {
+                CandlestickChart(
+                    data = chartData,
+                    modifier = Modifier.fillMaxWidth().padding(8.dp)
+                )
+            }
         } else {
-            Card(
+            StarCard(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 24.dp),
+                    .padding(vertical = 24.dp)
             ) {
                 Text(
                     text = "暂无分时数据",
@@ -270,8 +288,8 @@ fun PriceInfo(
     isVolume: Boolean = false
 ) {
     val color = when {
-        isUp == true -> Color(0xFFE53935)
-        isUp == false -> Color(0xFF43A047)
+        isUp == true -> RiseRed
+        isUp == false -> FallGreen
         else -> MaterialTheme.colorScheme.onSurface
     }
     val text = if (isVolume) {
@@ -287,7 +305,7 @@ fun PriceInfo(
         Text(
             text = label,
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = TextSecondary,
             fontSize = 11.sp
         )
         Text(

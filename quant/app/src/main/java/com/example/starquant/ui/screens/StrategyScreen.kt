@@ -16,8 +16,6 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.HorizontalDivider
@@ -49,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.starquant.data.model.StrategyConfig
 import com.example.starquant.data.model.StrategyType
+import com.example.starquant.ui.components.StarCard
 import com.example.starquant.ui.viewmodel.MainViewModel
 import kotlinx.coroutines.launch
 
@@ -88,9 +87,15 @@ fun StrategyScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            Text(
+                text = "策略",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold
+            )
+
             TabRow(selectedTabIndex = selectedTab) {
                 tabs.forEachIndexed { index, title ->
                     Tab(
@@ -104,7 +109,7 @@ fun StrategyScreen(
             when (selectedTab) {
                 0 -> {
                     if (runtimes.isEmpty()) {
-                        Card(
+                        StarCard(
                             modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp)
                         ) {
                             Text(
@@ -198,12 +203,7 @@ fun StrategyRuntimeCard(
         StrategyType.ProsperityGrowth -> "景气成长策略"
     }
 
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
-        )
-    ) {
+    StarCard(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()

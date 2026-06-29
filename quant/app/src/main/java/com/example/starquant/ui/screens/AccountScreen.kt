@@ -10,8 +10,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -29,6 +28,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.starquant.data.model.PositionInfo
 import com.example.starquant.data.model.TradeRecord
+import com.example.starquant.ui.components.StarCard
+import com.example.starquant.ui.theme.FallGreen
+import com.example.starquant.ui.theme.RiseRed
+import com.example.starquant.ui.theme.TextSecondary
+import com.example.starquant.ui.theme.WarningRed
 import com.example.starquant.ui.viewmodel.MainViewModel
 
 @Composable
@@ -46,21 +50,16 @@ fun AccountScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text(
-            text = "我的资产",
-            style = MaterialTheme.typography.headlineSmall,
+            text = "我的",
+            style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold
         )
 
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer
-            )
-        ) {
+        StarCard(modifier = Modifier.fillMaxWidth()) {
             Column(
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -81,7 +80,7 @@ fun AccountScreen(
                 ) {
                     Text(
                         "总盈亏: ${String.format("%.2f", accountState.totalProfit)} (${String.format("%.2f", accountState.totalProfitPercent)}%)",
-                        color = if (accountState.totalProfit >= 0) Color(0xFFE53935) else Color(0xFF43A047),
+                        color = if (accountState.totalProfit >= 0) RiseRed else FallGreen,
                         fontWeight = FontWeight.SemiBold
                     )
                     Text(
@@ -119,7 +118,8 @@ fun AccountScreen(
         ) {
             Button(
                 onClick = { showResetConfirm = true },
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(containerColor = WarningRed)
             ) {
                 Text("重置账户")
             }
@@ -132,7 +132,7 @@ fun AccountScreen(
         )
 
         if (positions.isEmpty()) {
-            Card(modifier = Modifier.fillMaxWidth()) {
+            StarCard(modifier = Modifier.fillMaxWidth()) {
                 Text(
                     text = "暂无持仓",
                     modifier = Modifier.padding(16.dp),
@@ -157,7 +157,7 @@ fun AccountScreen(
         )
 
         if (records.isEmpty()) {
-            Card(modifier = Modifier.fillMaxWidth()) {
+            StarCard(modifier = Modifier.fillMaxWidth()) {
                 Text(
                     text = "暂无交易记录",
                     modifier = Modifier.padding(16.dp),
@@ -217,12 +217,7 @@ fun StatMiniCard(
     value: String,
     modifier: Modifier = Modifier
 ) {
-    Card(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
-    ) {
+    StarCard(modifier = modifier) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -232,7 +227,7 @@ fun StatMiniCard(
             Text(
                 text = label,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = TextSecondary,
                 fontSize = 11.sp
             )
             Text(
@@ -246,7 +241,7 @@ fun StatMiniCard(
 
 @Composable
 fun PositionItem(position: PositionInfo) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    StarCard(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -263,12 +258,12 @@ fun PositionItem(position: PositionInfo) {
                 Text(
                     text = "${position.quantity.toInt()}股 @ ${String.format("%.2f", position.avgCost)}",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = TextSecondary,
                     fontSize = 11.sp
                 )
             }
             Column(horizontalAlignment = Alignment.End) {
-                val profitColor = if (position.profit >= 0) Color(0xFFE53935) else Color(0xFF43A047)
+                val profitColor = if (position.profit >= 0) RiseRed else FallGreen
                 Text(
                     text = String.format("%.2f", position.currentPrice),
                     fontWeight = FontWeight.SemiBold,
@@ -287,14 +282,9 @@ fun PositionItem(position: PositionInfo) {
 @Composable
 fun TradeRecordItem(record: TradeRecord) {
     val isBuy = record.type == "买入"
-    val color = if (isBuy) Color(0xFFE53935) else Color(0xFF43A047)
+    val color = if (isBuy) RiseRed else FallGreen
 
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = color.copy(alpha = 0.08f)
-        )
-    ) {
+    StarCard(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -312,7 +302,7 @@ fun TradeRecordItem(record: TradeRecord) {
                     text = record.time,
                     style = MaterialTheme.typography.bodySmall,
                     fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = TextSecondary
                 )
             }
             Column(horizontalAlignment = Alignment.End) {
@@ -324,7 +314,7 @@ fun TradeRecordItem(record: TradeRecord) {
                 Text(
                     text = "${record.volume.toInt()}股",
                     fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = TextSecondary
                 )
             }
         }

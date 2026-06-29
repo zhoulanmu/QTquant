@@ -54,7 +54,7 @@ fun LoginScreen(
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 Text(
-                    text = "星策 StarQuant",
+                    text = "牛翻天",
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold
                 )

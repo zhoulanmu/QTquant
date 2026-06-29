@@ -1,6 +1,8 @@
 package com.example.starquant.data.source
 
 import com.example.starquant.data.model.MarketData
+import com.google.gson.JsonObject
+import com.google.gson.JsonParser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -103,6 +105,41 @@ class MarketDataRepository {
         emptyList()
     }
 
+    suspend fun fetchMarketIndexQuotes(indices: List<Pair<String, String>>): Map<String, MarketData> =
+        withContext(Dispatchers.IO) {
+            val secids = indices.mapNotNull { (symbol, _) ->
+                SymbolHelper.secIdForSymbol(symbol).takeIf { it.isNotBlank() }
+            }
+            if (secids.isEmpty()) return@withContext emptyMap()
+            val url = "https://push2.eastmoney.com/api/qt/ulist.np/get" +
+                "?fltt=2&secids=${secids.joinToString(",")}&fields=f12,f14,f2,f3,f4,f18"
+            val body = get(url) ?: return@withContext emptyMap()
+            runCatching {
+                val root = JsonParser.parseString(body).asJsonObject
+                val diff = root.getAsJsonObject("data")?.getAsJsonArray("diff") ?: return@runCatching emptyMap()
+                val byCode = indices.associateBy { it.first.substringBefore('.') }
+                diff.mapNotNull { item ->
+                    val obj = item.asJsonObject
+                    val code = obj.stringField("f12")
+                    val (symbol, fallbackName) = byCode[code] ?: return@mapNotNull null
+                    val close = obj.doubleField("f2")
+                    val previousClose = obj.doubleField("f18")
+                    if (close <= 0.0) return@mapNotNull null
+                    symbol to MarketData(
+                        symbol = SymbolHelper.normalizeSymbol(symbol),
+                        name = obj.stringField("f14").ifBlank { fallbackName },
+                        timestamp = Date(),
+                        open = previousClose.takeIf { it > 0.0 } ?: close,
+                        high = close,
+                        low = close,
+                        close = close,
+                        previousClose = previousClose.takeIf { it > 0.0 } ?: close - obj.doubleField("f4"),
+                        averagePrice = close
+                    )
+                }.toMap()
+            }.getOrDefault(emptyMap())
+        }
+
     private fun fetchEastMoneyQuote(symbol: String): MarketData? {
         val secId = SymbolHelper.secIdForSymbol(symbol)
         if (secId.isEmpty()) return null
@@ -171,4 +208,12 @@ class MarketDataRepository {
     fun getCurrentSymbol(): String = currentSymbol
 
     fun getLastPrice(): Double = lastPrice
+}
+
+private fun JsonObject.stringField(name: String): String {
+    return get(name)?.takeIf { !it.isJsonNull }?.asString.orEmpty()
+}
+
+private fun JsonObject.doubleField(name: String): Double {
+    return get(name)?.takeIf { !it.isJsonNull }?.asString?.toDoubleOrNull() ?: 0.0
 }
