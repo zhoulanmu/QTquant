@@ -2,11 +2,17 @@ package com.example.starquant.domain.screener
 
 import com.example.starquant.data.model.ScreenerFilter
 import com.example.starquant.data.model.ScreenerFilterType
+import com.example.starquant.data.model.SimilarStockAnalysis
+import com.example.starquant.data.model.StockFeatureTag
 import com.example.starquant.data.model.StockInfo
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import java.util.Locale
+import kotlin.math.abs
+import kotlin.math.ln
+import kotlin.math.max
 import kotlin.random.Random
 
 class StockScreener {
@@ -71,6 +77,28 @@ class StockScreener {
     fun getFilters(): List<ScreenerFilter> = activeFilters.map { it.copy() }
 
     fun getPresetStrategies(): List<String> = presetStrategiesList
+
+    fun analyzeSimilarStocks(query: String): SimilarStockAnalysis? {
+        val seed = findSeedStock(query) ?: return null
+        val similarStocks = allStocks
+            .asSequence()
+            .filter { it.symbol != seed.symbol }
+            .map { stock -> stock to similarityScore(seed, stock) }
+            .sortedByDescending { it.second }
+            .take(12)
+            .map { it.first }
+            .toList()
+
+        _filters.value = activeFilters.map { it.copy() }
+        _results.value = similarStocks
+        _resultCount.value = similarStocks.size
+
+        return SimilarStockAnalysis(
+            seed = seed,
+            features = buildFeatureTags(seed),
+            results = similarStocks
+        )
+    }
 
     suspend fun startScreener() {
         if (_isRunning.value) return
@@ -298,6 +326,112 @@ class StockScreener {
         _filters.value = activeFilters.map { it.copy() }
         _results.value = allStocks.filter { passesAllFilters(it) }
         _resultCount.value = _results.value.size
+    }
+
+    private fun findSeedStock(query: String): StockInfo? {
+        val keyword = query.trim()
+        if (keyword.isEmpty()) return null
+        val symbolKeyword = keyword.uppercase(Locale.ROOT)
+        return allStocks.firstOrNull { stock ->
+            stock.symbol.equals(symbolKeyword, ignoreCase = true) ||
+                stock.symbol.substringBefore(".").equals(symbolKeyword, ignoreCase = true) ||
+                stock.name.equals(keyword, ignoreCase = true)
+        } ?: allStocks.firstOrNull { stock ->
+            stock.symbol.contains(symbolKeyword, ignoreCase = true) ||
+                stock.name.contains(keyword, ignoreCase = true)
+        }
+    }
+
+    private fun similarityScore(seed: StockInfo, stock: StockInfo): Double {
+        var score = 0.0
+        score += closeness(seed.price, stock.price, 120.0) * 12.0
+        score += closeness(logValue(seed.marketCap), logValue(stock.marketCap), 3.0) * 18.0
+        score += closeness(seed.pe, stock.pe, 50.0) * 12.0
+        score += closeness(seed.pb, stock.pb, 10.0) * 8.0
+        score += closeness(seed.roe, stock.roe, 35.0) * 14.0
+        score += closeness(seed.revenueGrowth, stock.revenueGrowth, 90.0) * 12.0
+        score += closeness(seed.profitGrowth, stock.profitGrowth, 130.0) * 12.0
+        score += closeness(seed.turnoverRate, stock.turnoverRate, 12.0) * 6.0
+        score += closeness(seed.changePercent, stock.changePercent, 12.0) * 6.0
+        if (priceBand(seed.price) == priceBand(stock.price)) score += 4.0
+        if (marketCapBand(seed.marketCap) == marketCapBand(stock.marketCap)) score += 6.0
+        if (growthBand(seed.profitGrowth) == growthBand(stock.profitGrowth)) score += 4.0
+        if (momentumBand(seed.changePercent) == momentumBand(stock.changePercent)) score += 3.0
+        return score
+    }
+
+    private fun buildFeatureTags(stock: StockInfo): List<StockFeatureTag> {
+        return listOf(
+            StockFeatureTag("价格带", "${priceBand(stock.price)} · ${stock.price.format(2)}元"),
+            StockFeatureTag("市值", "${marketCapBand(stock.marketCap)} · ${formatMarketCap(stock.marketCap)}"),
+            StockFeatureTag("估值", "${valuationBand(stock.pe)} · PE ${stock.pe.format(1)} / PB ${stock.pb.format(1)}"),
+            StockFeatureTag("盈利", "${profitabilityBand(stock.roe)} · ROE ${stock.roe.format(1)}%"),
+            StockFeatureTag("成长", "${growthBand(stock.profitGrowth)} · 营收 ${stock.revenueGrowth.format(1)}% / 利润 ${stock.profitGrowth.format(1)}%"),
+            StockFeatureTag("趋势", "${momentumBand(stock.changePercent)} · ${stock.changePercent.formatSigned()}% / 换手 ${stock.turnoverRate.format(1)}%")
+        )
+    }
+
+    private fun closeness(left: Double, right: Double, range: Double): Double {
+        if (range <= 0.0) return 0.0
+        return (1.0 - (abs(left - right) / range)).coerceIn(0.0, 1.0)
+    }
+
+    private fun logValue(value: Double): Double {
+        return ln(max(value, 1.0))
+    }
+
+    private fun priceBand(price: Double): String = when {
+        price < 10.0 -> "低价股"
+        price < 30.0 -> "中低价"
+        price < 80.0 -> "中高价"
+        else -> "高价股"
+    }
+
+    private fun marketCapBand(marketCap: Double): String = when {
+        marketCap < 5_000_000_000.0 -> "小市值"
+        marketCap < 30_000_000_000.0 -> "中小市值"
+        marketCap < 120_000_000_000.0 -> "中盘股"
+        else -> "大盘股"
+    }
+
+    private fun valuationBand(pe: Double): String = when {
+        pe <= 0.0 -> "估值异常"
+        pe < 15.0 -> "低估值"
+        pe < 35.0 -> "合理估值"
+        else -> "高估值"
+    }
+
+    private fun profitabilityBand(roe: Double): String = when {
+        roe < 5.0 -> "盈利偏弱"
+        roe < 15.0 -> "盈利稳定"
+        roe < 25.0 -> "盈利较强"
+        else -> "高ROE"
+    }
+
+    private fun growthBand(growth: Double): String = when {
+        growth < 0.0 -> "负增长"
+        growth < 20.0 -> "稳健增长"
+        growth < 50.0 -> "高成长"
+        else -> "高速成长"
+    }
+
+    private fun momentumBand(changePercent: Double): String = when {
+        changePercent < -3.0 -> "回撤明显"
+        changePercent < 0.0 -> "弱势整理"
+        changePercent < 3.0 -> "温和走强"
+        else -> "强势上攻"
+    }
+
+    private fun formatMarketCap(value: Double): String {
+        return "${(value / 100_000_000.0).format(0)}亿"
+    }
+
+    private fun Double.format(decimals: Int): String {
+        return String.format(Locale.US, "%.${decimals}f", this)
+    }
+
+    private fun Double.formatSigned(): String {
+        return String.format(Locale.US, "%+.2f", this)
     }
 
     private fun generateMockStocks() {

@@ -1,15 +1,19 @@
 package com.example.starquant.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FilterList
@@ -37,13 +41,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.starquant.data.model.ScreenerFilter
 import com.example.starquant.data.model.ScreenerFilterType
+import com.example.starquant.data.model.SimilarStockAnalysis
+import com.example.starquant.data.model.StockFeatureTag
 import com.example.starquant.data.model.StockInfo
 import com.example.starquant.ui.components.StarCard
 import com.example.starquant.ui.components.StarPrimaryButton
+import com.example.starquant.ui.theme.BrandPrimary
+import com.example.starquant.ui.theme.TextSecondary
 import com.example.starquant.ui.viewmodel.ScreenerViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -61,10 +71,13 @@ fun ScreenerScreen(
     val filters by viewModel.filters.collectAsState()
     val selectedPreset by viewModel.selectedPreset.collectAsState()
     val filterSummary by viewModel.filterSummary.collectAsState()
+    val similarAnalysis by viewModel.similarAnalysis.collectAsState()
+    val similarError by viewModel.similarError.collectAsState()
     val presets = viewModel.getPresetStrategies()
 
     var showFilterSheet by remember { mutableStateOf(false) }
     var selectedStock by remember { mutableStateOf<StockInfo?>(null) }
+    var similarQuery by remember { mutableStateOf("") }
     val sheetState = rememberModalBottomSheetState()
 
     var minPrice by remember { mutableStateOf("5") }
@@ -135,17 +148,25 @@ fun ScreenerScreen(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
+        SimilarStockCard(
+            query = similarQuery,
+            onQueryChange = { similarQuery = it },
+            analysis = similarAnalysis,
+            error = similarError,
+            onAnalyze = { viewModel.analyzeSimilarStocks(similarQuery) }
+        )
+
         Text(
             text = "预设策略",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold
         )
 
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            presets.chunked(4).forEach { row ->
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            presets.chunked(2).forEach { row ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     row.forEach { preset ->
                         FilterChip(
@@ -155,14 +176,26 @@ fun ScreenerScreen(
                                 viewModel.startScreener()
                             },
                             label = {
-                                Text(preset, fontSize = 11.sp)
+                                Text(
+                                    text = preset,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    fontSize = 12.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    textAlign = TextAlign.Center
+                                )
                             },
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = MaterialTheme.colorScheme.primary,
                                 selectedLabelColor = MaterialTheme.colorScheme.onPrimary
                             ),
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(42.dp)
                         )
+                    }
+                    if (row.size == 1) {
+                        Spacer(modifier = Modifier.weight(1f))
                     }
                 }
             }
@@ -191,7 +224,9 @@ fun ScreenerScreen(
         StarPrimaryButton(
             text = if (isRunning) "筛选中..." else "开始选股",
             onClick = { viewModel.startScreener() },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp)
         )
 
         LazyColumn(
@@ -261,17 +296,32 @@ fun ScreenerScreen(
                     FilterChip(
                         selected = maUp,
                         onClick = { viewModel.setMA60UpFilter(!maUp) },
-                        label = { Text("均线多头") }
+                        label = {
+                            Text("均线多头", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(42.dp)
                     )
                     FilterChip(
                         selected = macd,
                         onClick = { viewModel.setMACDGoldCrossFilter(!macd) },
-                        label = { Text("MACD金叉") }
+                        label = {
+                            Text("MACD金叉", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(42.dp)
                     )
                     FilterChip(
                         selected = breakthrough,
                         onClick = { viewModel.setBreakthroughMA(!breakthrough) },
-                        label = { Text("突破形态") }
+                        label = {
+                            Text("突破形态", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(42.dp)
                     )
                 }
 
@@ -290,6 +340,7 @@ fun ScreenerScreen(
                             maxROE = "50"
                         },
                         modifier = Modifier.weight(1f)
+                            .height(48.dp)
                     ) {
                         Text("重置")
                     }
@@ -301,7 +352,9 @@ fun ScreenerScreen(
                             viewModel.startScreener()
                             showFilterSheet = false
                         },
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp)
                     ) {
                         Text("应用筛选")
                     }
@@ -330,7 +383,9 @@ fun ScreenerScreen(
                         selectedStock = null
                         onNavigateToMarket(stock.symbol)
                     },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
                 ) {
                     Text("查看行情")
                 }
@@ -339,7 +394,9 @@ fun ScreenerScreen(
                         onAddFavorite(stock.symbol, stock.name)
                         selectedStock = null
                     },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
                 ) {
                     Text("加入自选")
                 }
@@ -348,12 +405,130 @@ fun ScreenerScreen(
                         selectedStock = null
                         onNavigateToStrategy(stock.symbol)
                     },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
                 ) {
                     Text("创建策略")
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun SimilarStockCard(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    analysis: SimilarStockAnalysis?,
+    error: String?,
+    onAnalyze: () -> Unit
+) {
+    StarCard(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "相似股票",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                analysis?.let {
+                    Text(
+                        text = "已筛出 ${it.results.size} 只",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextSecondary
+                    )
+                }
+            }
+            OutlinedTextField(
+                value = query,
+                onValueChange = onQueryChange,
+                label = { Text("股票代码或名称") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+            StarPrimaryButton(
+                text = "分析相似",
+                onClick = onAnalyze,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+            )
+            error?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+            analysis?.let {
+                Text(
+                    text = "${it.seed.name} ${it.seed.symbol}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                FeatureTagGrid(tags = it.features)
+            }
+        }
+    }
+}
+
+@Composable
+private fun FeatureTagGrid(tags: List<StockFeatureTag>) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        tags.chunked(2).forEach { row ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                row.forEach { tag ->
+                    FeatureTagItem(
+                        tag = tag,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(58.dp)
+                    )
+                }
+                if (row.size == 1) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FeatureTagItem(
+    tag: StockFeatureTag,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .background(BrandPrimary.copy(alpha = 0.08f), RoundedCornerShape(10.dp))
+            .padding(horizontal = 10.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            text = tag.label,
+            style = MaterialTheme.typography.labelMedium,
+            color = BrandPrimary,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1
+        )
+        Text(
+            text = tag.detail,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 

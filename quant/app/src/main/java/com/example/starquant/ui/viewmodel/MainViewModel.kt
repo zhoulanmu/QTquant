@@ -41,6 +41,17 @@ data class MarketIndexDefinition(
     val name: String
 )
 
+data class TradeNotice(
+    val id: Int,
+    val type: String,
+    val symbol: String,
+    val name: String,
+    val price: Double,
+    val volume: Double,
+    val amount: Double,
+    val fee: Double
+)
+
 data class StrategyRuntime(
     val id: Int,
     val config: StrategyConfig,
@@ -69,6 +80,7 @@ class MainViewModel : ViewModel() {
     private val repository = MarketDataRepository()
     private val screenerViewModel = ScreenerViewModel()
     private val runtimeIds = AtomicInteger(1)
+    private val tradeNoticeIds = AtomicInteger(1)
 
     private var quoteJob: Job? = null
 
@@ -105,6 +117,9 @@ class MainViewModel : ViewModel() {
     private val _signals = MutableStateFlow<List<StrategySignal>>(emptyList())
     val signals: StateFlow<List<StrategySignal>> = _signals.asStateFlow()
 
+    private val _tradeNotices = MutableStateFlow<List<TradeNotice>>(emptyList())
+    val tradeNotices: StateFlow<List<TradeNotice>> = _tradeNotices.asStateFlow()
+
     val marketIndexDefinitions = listOf(
         MarketIndexDefinition("000001.SH", "上证指数"),
         MarketIndexDefinition("399001.SZ", "深证成指"),
@@ -136,6 +151,10 @@ class MainViewModel : ViewModel() {
     fun getFavoriteStocks(): List<Pair<String, String>> = _favoriteStocks.value.toList()
 
     fun getScreenerViewModel(): ScreenerViewModel = screenerViewModel
+
+    fun dismissTradeNotice(id: Int) {
+        _tradeNotices.value = _tradeNotices.value.filterNot { it.id == id }
+    }
 
     fun login(username: String, password: String): Boolean {
         val name = username.trim()
@@ -456,22 +475,22 @@ class MainViewModel : ViewModel() {
         }
         positions[symbol] = updatedPosition
 
+        val record = TradeRecord(
+            time = tradeTime(),
+            symbol = symbol,
+            type = "买入",
+            price = price,
+            volume = lotSize,
+            amount = amount,
+            fee = fees.total
+        )
+
         _accountState.value = account.copy(
             currentCash = account.currentCash - cashOut,
             positions = positions,
-            tradeRecords = newTradeRecords(
-                account,
-                TradeRecord(
-                    time = tradeTime(),
-                    symbol = symbol,
-                    type = "买入",
-                    price = price,
-                    volume = lotSize,
-                    amount = amount,
-                    fee = fees.total
-                )
-            )
+            tradeRecords = newTradeRecords(account, record)
         )
+        enqueueTradeNotice(record)
     }
 
     private fun executeSell(
@@ -520,22 +539,22 @@ class MainViewModel : ViewModel() {
             SignalType.TAKE_PROFIT -> "止盈"
             else -> "卖出"
         }
+        val record = TradeRecord(
+            time = tradeTime(),
+            symbol = symbol,
+            type = type,
+            price = price,
+            volume = lotSize,
+            amount = amount,
+            fee = fees.total
+        )
+
         _accountState.value = account.copy(
             currentCash = account.currentCash + cashIn,
             positions = positions,
-            tradeRecords = newTradeRecords(
-                account,
-                TradeRecord(
-                    time = tradeTime(),
-                    symbol = symbol,
-                    type = type,
-                    price = price,
-                    volume = lotSize,
-                    amount = amount,
-                    fee = fees.total
-                )
-            )
+            tradeRecords = newTradeRecords(account, record)
         )
+        enqueueTradeNotice(record)
     }
 
     private fun updatePositionsFromQuote(data: MarketData) {
@@ -573,6 +592,28 @@ class MainViewModel : ViewModel() {
 
     private fun newTradeRecords(account: AccountState, record: TradeRecord): MutableList<TradeRecord> {
         return (listOf(record) + account.tradeRecords).take(500).toMutableList()
+    }
+
+    private fun enqueueTradeNotice(record: TradeRecord) {
+        val notice = TradeNotice(
+            id = tradeNoticeIds.getAndIncrement(),
+            type = record.type,
+            symbol = record.symbol,
+            name = displayNameForSymbol(record.symbol),
+            price = record.price,
+            volume = record.volume,
+            amount = record.amount,
+            fee = record.fee
+        )
+        _tradeNotices.value = (_tradeNotices.value + notice).takeLast(8)
+    }
+
+    private fun displayNameForSymbol(symbol: String): String {
+        return _favoriteStocks.value[symbol]
+            ?: _favoriteQuotes.value[symbol]?.name
+            ?: _quoteData.value?.takeIf { SymbolHelper.normalizeSymbol(it.symbol) == symbol }?.name
+            ?: _accountState.value.positions[symbol]?.name
+            ?: ""
     }
 
     private fun roundDownToBoardLot(shares: Double): Double {

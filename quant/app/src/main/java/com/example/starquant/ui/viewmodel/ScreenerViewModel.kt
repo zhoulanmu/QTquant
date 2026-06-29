@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.starquant.data.model.ScreenerFilter
 import com.example.starquant.data.model.ScreenerFilterType
+import com.example.starquant.data.model.SimilarStockAnalysis
 import com.example.starquant.data.model.StockInfo
 import com.example.starquant.domain.screener.StockScreener
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,6 +33,12 @@ class ScreenerViewModel : ViewModel() {
     private val _filterSummary = MutableStateFlow("默认（全部股票）")
     val filterSummary: StateFlow<String> = _filterSummary.asStateFlow()
 
+    private val _similarAnalysis = MutableStateFlow<SimilarStockAnalysis?>(null)
+    val similarAnalysis: StateFlow<SimilarStockAnalysis?> = _similarAnalysis.asStateFlow()
+
+    private val _similarError = MutableStateFlow<String?>(null)
+    val similarError: StateFlow<String?> = _similarError.asStateFlow()
+
     init {
         viewModelScope.launch {
             screener.results.collect { _results.value = it }
@@ -54,6 +61,7 @@ class ScreenerViewModel : ViewModel() {
     fun getPresetStrategies(): List<String> = screener.getPresetStrategies()
 
     fun startScreener() {
+        clearSimilarAnalysis()
         viewModelScope.launch {
             screener.startScreener()
         }
@@ -61,12 +69,27 @@ class ScreenerViewModel : ViewModel() {
 
     fun resetFilters() {
         _selectedPreset.value = null
+        clearSimilarAnalysis()
         screener.resetFilters()
     }
 
     fun applyPreset(name: String) {
+        clearSimilarAnalysis()
         screener.applyPreset(name)
         _selectedPreset.value = name
+    }
+
+    fun analyzeSimilarStocks(query: String) {
+        val trimmed = query.trim()
+        _selectedPreset.value = null
+        if (trimmed.isEmpty()) {
+            _similarAnalysis.value = null
+            _similarError.value = "请输入股票代码或名称"
+            return
+        }
+        val analysis = screener.analyzeSimilarStocks(trimmed)
+        _similarAnalysis.value = analysis
+        _similarError.value = if (analysis == null) "未找到匹配股票" else null
     }
 
     fun setPriceRange(min: Double, max: Double) {
@@ -131,6 +154,12 @@ class ScreenerViewModel : ViewModel() {
 
     private fun clearPreset() {
         _selectedPreset.value = null
+        clearSimilarAnalysis()
+    }
+
+    private fun clearSimilarAnalysis() {
+        _similarAnalysis.value = null
+        _similarError.value = null
     }
 
     private fun buildFilterSummary(filters: List<ScreenerFilter>): String {

@@ -48,6 +48,17 @@ data class StockInfo(
     var updateTime: Date = Date()
 )
 
+data class StockFeatureTag(
+    val label: String,
+    val detail: String
+)
+
+data class SimilarStockAnalysis(
+    val seed: StockInfo,
+    val features: List<StockFeatureTag>,
+    val results: List<StockInfo>
+)
+
 data class PositionInfo(
     var symbol: String = "",
     var name: String = "",
