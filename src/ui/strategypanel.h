@@ -73,6 +73,7 @@ public:
     double getLotSize() const;
     QString currentStrategyName() const;
     QString currentStrategyConfigurationSummary() const;
+    QString stockDisplayText(const QString& symbol) const;
     QVector<StrategyInstanceInfo> strategyInstances();
     StrategyInstanceInfo strategyInstance(int strategyId);
     int currentStrategyInstanceId() const;

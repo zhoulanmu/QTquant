@@ -979,7 +979,7 @@ void MainWindow::onStrategyMarketDataUpdated(int strategyId, const MarketData& d
     if (!runtime->firstQuoteLogged) {
         runtime->firstQuoteLogged = true;
         ui->strategyPanel->addStrategyLog(strategyRuntimeLogLabel(runtime), QStringLiteral("行情就绪：%1 @ %2")
-            .arg(data.symbol)
+            .arg(ui->strategyPanel->stockDisplayText(data.symbol))
             .arg(data.close, 0, 'f', 2));
     }
 
@@ -1231,22 +1231,23 @@ void MainWindow::onStrategySignal(int strategyId, const StrategySignal &signal)
     const QString label = runtime ? strategyRuntimeLogLabel(runtime) : QStringLiteral("策略 %1").arg(strategyDisplayIndex(strategyId));
     ui->strategyPanel->addSignalLog(signal, label);
 
+    const QString signalSymbolText = ui->strategyPanel->stockDisplayText(signal.symbol);
     QString signalText;
     switch (signal.type) {
     case SignalType::BUY:
-        signalText = QStringLiteral("[买入信号] %1 @ %2").arg(signal.symbol).arg(signal.price, 0, 'f', 2);
+        signalText = QStringLiteral("[买入信号] %1 @ %2").arg(signalSymbolText).arg(signal.price, 0, 'f', 2);
         break;
     case SignalType::SELL:
-        signalText = QStringLiteral("[卖出信号] %1 @ %2").arg(signal.symbol).arg(signal.price, 0, 'f', 2);
+        signalText = QStringLiteral("[卖出信号] %1 @ %2").arg(signalSymbolText).arg(signal.price, 0, 'f', 2);
         break;
     case SignalType::STOP_LOSS:
-        signalText = QStringLiteral("[止损信号] %1 @ %2").arg(signal.symbol).arg(signal.price, 0, 'f', 2);
+        signalText = QStringLiteral("[止损信号] %1 @ %2").arg(signalSymbolText).arg(signal.price, 0, 'f', 2);
         break;
     case SignalType::TAKE_PROFIT:
-        signalText = QStringLiteral("[止盈信号] %1 @ %2").arg(signal.symbol).arg(signal.price, 0, 'f', 2);
+        signalText = QStringLiteral("[止盈信号] %1 @ %2").arg(signalSymbolText).arg(signal.price, 0, 'f', 2);
         break;
     default:
-        signalText = QStringLiteral("[策略信号] %1 @ %2").arg(signal.symbol).arg(signal.price, 0, 'f', 2);
+        signalText = QStringLiteral("[策略信号] %1 @ %2").arg(signalSymbolText).arg(signal.price, 0, 'f', 2);
         break;
     }
 
@@ -1971,7 +1972,7 @@ QString MainWindow::strategyRuntimeLogLabel(const StrategyRuntime* runtime) cons
         : QStringLiteral("双均线");
     const QString symbol = runtime->config.symbol.trimmed().isEmpty()
         ? QStringLiteral("未设置")
-        : runtime->config.symbol;
+        : ui->strategyPanel->stockDisplayText(runtime->config.symbol);
     return QStringLiteral("策略 %1 - %2 - %3 - %4")
         .arg(strategyDisplayIndex(runtime->id))
         .arg(strategyName, accountText, symbol);
@@ -1987,7 +1988,7 @@ QString MainWindow::strategyInstanceLogLabel(const StrategyInstanceInfo& instanc
         : QStringLiteral("双均线");
     const QString symbol = instance.config.symbol.trimmed().isEmpty()
         ? QStringLiteral("未设置")
-        : instance.config.symbol;
+        : ui->strategyPanel->stockDisplayText(instance.config.symbol);
     return QStringLiteral("策略 %1 - %2 - %3 - %4")
         .arg(strategyDisplayIndex(instance.id))
         .arg(strategyName, accountText, symbol);

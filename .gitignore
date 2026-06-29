@@ -87,3 +87,6 @@ win64/
 
 # Code model files (CLion)
 cmake-build-debug/cmake/api/
+
+# Android SDK
+android-sdk/

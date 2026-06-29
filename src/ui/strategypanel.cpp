@@ -610,16 +610,17 @@ QString StrategyPanel::currentStrategyName() const
 QString StrategyPanel::currentStrategyConfigurationSummary() const
 {
     const StrategyConfig config = strategyConfig();
+    const QString symbolText = stockDisplayText(config.symbol);
     if (config.strategyType == StrategyType::ProsperityGrowth) {
         return QStringLiteral("%1；标的:%2；赛道:%3；仓位上限:%4%；分散:%5；短期止盈:%6%")
-            .arg(currentStrategyName(), config.symbol, selectedGrowthTracks())
+            .arg(currentStrategyName(), symbolText, selectedGrowthTracks())
             .arg(config.positionConfig.maxSingleTrackPercent, 0, 'f', 1)
             .arg(config.positionConfig.diversifyTrackCount)
             .arg(config.riskConfig.surgeTakeProfitPercent, 0, 'f', 1);
     }
 
     return QStringLiteral("%1；标的:%2；周期:%3分钟；快MA:%4 慢MA:%5 止损:%6% 止盈:%7%；差值:%8%；确认:%9根；冷却:%10根；数量:自动")
-        .arg(currentStrategyName(), config.symbol)
+        .arg(currentStrategyName(), symbolText)
         .arg(config.doubleMAConfig.barPeriodMinutes)
         .arg(config.doubleMAConfig.fastMA)
         .arg(config.doubleMAConfig.slowMA)
@@ -826,26 +827,39 @@ void StrategyPanel::setManualTradePrice(const QString& symbol, double price)
 void StrategyPanel::rememberStockName(const QString& symbol, const QString& name)
 {
     const QString normalized = MarketDataSimulator::normalizeSymbol(symbol);
-    if (!isValidMarketSymbol(normalized) || name.trimmed().isEmpty()) {
+    const QString trimmedName = name.trimmed();
+    if (!isValidMarketSymbol(normalized) || trimmedName.isEmpty()) {
         return;
     }
 
-    if (m_stockNames.value(normalized) == name.trimmed()) {
-        return;
+    const bool changed = m_stockNames.value(normalized) != trimmedName;
+    if (changed) {
+        m_stockNames[normalized] = trimmedName;
     }
-
-    m_stockNames[normalized] = name.trimmed();
     if (MarketDataSimulator::normalizeSymbol(getViewSymbol()) == normalized) {
+        m_updatingSymbol = true;
+        ui->symbolEdit->setText(stockDisplayText(normalized));
+        m_updatingSymbol = false;
         saveViewSymbol();
     }
     if (MarketDataSimulator::normalizeSymbol(getStrategySymbol()) == normalized) {
+        if (m_strategySymbolEdit) {
+            m_updatingSymbol = true;
+            m_strategySymbolEdit->setText(stockDisplayText(normalized));
+            m_updatingSymbol = false;
+        }
         saveStrategySymbol();
+        updateStrategyPresetDescription();
     }
 
     if (m_favorites.contains(normalized)) {
         refreshWatchlist();
-        saveWatchlist();
+        if (changed) {
+            saveWatchlist();
+        }
     }
+
+    refreshStrategyInstanceList();
 }
 
 void StrategyPanel::setupStrategyInstanceUi()
@@ -1027,7 +1041,7 @@ void StrategyPanel::loadStrategyInstanceIntoEditor(int index)
         m_strategyPresetCombo->setCurrentIndex(presetIndexForStrategyType(instance.config.strategyType));
     }
     if (m_strategySymbolEdit) {
-        m_strategySymbolEdit->setText(instance.config.symbol);
+        m_strategySymbolEdit->setText(stockDisplayText(instance.config.symbol));
     }
     ui->fastMASpin->setValue(instance.config.doubleMAConfig.fastMA);
     ui->slowMASpin->setValue(instance.config.doubleMAConfig.slowMA);
@@ -1192,7 +1206,7 @@ QString StrategyPanel::strategyInstanceDisplayText(const StrategyInstanceInfo& i
         : (instance.waiting ? QStringLiteral("等待") : QStringLiteral("空闲"));
     return QStringLiteral("策略 %1 | %2 | %3 | %4 | %5")
         .arg(displayIndex)
-        .arg(strategyTypeDisplayName(instance.config.strategyType), accountText, instance.config.symbol, stateText);
+        .arg(strategyTypeDisplayName(instance.config.strategyType), accountText, stockDisplayText(instance.config.symbol), stateText);
 }
 void StrategyPanel::setupCommonStrategyUi()
 {
@@ -1289,7 +1303,7 @@ void StrategyPanel::updateStrategyPresetDescription()
     const StrategyConfig config = strategyConfig();
     const QString symbolText = config.symbol.trimmed().isEmpty()
         ? QStringLiteral("未设置")
-        : config.symbol;
+        : stockDisplayText(config.symbol);
     const QString description = presets.at(index).description;
 
     if (config.strategyType == StrategyType::DoubleMA) {
@@ -1729,7 +1743,7 @@ void StrategyPanel::loadViewSymbol()
 
 void StrategyPanel::saveViewSymbol() const
 {
-    const QString symbol = MarketDataSimulator::normalizeSymbol(ui->symbolEdit->text());
+    const QString symbol = MarketDataSimulator::normalizeSymbol(getViewSymbol());
     if (!isValidMarketSymbol(symbol)) {
         return;
     }
@@ -1770,7 +1784,7 @@ void StrategyPanel::saveStrategySymbol() const
         return;
     }
 
-    const QString symbol = MarketDataSimulator::normalizeSymbol(m_strategySymbolEdit->text());
+    const QString symbol = MarketDataSimulator::normalizeSymbol(getStrategySymbol());
     if (!isValidMarketSymbol(symbol)) {
         return;
     }
@@ -2014,7 +2028,7 @@ void StrategyPanel::selectSymbol(const QString& symbol, const QString& name, boo
     }
 
     m_updatingSymbol = true;
-    ui->symbolEdit->setText(normalized);
+    ui->symbolEdit->setText(stockDisplayText(normalized));
     updateSearchSuggestions(normalized);
     m_updatingSymbol = false;
     saveViewSymbol();
@@ -2040,7 +2054,7 @@ void StrategyPanel::selectStrategySymbol(const QString& symbol, const QString& n
     }
 
     m_updatingSymbol = true;
-    m_strategySymbolEdit->setText(normalized);
+    m_strategySymbolEdit->setText(stockDisplayText(normalized));
     updateSearchSuggestions(normalized);
     m_updatingSymbol = false;
     saveStrategySymbol();
@@ -2139,6 +2153,19 @@ QString StrategyPanel::stockNameForSymbol(const QString& symbol) const
     }
 
     return QString();
+}
+
+QString StrategyPanel::stockDisplayText(const QString& symbol) const
+{
+    const QString normalized = MarketDataSimulator::normalizeSymbol(symbol);
+    if (!isValidMarketSymbol(normalized)) {
+        return symbol.trimmed();
+    }
+
+    const QString name = stockNameForSymbol(normalized).trimmed();
+    return name.isEmpty()
+        ? normalized
+        : QStringLiteral("%1  %2").arg(name, normalized);
 }
 
 QVector<StockCandidate> StrategyPanel::localStockCatalog() const

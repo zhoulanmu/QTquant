@@ -202,6 +202,14 @@ StarQuant_autogen/mocs_compilation.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/StarQuant_autogen/mocs_compilation.cpp.s
 .PHONY : StarQuant_autogen/mocs_compilation.cpp.s
 
+resources/starquant.obj: resources/starquant.rc.obj
+.PHONY : resources/starquant.obj
+
+# target to build an object file
+resources/starquant.rc.obj:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\StarQuant.dir\build.make CMakeFiles/StarQuant.dir/resources/starquant.rc.obj
+.PHONY : resources/starquant.rc.obj
+
 src/indicator/indicators.obj: src/indicator/indicators.cpp.obj
 .PHONY : src/indicator/indicators.obj
 
@@ -603,6 +611,7 @@ help:
 	@echo ... StarQuant_autogen/mocs_compilation.obj
 	@echo ... StarQuant_autogen/mocs_compilation.i
 	@echo ... StarQuant_autogen/mocs_compilation.s
+	@echo ... resources/starquant.obj
 	@echo ... src/indicator/indicators.obj
 	@echo ... src/indicator/indicators.i
 	@echo ... src/indicator/indicators.s
